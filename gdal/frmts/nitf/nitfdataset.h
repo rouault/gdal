@@ -89,9 +89,9 @@ class NITFDataset final: public GDALPamDataset
 
 #ifdef ESRI_BUILD
     void         InitializeNITFDESMetadata();
-    void         InitializeNITFDESs();
     void         InitializeNITFTREs();
 #endif
+    void         InitializeNITFDESs();
     void         InitializeNITFMetadata();
     void         InitializeCGMMetadata();
     void         InitializeTextMetadata();
