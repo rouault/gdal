@@ -37,6 +37,7 @@ import array
 import struct
 import shutil
 from osgeo import gdal
+from osgeo import ogr
 from osgeo import osr
 
 
@@ -2663,6 +2664,154 @@ def test_nitf_75():
   </tre>
 </tres>
 """ % (len_listing_AG1, gdal.EscapeString(listing_AG1, gdal.CPLES_XML))
+
+    assert data == expected_data
+###############################################################################
+# Test creation and reading of Data Extension Segments (DES)
+
+def test_nitf_des():
+    des_data = "02U" + " "*166 + r'0004ABCD1234567\0890'
+
+    ds = gdal.GetDriverByName("NITF").Create("/vsimem/nitf_DES.ntf", 1, 1, options=["DES=DES1=" + des_data, "DES=DES2=" + des_data])
+    ds = None
+
+    # DESDATA portion will be Base64 encoded on output
+    # base64.b64encode(bytes("1234567\x00890", "utf-8")) == b'MTIzNDU2NwA4OTA='
+    ds = gdal.Open("/vsimem/nitf_DES.ntf")
+    data = ds.GetMetadata("xml:DES")[0]
+    ds = None
+
+    gdal.GetDriverByName('NITF').Delete('/vsimem/nitf_DES.ntf')
+
+    expected_data = """<des_list>
+  <des name="DES1">
+    <field name="DESVER" value="02" />
+    <field name="DECLAS" value="U" />
+    <field name="DESCLSY" value="" />
+    <field name="DESCODE" value="" />
+    <field name="DESCTLH" value="" />
+    <field name="DESREL" value="" />
+    <field name="DESDCTP" value="" />
+    <field name="DESDCDT" value="" />
+    <field name="DESDCXM" value="" />
+    <field name="DESDG" value="" />
+    <field name="DESDGDT" value="" />
+    <field name="DESCLTX" value="" />
+    <field name="DESCATP" value="" />
+    <field name="DESCAUT" value="" />
+    <field name="DESCRSN" value="" />
+    <field name="DESSRDT" value="" />
+    <field name="DESCTLN" value="" />
+    <field name="DESSHL" value="0004" />
+    <field name="DESSHF" value="ABCD" />
+    <field name="DESDATA" value="MTIzNDU2NwA4OTA=" />
+  </des>
+  <des name="DES2">
+    <field name="DESVER" value="02" />
+    <field name="DECLAS" value="U" />
+    <field name="DESCLSY" value="" />
+    <field name="DESCODE" value="" />
+    <field name="DESCTLH" value="" />
+    <field name="DESREL" value="" />
+    <field name="DESDCTP" value="" />
+    <field name="DESDCDT" value="" />
+    <field name="DESDCXM" value="" />
+    <field name="DESDG" value="" />
+    <field name="DESDGDT" value="" />
+    <field name="DESCLTX" value="" />
+    <field name="DESCATP" value="" />
+    <field name="DESCAUT" value="" />
+    <field name="DESCRSN" value="" />
+    <field name="DESSRDT" value="" />
+    <field name="DESCTLN" value="" />
+    <field name="DESSHL" value="0004" />
+    <field name="DESSHF" value="ABCD" />
+    <field name="DESDATA" value="MTIzNDU2NwA4OTA=" />
+  </des>
+</des_list>
+"""
+
+    assert data == expected_data
+
+###############################################################################
+# Test creation and reading of Data Extension Segments (DES)
+
+def test_nitf_des_CSSHPA():
+
+    ds = ogr.GetDriverByName('ESRI Shapefile').CreateDataSource('/vsimem/tmp.shp')
+    lyr = ds.CreateLayer('tmp', geom_type = ogr.wkbPolygon, options = ['DBF_DATE_LAST_UPDATE=2021-01-01'])
+    lyr.CreateField(ogr.FieldDefn("ID", ogr.OFTInteger))
+    f = ogr.Feature(lyr.GetLayerDefn())
+    f.SetField("ID", 1)
+    f.SetGeometryDirectly(ogr.CreateGeometryFromWkt('POLYGON((2 49,2 50,3 50,3 49,2 49))'))
+    lyr.CreateFeature(f)
+    ds = None
+
+    files = {}
+    for ext in ('shp', 'shx', 'dbf'):
+        f = gdal.VSIFOpenL('/vsimem/tmp.' + ext, 'rb')
+        files[ext] = gdal.VSIFReadL(1, 1000000, f)
+        gdal.VSIFCloseL(f)
+    ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('/vsimem/tmp.shp')
+
+    shp_offset = 0
+    shx_offset = shp_offset + len(files['shp'])
+    dbf_offset = shx_offset + len(files['shx'])
+    shp_shx_dbf = files['shp'] + files['shx'] + files['dbf']
+
+    des_data = b"02U" + b" "*166 + ('0080CLOUD_SHAPES             POLYGON   SOURCE123456789ABCSHP%06dSHX%06dDBF%06d' % (shp_offset, shx_offset, dbf_offset)).encode('ascii') + shp_shx_dbf
+
+    # gdal.EscapeString() does not work properly with GDAL 2.4 on Python3 as it returns a (unicode) string instead of a bytearray
+    #escaped_data = gdal.EscapeString(des_data, gdal.CPLES_BackslashQuotable)
+    escaped_data = des_data.replace(b'\\', b'\\\\').replace(b'\0', b'\\0').replace(b'\"', b'\\"').replace(b'\n', b'\\n')
+
+    ds = gdal.GetDriverByName("NITF").Create("/vsimem/nitf_DES.ntf", 1, 1, options=[b"DES=CSSHPA DES=" + escaped_data])
+    ds = None
+
+    ds = gdal.Open("/vsimem/nitf_DES.ntf")
+    data = ds.GetMetadata("xml:DES")[0]
+    ds = None
+
+    gdal.GetDriverByName('NITF').Delete('/vsimem/nitf_DES.ntf')
+
+    import base64
+    expected_data = """<des_list>
+  <des name="CSSHPA DES">
+    <field name="DESVER" value="02" />
+    <field name="DECLAS" value="U" />
+    <field name="DESCLSY" value="" />
+    <field name="DESCODE" value="" />
+    <field name="DESCTLH" value="" />
+    <field name="DESREL" value="" />
+    <field name="DESDCTP" value="" />
+    <field name="DESDCDT" value="" />
+    <field name="DESDCXM" value="" />
+    <field name="DESDG" value="" />
+    <field name="DESDGDT" value="" />
+    <field name="DESCLTX" value="" />
+    <field name="DESCATP" value="" />
+    <field name="DESCAUT" value="" />
+    <field name="DESCRSN" value="" />
+    <field name="DESSRDT" value="" />
+    <field name="DESCTLN" value="" />
+    <field name="DESSHL" value="0080" />
+    <field name="DESSHF" value="CLOUD_SHAPES             POLYGON   SOURCE123456789ABCSHP000000SHX000236DBF000344">
+      <user_defined_fields>
+        <field name="SHAPE_USE" value="CLOUD_SHAPES" />
+        <field name="SHAPE_CLASS" value="POLYGON" />
+        <field name="CC_SOURCE" value="SOURCE123456789ABC" />
+        <field name="SHAPE1_NAME" value="SHP" />
+        <field name="SHAPE1_START" value="000000" />
+        <field name="SHAPE2_NAME" value="SHX" />
+        <field name="SHAPE2_START" value="000236" />
+        <field name="SHAPE3_NAME" value="DBF" />
+        <field name="SHAPE3_START" value="000344" />
+      </user_defined_fields>
+    </field>
+    <field name="DESDATA" value="%s" />
+  </des>
+</des_list>
+""" % base64.b64encode(shp_shx_dbf).decode('ascii')
 
     assert data == expected_data
 
