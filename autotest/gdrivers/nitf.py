@@ -2761,9 +2761,7 @@ def test_nitf_des_CSSHPA():
 
     des_data = b"02U" + b" "*166 + ('0080CLOUD_SHAPES             POLYGON   SOURCE123456789ABCSHP%06dSHX%06dDBF%06d' % (shp_offset, shx_offset, dbf_offset)).encode('ascii') + shp_shx_dbf
 
-    # gdal.EscapeString() does not work properly with GDAL 2.4 on Python3 as it returns a (unicode) string instead of a bytearray
-    #escaped_data = gdal.EscapeString(des_data, gdal.CPLES_BackslashQuotable)
-    escaped_data = des_data.replace(b'\\', b'\\\\').replace(b'\0', b'\\0').replace(b'\"', b'\\"').replace(b'\n', b'\\n')
+    escaped_data = gdal.EscapeString(des_data, gdal.CPLES_BackslashQuotable)
 
     ds = gdal.GetDriverByName("NITF").Create("/vsimem/nitf_DES.ntf", 1, 1, options=[b"DES=CSSHPA DES=" + escaped_data])
     ds = None
