@@ -483,6 +483,33 @@ CreateTupleFromDoubleArray( int *first, unsigned int size ) {
   }
 }
 
+%typemap(in,numinputs=0) (size_t *nLen, char **pBuf ) ( size_t nLen = 0, char *pBuf = 0 )
+{
+  /* %typemap(in,numinputs=0) (size_t *nLen, char **pBuf ) */
+  $1 = &nLen;
+  $2 = &pBuf;
+}
+%typemap(argout) (size_t *nLen, char **pBuf )
+{
+  /* %typemap(argout) (size_t *nLen, char **pBuf ) */
+  Py_XDECREF($result);
+  if( *$2 ) {
+      $result = PyByteArray_FromStringAndSize( *$2, *$1 );
+  }
+  else {
+      $result = Py_None;
+      Py_INCREF(Py_None);
+  }
+}
+%typemap(freearg) (size_t *nLen, char **pBuf )
+{
+  /* %typemap(freearg) (size_t *nLen, char **pBuf ) */
+  if( *$1 ) {
+    VSIFree( *$2 );
+  }
+}
+
+
 
 %typemap(in,numinputs=1) (int nLen, char *pBuf ) (int alloc = 0)
 {

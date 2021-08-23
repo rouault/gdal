@@ -4027,8 +4027,14 @@ SWIG_AsVal_int (PyObject * obj, int *val)
 }
 
 
-retStringAndCPLFree* EscapeString(int len, char *bin_string , int scheme=CPLES_SQL) {
+retStringAndCPLFree* wrapper_EscapeString(int len, char *bin_string , int scheme=CPLES_SQL) {
     return CPLEscapeString(bin_string, len, scheme);
+}
+
+
+void EscapeBinary(int len, char *bin_string, size_t *pnLenOut, char** pOut, int scheme=CPLES_SQL) {
+    *pOut = CPLEscapeString(bin_string, len, scheme);
+    *pnLenOut = *pOut ? strlen(*pOut) : 0;
 }
 
 
@@ -7806,7 +7812,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_EscapeString(PyObject *SWIGUNUSEDPARM(self), PyObject *args, PyObject *kwargs) {
+SWIGINTERN PyObject *_wrap_wrapper_EscapeString(PyObject *SWIGUNUSEDPARM(self), PyObject *args, PyObject *kwargs) {
   PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
   int arg1 ;
   char *arg2 = (char *) 0 ;
@@ -7821,7 +7827,7 @@ SWIGINTERN PyObject *_wrap_EscapeString(PyObject *SWIGUNUSEDPARM(self), PyObject
   };
   retStringAndCPLFree *result = 0 ;
   
-  if (!PyArg_ParseTupleAndKeywords(args,kwargs,(char *)"O|O:EscapeString",kwnames,&obj0,&obj1)) SWIG_fail;
+  if (!PyArg_ParseTupleAndKeywords(args,kwargs,(char *)"O|O:wrapper_EscapeString",kwnames,&obj0,&obj1)) SWIG_fail;
   {
     /* %typemap(in,numinputs=1) (int nLen, char *pBuf ) */
     {
@@ -7889,7 +7895,7 @@ SWIGINTERN PyObject *_wrap_EscapeString(PyObject *SWIGUNUSEDPARM(self), PyObject
   if (obj1) {
     ecode3 = SWIG_AsVal_int(obj1, &val3);
     if (!SWIG_IsOK(ecode3)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "EscapeString" "', argument " "3"" of type '" "int""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "wrapper_EscapeString" "', argument " "3"" of type '" "int""'");
     } 
     arg3 = static_cast< int >(val3);
   }
@@ -7899,7 +7905,7 @@ SWIGINTERN PyObject *_wrap_EscapeString(PyObject *SWIGUNUSEDPARM(self), PyObject
     }
     {
       SWIG_PYTHON_THREAD_BEGIN_ALLOW;
-      result = (retStringAndCPLFree *)EscapeString(arg1,arg2,arg3);
+      result = (retStringAndCPLFree *)wrapper_EscapeString(arg1,arg2,arg3);
       SWIG_PYTHON_THREAD_END_ALLOW;
     }
 #ifndef SED_HACKS
@@ -7938,6 +7944,162 @@ fail:
     /* %typemap(freearg) (int *nLen, char *pBuf ) */
     if (ReturnSame(alloc1) == SWIG_NEWOBJ ) {
       delete[] arg2;
+    }
+  }
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_EscapeBinary(PyObject *SWIGUNUSEDPARM(self), PyObject *args, PyObject *kwargs) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  int arg1 ;
+  char *arg2 = (char *) 0 ;
+  size_t *arg3 = (size_t *) 0 ;
+  char **arg4 = (char **) 0 ;
+  int arg5 = (int) CPLES_SQL ;
+  int alloc1 = 0 ;
+  size_t nLen3 = 0 ;
+  char *pBuf3 = 0 ;
+  int val5 ;
+  int ecode5 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  char *  kwnames[] = {
+    (char *) "len",(char *) "scheme", NULL 
+  };
+  
+  {
+    /* %typemap(in,numinputs=0) (size_t *nLen3, char **pBuf3 ) */
+    arg3 = &nLen3;
+    arg4 = &pBuf3;
+  }
+  if (!PyArg_ParseTupleAndKeywords(args,kwargs,(char *)"O|O:EscapeBinary",kwnames,&obj0,&obj1)) SWIG_fail;
+  {
+    /* %typemap(in,numinputs=1) (int nLen, char *pBuf ) */
+    {
+      Py_ssize_t safeLen = 0;
+      const void *safeBuf = 0;
+      int res = PyObject_AsReadBuffer(obj0, &safeBuf, &safeLen);
+      if (res == 0) {
+        if( safeLen > INT_MAX ) {
+          SWIG_exception( SWIG_RuntimeError, "too large buffer (>2GB)" );
+        }
+        arg1 = (int) safeLen;
+        arg2 = (char *) safeBuf;
+        goto ok;
+      } else {
+        PyErr_Clear();
+      }
+    }
+#if PY_VERSION_HEX>=0x03000000
+    if (PyUnicode_Check(obj0))
+    {
+      size_t safeLen = 0;
+      int ret = SWIG_AsCharPtrAndSize(obj0, (char**) &arg2, &safeLen, &alloc1);
+      if (!SWIG_IsOK(ret)) {
+        SWIG_exception( SWIG_RuntimeError, "invalid Unicode string" );
+      }
+      
+      if (safeLen) safeLen--;
+      if( safeLen > INT_MAX ) {
+        SWIG_exception( SWIG_RuntimeError, "too large buffer (>2GB)" );
+      }
+      arg1 = (int) safeLen;
+    }
+    else if (PyBytes_Check(obj0))
+    {
+      Py_ssize_t safeLen = 0;
+      PyBytes_AsStringAndSize(obj0, (char**) &arg2, &safeLen);
+      if( safeLen > INT_MAX ) {
+        SWIG_exception( SWIG_RuntimeError, "too large buffer (>2GB)" );
+      }
+      arg1 = (int) safeLen;
+    }
+    else
+    {
+      PyErr_SetString(PyExc_TypeError, "not a unicode string or a bytes");
+      SWIG_fail;
+    }
+#else
+    if (PyString_Check(obj0))
+    {
+      Py_ssize_t safeLen = 0;
+      PyString_AsStringAndSize(obj0, (char**) &arg2, &safeLen);
+      if( safeLen > INT_MAX ) {
+        SWIG_exception( SWIG_RuntimeError, "too large buffer (>2GB)" );
+      }
+      arg1 = (int) safeLen;
+    }
+    else
+    {
+      PyErr_SetString(PyExc_TypeError, "not a string");
+      SWIG_fail;
+    }
+#endif
+    ok: ;
+  }
+  if (obj1) {
+    ecode5 = SWIG_AsVal_int(obj1, &val5);
+    if (!SWIG_IsOK(ecode5)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "EscapeBinary" "', argument " "5"" of type '" "int""'");
+    } 
+    arg5 = static_cast< int >(val5);
+  }
+  {
+    if ( bUseExceptions ) {
+      ClearErrorState();
+    }
+    {
+      SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+      EscapeBinary(arg1,arg2,arg3,arg4,arg5);
+      SWIG_PYTHON_THREAD_END_ALLOW;
+    }
+#ifndef SED_HACKS
+    if ( bUseExceptions ) {
+      CPLErr eclass = CPLGetLastErrorType();
+      if ( eclass == CE_Failure || eclass == CE_Fatal ) {
+        SWIG_exception( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      }
+    }
+#endif
+  }
+  resultobj = SWIG_Py_Void();
+  {
+    /* %typemap(argout) (size_t *nLen, char **pBuf ) */
+    Py_XDECREF(resultobj);
+    if( *arg4 ) {
+      resultobj = PyByteArray_FromStringAndSize( *arg4, *arg3 );
+    }
+    else {
+      resultobj = Py_None;
+      Py_INCREF(Py_None);
+    }
+  }
+  {
+    /* %typemap(freearg) (int *nLen, char *pBuf ) */
+    if (ReturnSame(alloc1) == SWIG_NEWOBJ ) {
+      delete[] arg2;
+    }
+  }
+  {
+    /* %typemap(freearg) (size_t *nLen, char **pBuf ) */
+    if( *arg3 ) {
+      VSIFree( *arg4 );
+    }
+  }
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  {
+    /* %typemap(freearg) (int *nLen, char *pBuf ) */
+    if (ReturnSame(alloc1) == SWIG_NEWOBJ ) {
+      delete[] arg2;
+    }
+  }
+  {
+    /* %typemap(freearg) (size_t *nLen, char **pBuf ) */
+    if( *arg3 ) {
+      VSIFree( *arg4 );
     }
   }
   return NULL;
@@ -35338,7 +35500,8 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"GOA2GetRefreshToken", _wrap_GOA2GetRefreshToken, METH_VARARGS, (char *)"GOA2GetRefreshToken(char const * pszAuthToken, char const * pszScope) -> retStringAndCPLFree *"},
 	 { (char *)"GOA2GetAccessToken", _wrap_GOA2GetAccessToken, METH_VARARGS, (char *)"GOA2GetAccessToken(char const * pszRefreshToken, char const * pszScope) -> retStringAndCPLFree *"},
 	 { (char *)"ErrorReset", _wrap_ErrorReset, METH_VARARGS, (char *)"ErrorReset()"},
-	 { (char *)"EscapeString", (PyCFunction) _wrap_EscapeString, METH_VARARGS | METH_KEYWORDS, (char *)"EscapeString(int len, int scheme) -> retStringAndCPLFree *"},
+	 { (char *)"wrapper_EscapeString", (PyCFunction) _wrap_wrapper_EscapeString, METH_VARARGS | METH_KEYWORDS, (char *)"wrapper_EscapeString(int len, int scheme) -> retStringAndCPLFree *"},
+	 { (char *)"EscapeBinary", (PyCFunction) _wrap_EscapeBinary, METH_VARARGS | METH_KEYWORDS, (char *)"EscapeBinary(int len, int scheme)"},
 	 { (char *)"GetLastErrorNo", _wrap_GetLastErrorNo, METH_VARARGS, (char *)"GetLastErrorNo() -> int"},
 	 { (char *)"GetLastErrorType", _wrap_GetLastErrorType, METH_VARARGS, (char *)"GetLastErrorType() -> int"},
 	 { (char *)"GetLastErrorMsg", _wrap_GetLastErrorMsg, METH_VARARGS, (char *)"GetLastErrorMsg() -> char const *"},
