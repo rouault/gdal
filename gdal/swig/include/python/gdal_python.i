@@ -2091,9 +2091,13 @@ def ConfigurePythonLogging(logger_name='gdal', enable_debug=False):
 
 def EscapeString(*args, **kwargs):
     """EscapeString(string_or_bytes, scheme = gdal.CPLES_SQL)"""
-    if isinstance(args[0], bytes):
-        return _gdal.EscapeBinary(*args, **kwargs)
-    else:
+    if isinstance(args[0], type('')) or isinstance(args[0], type(u'')):
+        if sys.version_info < (3, 0, 0) and isinstance(args[0], type('')):
+            for x in args[0]:
+                if ord(x) > 127:
+                    return _gdal.EscapeBinary(*args, **kwargs)
         return _gdal.wrapper_EscapeString(*args, **kwargs)
+    else:
+        return _gdal.EscapeBinary(*args, **kwargs)
 
 %}

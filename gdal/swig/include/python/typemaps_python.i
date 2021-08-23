@@ -494,7 +494,7 @@ CreateTupleFromDoubleArray( int *first, unsigned int size ) {
   /* %typemap(argout) (size_t *nLen, char **pBuf ) */
   Py_XDECREF($result);
   if( *$2 ) {
-      $result = PyByteArray_FromStringAndSize( *$2, *$1 );
+      $result = PyBytes_FromStringAndSize( *$2, *$1 );
   }
   else {
       $result = Py_None;

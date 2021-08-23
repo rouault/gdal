@@ -8068,7 +8068,7 @@ SWIGINTERN PyObject *_wrap_EscapeBinary(PyObject *SWIGUNUSEDPARM(self), PyObject
     /* %typemap(argout) (size_t *nLen, char **pBuf ) */
     Py_XDECREF(resultobj);
     if( *arg4 ) {
-      resultobj = PyByteArray_FromStringAndSize( *arg4, *arg3 );
+      resultobj = PyBytes_FromStringAndSize( *arg4, *arg3 );
     }
     else {
       resultobj = Py_None;

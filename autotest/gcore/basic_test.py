@@ -409,29 +409,29 @@ def test_basic_test_14():
 
     with pytest.raises(Exception):
         ds.SetMetadata(5)
-    
+
 
     ds.SetMetadata(['foo=bar'])
     assert ds.GetMetadata_List() == ['foo=bar']
 
     with pytest.raises(Exception):
         ds.SetMetadata([5])
-    
+
 
     ds.SetMetadata({'foo': 'baz'})
     assert ds.GetMetadata_List() == ['foo=baz']
 
     with pytest.raises(Exception):
         ds.SetMetadata({'foo': 5})
-    
+
 
     with pytest.raises(Exception):
         ds.SetMetadata({5: 'baz'})
-    
+
 
     with pytest.raises(Exception):
         ds.SetMetadata({5: 6})
-    
+
 
     if sys.version_info >= (3, 0, 0):
         val = '\u00e9ven'
@@ -446,13 +446,13 @@ def test_basic_test_14():
 
     with pytest.raises(Exception):
         ds.SetMetadata({val: 5})
-    
+
 
     with pytest.raises(Exception):
         ds.SetMetadata({5: val})
-    
 
-    
+
+
 ###############################################################################
 # Test errors with progress callback
 
@@ -546,3 +546,14 @@ def test_basic_test_17():
         assert not flag, 'expected failure'
         assert not gdal.GetUseExceptions()
         assert not ogr.GetUseExceptions()
+
+
+def test_basic_test_escape_string():
+
+    assert gdal.EscapeString('foo') == 'foo'
+
+    assert gdal.EscapeString(b'foo') == b'foo'
+
+    assert gdal.EscapeString(b'foo\xFF', gdal.CPLES_BackslashQuotable) == b'foo\xFF'
+
+    assert type(gdal.EscapeString(b'foo')) == type(b'foo')
