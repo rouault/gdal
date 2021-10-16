@@ -27,7 +27,7 @@ include(GdalVersion)
 include(CheckDependentLibraries)
 
 # Default definitions during build
-add_definitions(-DGDAL_COMPILATION)
+add_definitions(-DGDAL_COMPILATION -DGDAL_CMAKE_BUILD)
 
 if (ENABLE_LTO)
   if (POLICY CMP0069)
