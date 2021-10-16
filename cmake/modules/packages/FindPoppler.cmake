@@ -43,9 +43,6 @@ This module defines the following variables:
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
   pkg_check_modules(PC_Poppler QUIET poppler)
-  if(PC_Poppler_VERSION)
-    set(POPPLER_VERSION_STRING ${PC_Poppler_VERSION})
-  endif()
 endif()
 find_path(POPPLER_INCLUDE_DIR NAMES "poppler-config.h" "cpp/poppler-version.h" "qt5/poppler-qt5.h" "qt4/poppler-qt4.h"
           "glib/poppler.h"
