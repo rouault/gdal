@@ -181,6 +181,7 @@ else (MSVC)
   endif ()
 
   find_library(M_LIB m)
+  find_library(DL_LIB dl)
 
   option(GDAL_USE_CPL_MULTIPROC_PTHREAD "Set to ON if you want to use pthreads based multiprocessing support."
          ${_WITH_PT_OPTION_ON})

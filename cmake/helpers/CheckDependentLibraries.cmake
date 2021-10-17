@@ -58,6 +58,7 @@ option(GDAL_USE_XMLREFORMAT "Set ON to use xmlreformat" OFF)
 gdal_check_package(MySQL "MySQL")
 
 # basic libaries
+find_package(Threads)
 find_package(Boost)
 gdal_check_package(CURL "Enable drivers to use web API")
 cmake_dependent_option(GDAL_USE_CURL "Set ON to use libcurl" ON "CURL_FOUND" OFF)
