@@ -202,9 +202,7 @@ set_package_properties(Python PROPERTIES PURPOSE "SWIG_PYTHON: Python binding")
 include(gdal.cmake)
 
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/autotest")
-  # unit tests
   add_subdirectory(autotest/cpp)
-  # please comment out if you want to exclude autotest from distribution.
   add_subdirectory(autotest)
 endif ()
 # Google OSS-Fuzz project utilities
