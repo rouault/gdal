@@ -36,10 +36,16 @@
 #pragma GCC system_header
 #endif
 
-#include "raslib/template_inst.hh"
+#include "raslib/minterval.hh"
+#include "raslib/primitivetype.hh"
 #include "raslib/structuretype.hh"
 #include "raslib/type.hh"
 
 #include "rasodmg/database.hh"
+#include "rasodmg/gmarray.hh"
+#include "rasodmg/iterator.hh"
+#include "rasodmg/oqlquery.hh"
+#include "rasodmg/ref.hh"
+#include "rasodmg/transaction.hh"
 
 #endif

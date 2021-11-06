@@ -5629,12 +5629,14 @@ AS_MESSAGE([checking whether we should include rasdaman support...])
 AC_ARG_WITH(rasdaman,
 [  --with-rasdaman[=DIR]        Include rasdaman support (DIR is rasdaman's install dir).],,)
 
+RASDAMAN_LIB_TMP="-lrasodmg -lraslib -lclientcomm -lrasodmg -lraslib -lcommline -lrasnet -lcommon_crypto -lcommon_grpc -lcommon_exceptions -lcommon_network -lcommon_logging -lcommon_time -lcommon_uuid -leasyloggingpp -lmymalloc_cln -lgrpc++_unsecure -lgrpc_unsecure -lz -lprotobuf -lpthread -lboost_thread -lcrypto -lcrypt"
+
 if test "$with_rasdaman" = "yes" ; then
 
   AC_CHECK_LIB(raslib,main,RASDAMAN_ENABLED=yes,,,)
 
   if test -n "$RASDAMAN_ENABLED" ; then
-      RASDAMAN_LIB="-lrasodmg -lclientcomm -lcompression -lnetwork -lraslib"
+      RASDAMAN_LIB="$RASDAMAN_LIB_TMP"
       OPT_GDAL_FORMATS="rasdaman $OPT_GDAL_FORMATS"
       AC_MSG_RESULT([        using rasdaman from system libs.])
   else
@@ -5647,7 +5649,7 @@ elif test -n "$with_rasdaman" -a "$with_rasdaman" != "no" ; then
 
   if test -f $RASDAMAN_DIR/include/rasdaman.hh -a -d$RASDAMAN_DIR/lib ; then
       RASDAMAN_INC=-I$RASDAMAN_DIR/include
-      RASDAMAN_LIB="-L$RASDAMAN_DIR/lib -lrasodmg -lclientcomm -lcompression -lnetwork -lraslib"
+      RASDAMAN_LIB="-L$RASDAMAN_DIR/lib $RASDAMAN_LIB_TMP"
   else
       AC_MSG_ERROR("Could not find rasdaman.hh or libraslib.a in $RASDAMAN_DIR.")
   fi
