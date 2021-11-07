@@ -161,6 +161,8 @@ jobs:
       run: |
         mkdir -p $GITHUB_WORKSPACE/build
         cmake -A ${architecture} -G "${generator}" "-DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/install-gdal" "-DCMAKE_C_COMPILER_LAUNCHER=clcache" "-DCMAKE_CXX_COMPILER_LAUNCHER=clcache" "-DCMAKE_PREFIX_PATH=${CONDA_PREFIX}" -DCMAKE_UNITY_BUILD=${CMAKE_UNITY_BUILD} -S "$GITHUB_WORKSPACE" -B "$GITHUB_WORKSPACE/build" -DSPATIALITE_LIBRARY:FILEPATH= -DJASPER_LIBRARY_RELEASE:FILEPATH= -DMYSQL_LIBRARY:FILEPATH= -DLIBKML_BASE_LIBRARY:FILEPATH= -DGDAL_ENABLE_PLUGINS:BOOL=ON -DGDAL_ENABLE_PLUGINS_NO_DEPS:BOOL=ON -DGDAL_USE_PUBLICDECOMPWT:BOOL=ON -DCMAKE_C_FLAGS=" /WX" -DCMAKE_CXX_FLAGS=" /WX"
+        cmake --build $GITHUB_WORKSPACE/build --config Release --target PublicDecompWT -j 2
+        cat $GITHUB_WORKSPACE/build/frmts/msg/PublicDecompWT_all.h
     - name: Build
       shell: bash -l {0}
       run: cmake --build $GITHUB_WORKSPACE/build --config Release -j 2
