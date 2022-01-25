@@ -1264,7 +1264,7 @@ on how the library is detected.
     libpng is not found.
 
 
-Poppler
+POPPLER
 *******
 
 The `Poppler <https://poppler.freedesktop.org/>`_ library is one
@@ -1278,9 +1278,9 @@ of the possible backends for the :ref:`raster.pdf` driver.
 
     Path to a shared or static library file.
 
-.. option:: GDAL_USE_PDFIUM=ON/OFF
+.. option:: GDAL_USE_POPPLER=ON/OFF
 
-    Control whether to use Poppler. Defaults to ON when Poppler is found.
+    Control whether to use POPPLER. Defaults to ON when POPPLER is found.
 
 
 PostgreSQL

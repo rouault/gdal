@@ -127,7 +127,7 @@ if(NOT POPPLER_VERSION_STRING)
 endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Poppler
+find_package_handle_standard_args(POPPLER
                                   FOUND_VAR POPPLER_FOUND
                                   REQUIRED_VARS POPPLER_LIBRARY POPPLER_INCLUDE_DIR
                                   VERSION_VAR  POPPLER_VERSION_STRING
@@ -137,9 +137,9 @@ mark_as_advanced(POPPLER_INCLUDE_DIR POPPLER_LIBRARY)
 if(POPPLER_FOUND)
   set(POPPLER_INCLUDE_DIRS ${POPPLER_INCLUDE_DIR})
   set(POPPLER_LIBRARIES ${POPPLER_LIBRARY})
-  if(NOT TARGET POPPLER::Poppler)
-    add_library(POPPLER::Poppler UNKNOWN IMPORTED)
-    set_target_properties(POPPLER::Poppler PROPERTIES
+  if(NOT TARGET POPPLER::POPPLER)
+    add_library(POPPLER::POPPLER UNKNOWN IMPORTED)
+    set_target_properties(POPPLER::POPPLER PROPERTIES
                           INTERFACE_INCLUDE_DIRECTORIES ${POPPLER_INCLUDE_DIR}
                           IMPORTED_LINK_INTERFACE_LANGUAGES "C"
                           IMPORTED_LOCATION "${POPPLER_LIBRARY}")
@@ -154,5 +154,5 @@ if(POPPLER_FOUND)
 endif()
 
 include(FeatureSummary)
-set_package_properties(Poppler PROPERTIES
+set_package_properties(POPPLER PROPERTIES
                        DESCRIPTION "A PDF rendering library" URL "http://poppler.freedesktop.org")
