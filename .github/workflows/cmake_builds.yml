@@ -89,7 +89,7 @@ jobs:
         PATH=$GITHUB_WORKSPACE/install-gdal/bin:$PATH pip install --user gdal-python.tar.gz
 
   build-windows-msys2-mingw:
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
       generator: MinGW Makefiles
       JAVA_HOME: "C:\\Program Files\\Java\\zulu-11-azure-jdk_11.33.15-11.0.4-win_x64"
@@ -143,10 +143,10 @@ jobs:
       #    PROJ_LIB: "C:\\tools\\msys64\\mingw64\\share\\proj"
 
   build-windows-conda:
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
         architecture: x64
-        generator: Visual Studio 16 2019
+        generator: Visual Studio 17 2022
         JAVA_HOME: "C:\\Program Files\\Java\\zulu-11-azure-jdk_11.33.15-11.0.4-win_x64"
     steps:
     # To avoid git clone to mess with the line endings of GDAL autotest data
@@ -211,10 +211,10 @@ jobs:
         PYTHONPATH=$GITHUB_WORKSPACE/install-gdal/lib/site-packages python3 -c "from osgeo import gdal;print(gdal.VersionInfo(None))"
 
   build-windows-minimum:
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
         architecture: x64
-        generator: Visual Studio 16 2019
+        generator: Visual Studio 17 2022
     steps:
     # To avoid git clone to mess with the line endings of GDAL autotest data
     # files that look like text, but should be handled as binary content
@@ -294,10 +294,10 @@ jobs:
   # but libgdal from Conda has not it yet.
   build-windows-conda-csharp-only:
     if: ${{ false }}  # disable for now
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
         architecture: x64
-        generator: Visual Studio 16 2019
+        generator: Visual Studio 17 2022
 
     steps:
     # To avoid git clone to mess with the line endings of GDAL autotest data
