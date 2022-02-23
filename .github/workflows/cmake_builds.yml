@@ -246,7 +246,7 @@ jobs:
     runs-on: windows-2022
     env:
         architecture: x64
-        generator: Visual Studio 17 2022
+        generator: Ninja
         cache-name: cmake-msvc
     steps:
     # To avoid git clone to mess with the line endings of GDAL autotest data
@@ -290,14 +290,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ env.cache-name }}-${{ github.base_ref }}
             ${{ runner.os }}-${{ env.cache-name }}
-    - name: Configure ccache
+    - name: Configure ccache (Part 1)
+      shell: cmd
+      run: |
+          set CLCACHE_DIR=%CD%\.clcache
+          echo CLCACHE_DIR=%CLCACHE_DIR%>> %GITHUB_ENV%
+    - name: Configure ccache (Part 2)
       shell: bash -l {0}
       run: |
-          export CLCACHE_DIR=$PWD/.clcache
-          echo CLCACHE_DIR=${CLCACHE_DIR} >> $GITHUB_ENV
           ${CONDA_PREFIX}/Scripts/clcache -z
           ${CONDA_PREFIX}/Scripts/clcache -M 250000000
           ${CONDA_PREFIX}/Scripts/clcache -s
+          # Otherwise cmake can find link.exe from Conda instead of MSVC
+          rm /usr/bin/link
       working-directory: ${{ github.workspace }}
     - name: Configure
       shell: bash -l {0}
