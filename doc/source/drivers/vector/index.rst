@@ -29,6 +29,7 @@ Vector drivers
    amigocloud
    ao
    arcgen
+   arrow
    avcbin
    avce00
    cad
@@ -91,6 +92,7 @@ Vector drivers
    ogdi
    openfilegdb
    osm
+   parquet
    pdf
    pds
    pgdump

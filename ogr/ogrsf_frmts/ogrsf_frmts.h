@@ -307,6 +307,9 @@ using OGRLayerUniquePtr = std::unique_ptr<OGRLayer>;
  */
 template<class BaseLayer> class OGRGetNextFeatureThroughRaw
 {
+protected:
+    ~OGRGetNextFeatureThroughRaw() = default;
+
 public:
 
     /** Implement OGRLayer::GetNextFeature(), relying on BaseLayer::GetNextRawFeature() */
@@ -562,6 +565,8 @@ void CPL_DLL RegisterOGRMVT();
 void CPL_DLL RegisterOGRNGW();
 void CPL_DLL RegisterOGRMapML();
 void CPL_DLL RegisterOGRLVBAG();
+void CPL_DLL RegisterOGRParquet();
+void CPL_DLL RegisterOGRArrow();
 // @endcond
 
 CPL_C_END

@@ -293,6 +293,12 @@ void OGRRegisterAllInternal()
 #ifdef MAPML_ENABLED
     RegisterOGRMapML();
 #endif
+#ifdef PARQUET_ENABLED
+    RegisterOGRParquet();
+#endif
+#ifdef ARROW_ENABLED
+    RegisterOGRArrow();
+#endif
 
     // NOTE: you need to generally insert your own driver before that line.
 
