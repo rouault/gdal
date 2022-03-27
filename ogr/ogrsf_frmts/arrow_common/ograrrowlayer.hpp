@@ -3171,3 +3171,102 @@ begin_multipolygon:
 
     return GetExtentInternal(iGeomField, psExtent, bForce);
 }
+
+/************************************************************************/
+/*                  OverrideArrowSchemaRelease()                        */
+/************************************************************************/
+
+template<class T>
+static void OverrideArrowRelease(OGRArrowDataset* poDS, T* obj)
+{
+    // We override the release callback, since it can use the memory pool,
+    // and we need to make sure it is still alive when the object (ArrowArray
+    // or ArrowSchema) is deleted
+    struct OverriddenPrivate
+    {
+        OverriddenPrivate() = default;
+        OverriddenPrivate(const OverriddenPrivate&) = delete;
+        OverriddenPrivate& operator= (const OverriddenPrivate&) = delete;
+
+        std::shared_ptr<arrow::MemoryPool> poMemoryPool{};
+        void                             (*pfnPreviousRelease)(T*) = nullptr;
+        void*                              pPreviousPrivateData = nullptr;
+    };
+
+    auto overriddenPrivate = new OverriddenPrivate();
+    overriddenPrivate->poMemoryPool = poDS->GetSharedMemoryPool();
+    overriddenPrivate->pPreviousPrivateData = obj->private_data;
+    overriddenPrivate->pfnPreviousRelease = obj->release;
+
+    obj->release = [](T* l_obj)
+    {
+        OverriddenPrivate* myPrivate = static_cast<OverriddenPrivate*>(l_obj->private_data);
+        l_obj->private_data = myPrivate->pPreviousPrivateData;
+        l_obj->release = myPrivate->pfnPreviousRelease;
+        l_obj->release(l_obj);
+        delete myPrivate;
+    };
+    obj->private_data = overriddenPrivate;
+}
+
+/************************************************************************/
+/*                      GetRecordBatchSchema()                          */
+/************************************************************************/
+
+inline
+bool OGRArrowLayer::GetRecordBatchSchema(struct ArrowSchema* out_schema,
+                                         CSLConstList papszOptions)
+{
+    if( CPLTestBool(CPLGetConfigOption("OGR_ARROW_RECORD_BATCH_BASE_IMPL", "NO")) )
+        return OGRLayer::GetRecordBatchSchema(out_schema, papszOptions);
+
+    auto status = arrow::ExportSchema(*m_poSchema, out_schema);
+    if( !status.ok() )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "ExportSchema() failed with %s",
+                 status.message().c_str());
+        return false;
+    }
+    OverrideArrowRelease(m_poArrowDS, out_schema);
+    return true;
+}
+
+/************************************************************************/
+/*                      GetNextRecordBatch()                            */
+/************************************************************************/
+
+inline
+bool OGRArrowLayer::GetNextRecordBatch(struct ArrowArray* out_array,
+                                       struct ArrowSchema* out_schema,
+                                       CSLConstList papszOptions)
+{
+    if( CPLTestBool(CPLGetConfigOption("OGR_ARROW_RECORD_BATCH_BASE_IMPL", "NO")) )
+        return OGRLayer::GetNextRecordBatch(out_array, out_schema, papszOptions);
+
+    if( m_bEOF )
+        return false;
+
+    if( m_poBatch == nullptr || m_nIdxInBatch == m_poBatch->num_rows() )
+    {
+        m_bEOF = !ReadNextBatch();
+        if( m_bEOF )
+            return false;
+    }
+
+    auto status = arrow::ExportRecordBatch(*m_poBatch, out_array, out_schema);
+    m_nIdxInBatch = m_poBatch->num_rows();
+    if( !status.ok() )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "ExportRecordBatch() failed with %s",
+                 status.message().c_str());
+        return false;
+    }
+
+    OverrideArrowRelease(m_poArrowDS, out_array);
+    if( out_schema )
+        OverrideArrowRelease(m_poArrowDS, out_schema);
+
+    return true;
+}

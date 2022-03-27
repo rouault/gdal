@@ -178,6 +178,12 @@ public:
                             { SetSpatialFilter(0, poGeom); }
         void            SetSpatialFilter( int iGeomField, OGRGeometry *poGeom ) override;
 
+        bool           GetRecordBatchSchema(struct ArrowSchema* out_schema,
+                                            CSLConstList papszOptions = nullptr) override;
+        bool           GetNextRecordBatch(struct ArrowArray* out_array,
+                                          struct ArrowSchema* out_schema = nullptr,
+                                          CSLConstList papszOptions = nullptr) override;
+
         virtual std::unique_ptr<OGRFieldDomain> BuildDomain(const std::string& osDomainName,
                                                              int iFieldIndex) const = 0;
 
