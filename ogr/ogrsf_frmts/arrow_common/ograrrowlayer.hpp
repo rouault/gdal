@@ -2387,3 +2387,57 @@ begin_multipolygon:
 
     return GetExtentInternal(iGeomField, psExtent, bForce);
 }
+
+/************************************************************************/
+/*                      GetRecordBatchSchema()                          */
+/************************************************************************/
+
+inline
+bool OGRArrowLayer::GetRecordBatchSchema(struct ArrowSchema* out_schema)
+{
+    if( CPLTestBool(CPLGetConfigOption("OGR_ARROW_RECORD_BATCH_BASE_IMPL", "NO")) )
+        return OGRLayer::GetRecordBatchSchema(out_schema);
+
+    auto status = arrow::ExportSchema(*m_poSchema, out_schema);
+    if( !status.ok() )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "ExportSchema() failed with %s",
+                 status.message().c_str());
+        return false;
+    }
+    return true;
+}
+
+/************************************************************************/
+/*                      GetNextRecordBatch()                            */
+/************************************************************************/
+
+inline
+bool OGRArrowLayer::GetNextRecordBatch(struct ArrowArray* out_array,
+                                         struct ArrowSchema* out_schema)
+{
+    if( CPLTestBool(CPLGetConfigOption("OGR_ARROW_RECORD_BATCH_BASE_IMPL", "NO")) )
+        return OGRLayer::GetNextRecordBatch(out_array, out_schema);
+
+    if( m_bEOF )
+        return false;
+
+    if( m_poBatch == nullptr || m_nIdxInBatch == m_poBatch->num_rows() )
+    {
+        m_bEOF = !ReadNextBatch();
+        if( m_bEOF )
+            return false;
+    }
+
+    auto status = arrow::ExportRecordBatch(*m_poBatch, out_array, out_schema);
+    m_nIdxInBatch = m_poBatch->num_rows();
+    if( !status.ok() )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "ExportRecordBatch() failed with %s",
+                 status.message().c_str());
+        return false;
+    }
+    return true;
+}

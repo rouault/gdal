@@ -136,6 +136,10 @@ public:
         OGRErr          GetExtent(int iGeomField, OGREnvelope *psExtent,
                                   int bForce = TRUE) override;
 
+        bool           GetRecordBatchSchema(struct ArrowSchema* out_schema) override;
+        bool           GetNextRecordBatch(struct ArrowArray* out_array,
+                                          struct ArrowSchema* out_schema = nullptr) override;
+
         virtual std::unique_ptr<OGRFieldDomain> BuildDomain(const std::string& osDomainName,
                                                              int iFieldIndex) const = 0;
 };
