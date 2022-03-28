@@ -4647,11 +4647,15 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
         if( psOptions->nLayerTransaction )
         {
             if( poDstLayer->StartTransaction() == OGRERR_FAILURE )
+            {
+                delete poFeatureIn;
                 return false;
+            }
         }
     }
 
-    OGRFeature *poFeature = nullptr;
+    std::unique_ptr<OGRFeature> poFeature;
+    std::unique_ptr<OGRFeature> poDstFeature(new OGRFeature(poDstLayer->GetLayerDefn()));
     int         nFeaturesInTransaction = 0;
     GIntBig      nCount = 0; /* written + failed */
     GIntBig      nFeaturesWritten = 0;
@@ -4666,11 +4670,18 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
         }
 
         if( poFeatureIn != nullptr )
-            poFeature = poFeatureIn;
+            poFeature.reset(poFeatureIn);
         else if( psOptions->nFIDToFetch != OGRNullFID )
-            poFeature = poSrcLayer->GetFeature(psOptions->nFIDToFetch);
+            poFeature.reset(poSrcLayer->GetFeature(psOptions->nFIDToFetch));
         else
-            poFeature = poSrcLayer->GetNextFeature();
+        {
+            if( poFeature == nullptr )
+                poFeature.reset(new OGRFeature(poSrcLayer->GetLayerDefn()));
+            if( !poSrcLayer->UpdateWithNextFeature(poFeature.get()) )
+            {
+                poFeature.reset();
+            }
+        }
 
         if( poFeature == nullptr )
         {
@@ -4685,9 +4696,8 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
         {
             if( !SetupCT( psInfo, poSrcLayer, m_bTransform, m_bWrapDateline,
                           m_osDateLineOffset, m_poUserSourceSRS,
-                          poFeature, poOutputSRS, m_poGCPCoordTrans) )
+                          poFeature.get(), poOutputSRS, m_poGCPCoordTrans) )
             {
-                OGRFeature::DestroyFeature( poFeature );
                 return false;
             }
         }
@@ -4720,7 +4730,6 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
             }
         }
 
-        OGRFeature *poDstFeature = nullptr;
         for(int iPart = 0; iPart < nIters; iPart++)
         {
             if( psOptions->nLayerTransaction &&
@@ -4729,7 +4738,6 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
                 if( poDstLayer->CommitTransaction() == OGRERR_FAILURE ||
                     poDstLayer->StartTransaction() == OGRERR_FAILURE )
                 {
-                    OGRFeature::DestroyFeature( poFeature );
                     return false;
                 }
                 nFeaturesInTransaction = 0;
@@ -4741,14 +4749,13 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
                 if( m_poODS->CommitTransaction() == OGRERR_FAILURE ||
                         m_poODS->StartTransaction(psOptions->bForceTransaction) == OGRERR_FAILURE )
                 {
-                    OGRFeature::DestroyFeature( poFeature );
                     return false;
                 }
                 nTotalEventsDone = 0;
             }
 
             CPLErrorReset();
-            poDstFeature = OGRFeature::CreateFeature( poDstLayer->GetLayerDefn() );
+            poDstFeature->Reset();
 
             /* Optimization to avoid duplicating the source geometry in the */
             /* target feature : we steal it from the source feature for now... */
@@ -4779,7 +4786,7 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
                 delete poClipped;
             }
 
-            if( poDstFeature->SetFrom( poFeature, panMap, TRUE ) != OGRERR_NONE )
+            if( poDstFeature->SetFrom( poFeature.get(), panMap, TRUE ) != OGRERR_NONE )
             {
                 if( psOptions->nGroupTransactions )
                 {
@@ -4787,8 +4794,6 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
                     {
                         if( poDstLayer->CommitTransaction() != OGRERR_NONE )
                         {
-                            OGRFeature::DestroyFeature( poFeature );
-                            OGRFeature::DestroyFeature( poDstFeature );
                             OGRGeometryFactory::destroyGeometry( poStolenGeometry );
                             return false;
                         }
@@ -4799,8 +4804,6 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
                         "Unable to translate feature " CPL_FRMT_GIB " from layer %s.",
                         poFeature->GetFID(), poSrcLayer->GetName() );
 
-                OGRFeature::DestroyFeature( poFeature );
-                OGRFeature::DestroyFeature( poDstFeature );
                 OGRGeometryFactory::destroyGeometry( poStolenGeometry );
                 return false;
             }
@@ -4934,8 +4937,6 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
                                 if( poDstLayer->CommitTransaction() != OGRERR_NONE &&
                                     !psOptions->bSkipFailures )
                                 {
-                                    OGRFeature::DestroyFeature( poFeature );
-                                    OGRFeature::DestroyFeature( poDstFeature );
                                     delete poDstGeometry;
                                     return false;
                                 }
@@ -4946,8 +4947,6 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
                                   poFeature->GetFID() );
                         if( !psOptions->bSkipFailures )
                         {
-                            OGRFeature::DestroyFeature( poFeature );
-                            OGRFeature::DestroyFeature( poDstFeature );
                             delete poDstGeometry;
                             return false;
                         }
@@ -5029,7 +5028,7 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
             }
 
             CPLErrorReset();
-            if( poDstLayer->CreateFeature( poDstFeature ) == OGRERR_NONE )
+            if( poDstLayer->CreateFeature( poDstFeature.get() ) == OGRERR_NONE )
             {
                 nFeaturesWritten ++;
                 if( (bPreserveFID && poDstFeature->GetFID() != poFeature->GetFID()) ||
@@ -5052,8 +5051,6 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
                         "Unable to write feature " CPL_FRMT_GIB " from layer %s.",
                         poFeature->GetFID(), poSrcLayer->GetName() );
 
-                OGRFeature::DestroyFeature( poFeature );
-                OGRFeature::DestroyFeature( poDstFeature );
                 return false;
             }
             else
@@ -5076,10 +5073,8 @@ int LayerTranslator::Translate( OGRFeature* poFeatureIn,
             }
 
 end_loop:
-            OGRFeature::DestroyFeature( poDstFeature );
+            ; // nothing
         }
-
-        OGRFeature::DestroyFeature( poFeature );
 
         /* Report progress */
         nCount ++;
