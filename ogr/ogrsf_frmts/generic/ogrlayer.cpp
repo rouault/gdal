@@ -5616,19 +5616,29 @@ bool OGRLayer::GetNextRecordBatch(struct ArrowArray* out_array,
 
     out_array->release = OGRLayerReleaseArray;
 
-    std::vector<std::unique_ptr<OGRFeature>> apoFeatures;
-    apoFeatures.reserve(65536);
-    for( int i = 0; i < 65536; i++ )
+    std::vector<std::unique_ptr<OGRFeature>>& apoFeatures = m_poPrivate->m_apoBatchFeatures;
+    if( apoFeatures.empty() )
     {
-        auto poFeature = std::unique_ptr<OGRFeature>(GetNextFeature());
-        if( !poFeature )
+        apoFeatures.reserve(65536);
+        for( int i = 0; i < 65536; i++ )
+        {
+            apoFeatures.emplace_back(cpl::make_unique<OGRFeature>(poLayerDefn));
+        }
+    }
+
+    out_array->length = 0;
+    for( auto& poFeature: apoFeatures )
+    {
+        if( !UpdateWithNextFeature(poFeature.get()))
+        {
+            apoFeatures.resize(static_cast<size_t>(out_array->length));
             break;
-        apoFeatures.emplace_back(std::move(poFeature));
+        }
+        out_array->length ++;
     }
     if( apoFeatures.empty() )
         goto error;
 
-    out_array->length = apoFeatures.size();
     out_array->null_count = -1;
 
     out_array->n_children = nChildren;
