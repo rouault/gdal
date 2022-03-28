@@ -39,6 +39,7 @@
 #include <cmath>
 #include <ctime>
 
+#include <algorithm>
 #include <limits>
 #include <map>
 #include <new>
@@ -108,6 +109,30 @@ OGRFeature::OGRFeature( OGRFeatureDefn * poDefnIn ) :
             pauFields[i].Set.nMarker3 = OGRUnsetMarker;
         }
     }
+}
+
+/************************************************************************/
+/*                       operator=( OGRFeature&& other )                */
+/************************************************************************/
+
+/**
+ * \brief Move assignment.
+ *
+ * @param other Must be such that other.GetDefnRef() == this->GetDefnRef()
+ */
+OGRFeature& OGRFeature::operator=( OGRFeature&& other )
+{
+    std::swap(nFID, other.nFID);
+    std::swap(poDefn, other.poDefn);
+    std::swap(papoGeometries, other.papoGeometries);
+    std::swap(pauFields, other.pauFields);
+    std::swap(m_pszNativeData, other.m_pszNativeData);
+    std::swap(m_pszNativeMediaType, other.m_pszNativeMediaType);
+    std::swap(m_pszStyleString, other.m_pszStyleString);
+    std::swap(m_poStyleTable, other.m_poStyleTable);
+    std::swap(m_pszTmpFieldValue, other.m_pszTmpFieldValue);
+
+    return *this;
 }
 
 /************************************************************************/
@@ -194,7 +219,8 @@ OGRFeature::~OGRFeature()
         }
     }
 
-    poDefn->Release();
+    if( poDefn )
+        poDefn->Release();
 
     CPLFree(pauFields);
     CPLFree(papoGeometries);
@@ -287,6 +313,92 @@ void OGRFeature::DestroyFeature( OGRFeature *poFeature )
 
 {
     delete poFeature;
+}
+
+/************************************************************************/
+/*                                Reset()                               */
+/************************************************************************/
+
+/** Reset the state of a OGRFeature to its state after construction.
+ *
+ * This enables recycling existing OGRFeature instances.
+ *
+ * @since GDAL 3.5
+ */
+void OGRFeature::Reset()
+{
+    nFID = OGRNullFID;
+
+    if( pauFields != nullptr )
+    {
+        const int nFieldcount = poDefn->GetFieldCountUnsafe();
+        for( int i = 0; i < nFieldcount; i++ )
+        {
+            if( !IsFieldSetAndNotNullUnsafe(i) )
+                continue;
+
+            OGRFieldDefn *poFDefn = poDefn->GetFieldDefn(i);
+            switch( poFDefn->GetType() )
+            {
+              case OFTString:
+                if( pauFields[i].String != nullptr )
+                    VSIFree( pauFields[i].String );
+                break;
+
+              case OFTBinary:
+                if( pauFields[i].Binary.paData != nullptr )
+                    VSIFree( pauFields[i].Binary.paData );
+                break;
+
+              case OFTStringList:
+                CSLDestroy( pauFields[i].StringList.paList );
+                break;
+
+              case OFTIntegerList:
+              case OFTInteger64List:
+              case OFTRealList:
+                CPLFree( pauFields[i].IntegerList.paList );
+                break;
+
+              default:
+                // TODO(schwehr): Add support for wide strings.
+                break;
+            }
+
+            pauFields[i].Set.nMarker1 = OGRUnsetMarker;
+            pauFields[i].Set.nMarker2 = OGRUnsetMarker;
+            pauFields[i].Set.nMarker3 = OGRUnsetMarker;
+        }
+    }
+
+    if( papoGeometries != nullptr )
+    {
+        const int nGeomFieldCount = poDefn->GetGeomFieldCount();
+
+        for( int i = 0; i < nGeomFieldCount; i++ )
+        {
+            delete papoGeometries[i];
+            papoGeometries[i] = nullptr;
+        }
+    }
+
+    if( m_pszStyleString )
+    {
+        CPLFree(m_pszStyleString);
+        m_pszStyleString = nullptr;
+    }
+
+    if( m_pszNativeData )
+    {
+        CPLFree(m_pszNativeData);
+        m_pszNativeData = nullptr;
+    }
+
+    if( m_pszNativeMediaType )
+    {
+        CPLFree(m_pszNativeMediaType);
+        m_pszNativeMediaType = nullptr;
+    }
 }
 
 /************************************************************************/

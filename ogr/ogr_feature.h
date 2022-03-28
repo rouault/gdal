@@ -400,6 +400,7 @@ class CPL_DLL OGRFeature
 
   public:
     explicit            OGRFeature( OGRFeatureDefn * );
+    OGRFeature&         operator=( OGRFeature&& );
     virtual            ~OGRFeature();
 
     /** Field value. */
@@ -618,6 +619,8 @@ class CPL_DLL OGRFeature
     const OGRGeometry*  GetGeomFieldRef( const char* pszFName ) const;
     OGRErr              SetGeomFieldDirectly( int iField, OGRGeometry * );
     OGRErr              SetGeomField( int iField, const OGRGeometry * );
+
+    void                Reset();
 
     OGRFeature         *Clone() const CPL_WARN_UNUSED_RESULT;
     virtual OGRBoolean  Equal( const OGRFeature * poFeature ) const;
