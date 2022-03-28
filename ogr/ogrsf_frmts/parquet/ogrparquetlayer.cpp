@@ -521,7 +521,9 @@ OGRFeature* OGRParquetLayer::GetFeatureExplicitFID(GIntBig nFID)
                         const auto castArray = static_cast<const arrow::Int64Array*>(arrayPtr);
                         if( castArray->Value(nIdxInBatch) == nFID )
                         {
-                            return ReadFeature(nIdxInBatch, poBatch->columns());
+                            OGRFeature* poFeature = new OGRFeature(m_poFeatureDefn);
+                            ReadFeature(poFeature, nIdxInBatch, poBatch->columns());
+                            return poFeature;
                         }
                     }
                     else if( arrayTypeId == arrow::Type::INT32 )
@@ -529,7 +531,9 @@ OGRFeature* OGRParquetLayer::GetFeatureExplicitFID(GIntBig nFID)
                         const auto castArray = static_cast<const arrow::Int32Array*>(arrayPtr);
                         if( castArray->Value(nIdxInBatch) == nFID )
                         {
-                            return ReadFeature(nIdxInBatch, poBatch->columns());
+                            OGRFeature* poFeature = new OGRFeature(m_poFeatureDefn);
+                            ReadFeature(poFeature, nIdxInBatch, poBatch->columns());
+                            return poFeature;
                         }
                     }
                 }
@@ -596,7 +600,8 @@ OGRFeature* OGRParquetLayer::GetFeatureByIndex(GIntBig nFID)
                 if( nExpectedIdxInGroup < nIdxInGroup + poBatch->num_rows() )
                 {
                     const auto nIdxInBatch = nExpectedIdxInGroup - nIdxInGroup;
-                    auto poFeature = ReadFeature(nIdxInBatch, poBatch->columns());
+                    OGRFeature* poFeature = new OGRFeature(m_poFeatureDefn);
+                    ReadFeature(poFeature, nIdxInBatch, poBatch->columns());
                     poFeature->SetFID(nFID);
                     return poFeature;
                 }

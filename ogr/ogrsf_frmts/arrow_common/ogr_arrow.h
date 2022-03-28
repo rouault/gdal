@@ -56,7 +56,7 @@ enum class OGRArrowGeomEncoding
 class OGRArrowDataset;
 
 class OGRArrowLayer CPL_NON_FINAL: public OGRLayer,
-                             public OGRGetNextFeatureThroughRaw<OGRArrowLayer>
+                             public OGRUpdateWithNextFeatureThroughRaw<OGRArrowLayer>
 {
         OGRArrowLayer(const OGRArrowLayer&) = delete;
         OGRArrowLayer& operator= (const OGRArrowLayer&) = delete;
@@ -113,13 +113,14 @@ protected:
             int iGeomCol, int iBatchCol,
             OGRwkbGeometryType eGeomType) const;
         static bool        ReadWKBBoundingBox(const uint8_t* data, size_t size, OGREnvelope& sEnvelope);
-        OGRFeature*        ReadFeature(int64_t nIdxInBatch,
+        void               ReadFeature(OGRFeature* poFeature,
+                                       int64_t nIdxInBatch,
                                        const std::vector<std::shared_ptr<arrow::Array>>& poColumnArrays) const;
         OGRGeometry* ReadGeometry(int iGeomField,
                                   const arrow::Array* array,
                                   int64_t nIdxInBatch) const;
         virtual bool       ReadNextBatch() = 0;
-        OGRFeature*        GetNextRawFeature();
+        bool               UpdateWithNextFeatureRaw(OGRFeature* poFeature);
 
         virtual bool       CanRunNonForcedGetExtent() { return true; }
 
@@ -131,7 +132,7 @@ public:
         OGRFeatureDefn* GetLayerDefn() override { return m_poFeatureDefn; }
         void            ResetReading() override;
         const char*     GetFIDColumn() override { return m_osFIDColumn.c_str(); }
-        DEFINE_GET_NEXT_FEATURE_THROUGH_RAW(OGRArrowLayer)
+        DEFINE_UPDATE_NEXT_FEATURE_THROUGH_RAW(OGRArrowLayer)
         OGRErr          GetExtent(OGREnvelope *psExtent, int bForce = TRUE) override;
         OGRErr          GetExtent(int iGeomField, OGREnvelope *psExtent,
                                   int bForce = TRUE) override;

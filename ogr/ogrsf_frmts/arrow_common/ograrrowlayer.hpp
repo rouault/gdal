@@ -1227,12 +1227,11 @@ static SetPointsOfLineType GetSetPointsOfLine(bool bHasZ, bool bHasM)
 /************************************************************************/
 
 inline
-OGRFeature* OGRArrowLayer::ReadFeature(
+void OGRArrowLayer::ReadFeature(
+    OGRFeature* poFeature,
     int64_t nIdxInBatch,
     const std::vector<std::shared_ptr<arrow::Array>>& poColumnArrays) const
 {
-    OGRFeature* poFeature = new OGRFeature(m_poFeatureDefn);
-
     if( m_iFIDArrowColumn >= 0 )
     {
         const int iCol = m_bIgnoredFields ? m_nRequestedFIDColumn : m_iFIDArrowColumn;
@@ -1726,8 +1725,6 @@ OGRFeature* OGRArrowLayer::ReadFeature(
             poFeature->SetGeomFieldDirectly(i, poGeometry);
         }
     }
-
-    return poFeature;
 }
 
 /************************************************************************/
@@ -2024,20 +2021,20 @@ void OGRArrowLayer::ResetReading()
 }
 
 /************************************************************************/
-/*                        GetNextRawFeature()                           */
+/*                     UpdateWithNextFeatureRaw()                       */
 /************************************************************************/
 
 inline
-OGRFeature* OGRArrowLayer::GetNextRawFeature()
+bool OGRArrowLayer::UpdateWithNextFeatureRaw(OGRFeature* poFeature)
 {
     if( m_bEOF )
-        return nullptr;
+        return false;
 
     if( m_poBatch == nullptr || m_nIdxInBatch == m_poBatch->num_rows() )
     {
         m_bEOF = !ReadNextBatch();
         if( m_bEOF )
-            return nullptr;
+            return false;
     }
 
     // Evaluate spatial filter by computing the bounding box of each geometry
@@ -2088,7 +2085,7 @@ OGRFeature* OGRArrowLayer::GetNextRawFeature()
                 {
                     m_bEOF = !ReadNextBatch();
                     if( m_bEOF )
-                        return nullptr;
+                        return false;
                     array = m_poBatchColumns[iCol];
                     CPLAssert( array->type_id() == arrow::Type::BINARY );
                     castArray = std::static_pointer_cast<arrow::BinaryArray>(array);
@@ -2156,7 +2153,7 @@ begin_multipolygon:
                 {
                     m_bEOF = !ReadNextBatch();
                     if( m_bEOF )
-                        return nullptr;
+                        return false;
                     goto begin_multipolygon;
                 }
             }
@@ -2194,14 +2191,15 @@ begin_multipolygon:
                 {
                     m_bEOF = !ReadNextBatch();
                     if( m_bEOF )
-                        return nullptr;
+                        return false;
                     array = m_poBatchColumns[iCol].get();
                 }
             }
         }
     }
 
-    auto poFeature = ReadFeature(m_nIdxInBatch, m_poBatchColumns);
+    poFeature->Reset();
+    ReadFeature(poFeature, m_nIdxInBatch, m_poBatchColumns);
 
     if( m_iFIDArrowColumn < 0 )
         poFeature->SetFID(m_nFeatureIdx);
@@ -2209,7 +2207,7 @@ begin_multipolygon:
     m_nFeatureIdx ++;
     m_nIdxInBatch ++;
 
-    return poFeature;
+    return true;
 }
 
 /************************************************************************/
