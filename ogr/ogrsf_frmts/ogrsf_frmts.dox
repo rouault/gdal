@@ -733,7 +733,7 @@ by the OGRSFDriverManager.
 
  \brief Reset feature reading to start on the first feature.
 
- This affects GetNextFeature().
+ This affects GetNextFeature() and UpdateWithNextFeature().
 
  This method is the same as the C function OGR_L_ResetReading().
 
@@ -1025,7 +1025,7 @@ by the OGRSFDriverManager.
  OGRGeometry::getEnvelope()) overlaps the envelope of the spatial filter
  will be returned.  This can result in more shapes being returned that
  should strictly be the case.
- 
+
  Starting with GDAL 2.3, features with null or empty geometries will never
  be considered as matching a spatial filter.
 

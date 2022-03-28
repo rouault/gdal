@@ -784,6 +784,10 @@ class CPL_DLL OGRFeature
     void                FillUnsetWithDefault( int bNotNullableOnly,
                                               char** papszOptions );
 
+//! @cond Doxygen_Suppress
+    const char*         GetStyleStringNoVirtual() const { return m_pszStyleString; }
+//! @endcond
+
     virtual const char *GetStyleString() const;
     virtual void        SetStyleString( const char * );
     virtual void        SetStyleStringDirectly( char * );

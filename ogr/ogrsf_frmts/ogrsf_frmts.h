@@ -148,6 +148,7 @@ class CPL_DLL OGRLayer : public GDALMajorObject
 
     virtual void        ResetReading() = 0;
     virtual OGRFeature *GetNextFeature() CPL_WARN_UNUSED_RESULT = 0;
+    virtual bool        UpdateWithNextFeature(OGRFeature* poFeature) CPL_WARN_UNUSED_RESULT;
     virtual OGRErr      SetNextByIndex( GIntBig nIndex );
     virtual OGRFeature *GetFeature( GIntBig nFID )  CPL_WARN_UNUSED_RESULT;
 
@@ -350,6 +351,52 @@ public:
     public: \
         OGRFeature* GetNextFeature() override { return OGRGetNextFeatureThroughRaw<BaseLayer>::GetNextFeature(); }
 
+/************************************************************************/
+/*                   OGRUpdateWithNextFeatureThroughRaw                 */
+/************************************************************************/
+
+template<class BaseLayer> class OGRUpdateWithNextFeatureThroughRaw
+{
+protected:
+    ~OGRUpdateWithNextFeatureThroughRaw() = default;
+
+public:
+
+    /** Implement OGRLayer::UpdateWithNextFeature(), relying on BaseLayer::UpdateWithNextFeatureRaw() */
+    bool UpdateWithNextFeature(OGRFeature* poFeature)
+    {
+        const auto poThis = static_cast<BaseLayer*>(this);
+        while( true )
+        {
+            if( !poThis->UpdateWithNextFeatureRaw(poFeature) )
+                return false;
+
+            if((poThis->m_poFilterGeom == nullptr
+                || poThis->FilterGeometry( poFeature->GetGeometryRef() ) )
+            && (poThis->m_poAttrQuery == nullptr
+                || poThis->m_poAttrQuery->Evaluate( poFeature )) )
+            {
+                return true;
+            }
+            else
+                poFeature->Reset();
+        }
+    }
+};
+
+/** Utility macro to define UpdateWithNextFeature() through UpdateWithNextFeatureRaw() */
+#define DEFINE_UPDATE_NEXT_FEATURE_THROUGH_RAW(BaseLayer) \
+    private: \
+        friend class OGRUpdateWithNextFeatureThroughRaw<BaseLayer>; \
+    public: \
+        OGRFeature* GetNextFeature() override { \
+            auto poFeature = std::unique_ptr<OGRFeature>(new OGRFeature(GetLayerDefn())); \
+            if( !UpdateWithNextFeature(poFeature.get()) ) \
+                return nullptr; \
+            return poFeature.release(); \
+        } \
+        bool UpdateWithNextFeature(OGRFeature* poFeature) override { return \
+            OGRUpdateWithNextFeatureThroughRaw<BaseLayer>::UpdateWithNextFeature(poFeature); }
 
 /************************************************************************/
 /*                            OGRDataSource                             */

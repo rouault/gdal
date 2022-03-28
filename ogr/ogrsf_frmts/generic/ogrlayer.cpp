@@ -43,6 +43,11 @@ CPL_CVSID("$Id$")
 struct OGRLayer::Private
 {
     bool         m_bInFeatureIterator = false;
+
+    bool         m_bFirstUpdateWithNextFeatureInvokation = true;
+    bool         m_bFeatureReturnedByGetNextFeatureIsOGRFeature = false; // only valid when m_bFirstUpdateWithNextFeatureInvokation = false
+
+    std::vector<std::unique_ptr<OGRFeature>> m_apoBatchFeatures{};
 };
 
 /************************************************************************/
@@ -168,6 +173,87 @@ int OGR_L_GetRefCount( OGRLayerH hLayer )
     VALIDATE_POINTER1( hLayer, "OGR_L_GetRefCount", 0 );
 
     return OGRLayer::FromHandle(hLayer)->GetRefCount();
+}
+
+/************************************************************************/
+/*                      UpdateWithNextFeature()                         */
+/************************************************************************/
+
+//! @cond Doxygen_Suppress
+// isOfExactType<MyType>(*p) checks that the type of *p is exactly MyType
+template <typename TemplateT, typename ObjectT>
+inline static bool isOfExactType(const ObjectT &o) {
+    return typeid(TemplateT).hash_code() == typeid(o).hash_code();
+}
+//! @endcond
+
+/** Fetch the next available feature from this layer.
+
+ This is a variant of GetNextFeature(), with the same fundamental semantics,
+ except that it accepts the feature as argument. This allows to save a number
+ of memory allocation/deallocation.
+
+ The base implementation of this method relies on GetNextFeature(), and thus
+ provide no speed-up benefit.
+ Note to driver implementers: specialized implementations should accept a
+ feature that might not be in an empty state when the method is called.
+ They might use OGRFeature::Reset() to force the reset to an empty state.
+
+ Only features matching the current spatial filter (set with
+ SetSpatialFilter()) will be returned.
+
+ This method implements sequential access to the features of a layer.  The
+ ResetReading() method can be used to start at the beginning again.
+
+ Features returned by UpdateWithNextFeature() may or may not be affected by
+ concurrent modifications depending on drivers. A guaranteed way of seeing
+ modifications in effect is to call ResetReading() on layers where
+ UpdateWithNextFeature() has been called, before reading again.  Structural changes
+ in layers (field addition, deletion, ...) when a read is in progress may or
+ may not be possible depending on drivers.  If a transaction is
+ committed/aborted, the current sequential reading may or may not be valid
+ after that operation and a call to ResetReading() might be needed.
+
+ @param poFeature Feature to update. Must *not* be NULL and poFeature->GetDefnRef()
+                  must be equal to GetLayerDefn()
+ @return true if the feature could be updated, or false if end of layer has been reached.
+
+ @since GDAL 3.5
+*/
+bool OGRLayer::UpdateWithNextFeature(OGRFeature* poFeature)
+{
+    auto poFeat = std::unique_ptr<OGRFeature>(GetNextFeature());
+    if( !poFeat )
+        return false;
+    if( m_poPrivate->m_bFirstUpdateWithNextFeatureInvokation )
+    {
+        m_poPrivate->m_bFirstUpdateWithNextFeatureInvokation = false;
+        m_poPrivate->m_bFeatureReturnedByGetNextFeatureIsOGRFeature =
+            isOfExactType<OGRFeature>(*(poFeat.get()));
+    }
+    if( !m_poPrivate->m_bFeatureReturnedByGetNextFeatureIsOGRFeature )
+    {
+        const char* pszStyleStringRef = poFeat->GetStyleString();
+        if( pszStyleStringRef == nullptr ||
+            poFeat->GetStyleStringNoVirtual() != nullptr )
+        {
+            // Can be the case for the MITAB driver
+            *poFeature = std::move(*poFeat);
+        }
+        else
+        {
+            // Not possible with current in-tree drivers
+            char* pszStyleString = CPLStrdup(pszStyleStringRef);
+            *poFeature = std::move(*poFeat);
+            poFeature->SetStyleString(pszStyleString);
+            CPLFree(pszStyleString);
+        }
+    }
+    else
+    {
+        *poFeature = std::move(*poFeat);
+    }
+    return true;
 }
 
 /************************************************************************/
