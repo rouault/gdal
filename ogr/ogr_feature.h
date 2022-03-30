@@ -597,6 +597,10 @@ class CPL_DLL OGRFeature
     OGRFeatureDefn     *GetDefnRef() { return poDefn; }
     const OGRFeatureDefn     *GetDefnRef() const { return poDefn; }
 
+//! @cond Doxygen_Suppress
+    void                SetFDefnUnsafe( OGRFeatureDefn* poNewFDefn );
+//! @endcond
+
     OGRErr              SetGeometryDirectly( OGRGeometry * );
     OGRErr              SetGeometry( const OGRGeometry * );
     OGRGeometry        *GetGeometryRef();
