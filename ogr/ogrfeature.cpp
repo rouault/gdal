@@ -1155,7 +1155,9 @@ OGRFeatureH OGR_F_Clone( OGRFeatureH hFeat )
 * \brief Copies the innards of this OGRFeature into the supplied object.
 *
 * This is mainly intended to allow derived classes to implement their own
-* Clone functions.
+* Clone functions, or fast feature duplication.
+* Both poNew and this should share the same OGRFeatureDefn object.
+* Otherwise use the SetFrom() method.
 *
 * @param poNew The object into which to copy the data of this object.
 * @return True if successful, false if the copy failed.
@@ -1163,7 +1165,8 @@ OGRFeatureH OGR_F_Clone( OGRFeatureH hFeat )
 
 bool OGRFeature::CopySelfTo( OGRFeature* poNew ) const
 {
-    for( int i = 0; i < poDefn->GetFieldCount(); i++ )
+    const int nFieldCount = poDefn->GetFieldCount();
+    for( int i = 0; i < nFieldCount; i++ )
     {
         if( !poNew->SetFieldInternal( i, pauFields + i ) )
         {
@@ -1174,6 +1177,11 @@ bool OGRFeature::CopySelfTo( OGRFeature* poNew ) const
     {
         for( int i = 0; i < poDefn->GetGeomFieldCount(); i++ )
         {
+            if( poNew->papoGeometries[i] )
+            {
+                delete poNew->papoGeometries[i];
+                poNew->papoGeometries[i] = nullptr;
+            }
             if( papoGeometries[i] != nullptr )
             {
                 poNew->papoGeometries[i] = papoGeometries[i]->clone();
@@ -1185,6 +1193,11 @@ bool OGRFeature::CopySelfTo( OGRFeature* poNew ) const
         }
     }
 
+    if( poNew->m_pszStyleString)
+    {
+        delete poNew->m_pszStyleString;
+        poNew->m_pszStyleString = nullptr;
+    }
     if( m_pszStyleString != nullptr )
     {
         poNew->m_pszStyleString = VSI_STRDUP_VERBOSE(m_pszStyleString);
@@ -1196,6 +1209,11 @@ bool OGRFeature::CopySelfTo( OGRFeature* poNew ) const
 
     poNew->SetFID( GetFID() );
 
+    if( poNew->m_pszNativeData)
+    {
+        delete poNew->m_pszNativeData;
+        poNew->m_pszNativeData = nullptr;
+    }
     if( m_pszNativeData != nullptr )
     {
         poNew->m_pszNativeData = VSI_STRDUP_VERBOSE(m_pszNativeData);
@@ -1205,6 +1223,11 @@ bool OGRFeature::CopySelfTo( OGRFeature* poNew ) const
         }
     }
 
+    if( poNew->m_pszNativeMediaType)
+    {
+        delete poNew->m_pszNativeMediaType;
+        poNew->m_pszNativeMediaType = nullptr;
+    }
     if( m_pszNativeMediaType != nullptr )
     {
         poNew->m_pszNativeMediaType = VSI_STRDUP_VERBOSE(m_pszNativeMediaType);

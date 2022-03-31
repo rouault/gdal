@@ -396,8 +396,6 @@ class CPL_DLL OGRFeature
     mutable char        *m_pszTmpFieldValue;
 //! @endcond
 
-    bool                CopySelfTo( OGRFeature *poNew ) const;
-
   public:
     explicit            OGRFeature( OGRFeatureDefn * );
     OGRFeature&         operator=( OGRFeature&& );
@@ -628,6 +626,8 @@ class CPL_DLL OGRFeature
 
     OGRFeature         *Clone() const CPL_WARN_UNUSED_RESULT;
     virtual OGRBoolean  Equal( const OGRFeature * poFeature ) const;
+
+    bool                CopySelfTo( OGRFeature *poNew ) const;
 
     int                 GetFieldCount() const
         { return poDefn->GetFieldCount(); }
