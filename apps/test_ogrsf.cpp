@@ -1292,12 +1292,16 @@ static int TestOGRLayerFeatureCount( GDALDataset* poDS, OGRLayer *poLayer,
     bool bWarnAboutSRS = false;
     OGRFeatureDefn* poLayerDefn = LOG_ACTION(poLayer->GetLayerDefn());
     int nGeomFieldCount = LOG_ACTION(poLayerDefn->GetGeomFieldCount());
+    std::vector<std::unique_ptr<OGRFeature>> apoFirstFeatures;
 
     CPLErrorReset();
 
     for( auto&& poFeature: poLayer )
     {
         nFC++;
+
+        if( nFC <= 5 )
+            apoFirstFeatures.emplace_back(poFeature->Clone());
 
         if (poFeature->GetDefnRef() != poLayerDefn)
         {
@@ -1418,6 +1422,38 @@ static int TestOGRLayerFeatureCount( GDALDataset* poDS, OGRLayer *poLayer,
     if( bVerbose && !bWarnAboutSRS )
     {
         printf("INFO: Feature/layer spatial ref. consistency verified.\n");
+    }
+
+    GIntBig nFCUpdateWidthNextFeature = 0;
+    poLayer->ResetReading();
+    auto poFeatureToUpdate = cpl::make_unique<OGRFeature>(poLayer->GetLayerDefn());
+    while( poLayer->UpdateWithNextFeature(poFeatureToUpdate.get()) )
+    {
+        if( static_cast<size_t>(nFCUpdateWidthNextFeature) < apoFirstFeatures.size() )
+        {
+            if( !poFeatureToUpdate->Equal(apoFirstFeatures[static_cast<size_t>(nFCUpdateWidthNextFeature)].get()) )
+            {
+                bRet = FALSE;
+                printf("ERROR: UpdateWithNextFeature() for feature at index "
+                       CPL_FRMT_GIB " returned a feature different than "
+                       "with GetNextFeature().\n", nFCUpdateWidthNextFeature);
+            }
+        }
+        nFCUpdateWidthNextFeature ++;
+    }
+
+    if( poLayer->UpdateWithNextFeature(poFeatureToUpdate.get()) )
+    {
+        bRet = FALSE;
+        printf("ERROR: UpdateWithNextFeature() returned true after end of iteration.\n");
+    }
+
+    if( nFC != nFCUpdateWidthNextFeature )
+    {
+        bRet = FALSE;
+        printf("ERROR: Feature count got with UpdateWithNextFeature() " CPL_FRMT_GIB
+               " doesn't match actual, " CPL_FRMT_GIB ".\n",
+               nFCUpdateWidthNextFeature, nFC);
     }
 
     return bRet;
@@ -1949,6 +1985,7 @@ static int TestSpatialFilter( OGRLayer *poLayer, int iGeomField )
         printf("INFO: Spatial filter inclusion seems to work.\n");
     }
 
+
     GIntBig nInclusiveCount = LOG_ACTION(poLayer->GetFeatureCount());
 
     // Identity check doesn't always work depending on feature geometries
@@ -1958,6 +1995,42 @@ static int TestSpatialFilter( OGRLayer *poLayer, int iGeomField )
         printf("ERROR: GetFeatureCount() with spatial filter smaller (%d) than "
                "count while iterating over features (%d).\n",
                static_cast<int>(nInclusiveCount), static_cast<int>(nIterCount));
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Verify that we can find the target feature wit UpdateWithNextFeature() */
+/* -------------------------------------------------------------------- */
+    bFound = false;
+    GIntBig nIterCountWithUpdatewithNextFeature = 0;
+    poLayer->ResetReading();
+    auto poFeatureToUpdate = cpl::make_unique<OGRFeature>(poLayer->GetLayerDefn());
+    while( poLayer->UpdateWithNextFeature(poFeatureToUpdate.get()) )
+    {
+        if( poFeatureToUpdate->Equal(poTargetFeature) )
+        {
+            bFound = true;
+        }
+        nIterCountWithUpdatewithNextFeature ++;
+    }
+
+    if( !bFound )
+    {
+        bRet = FALSE;
+        printf(
+            "ERROR: Spatial filter (%d) with UpdateWithNextFeature() eliminated a feature unexpectedly!\n",
+            iGeomField);
+    }
+    else if( bVerbose )
+    {
+        printf("INFO: Spatial filter inclusion with UpdateWithNextFeature() seems to work.\n");
+    }
+
+    if( nIterCount != nIterCountWithUpdatewithNextFeature )
+    {
+        bRet = FALSE;
+        printf("ERROR: Iterating over features with GetNextFeature() returned "
+               "a different number of features than with UpdateWithNextFeature(): %d vs %d.\n",
+               static_cast<int>(nIterCount), static_cast<int>(nIterCountWithUpdatewithNextFeature));
     }
 
     LOG_ACTION(poLayer->SetAttributeFilter("1=1"));
@@ -2059,11 +2132,31 @@ static int TestSpatialFilter( OGRLayer *poLayer, int iGeomField )
         }
     }
 
-    DestroyFeatureAndNullify(poTargetFeature);
+/* -------------------------------------------------------------------- */
+/*      Verify that we can NOT find the target feature with UpdateWithNextFeature() */
+/* -------------------------------------------------------------------- */
+    poLayer->ResetReading();
+    bFound = false;
+    while( poLayer->UpdateWithNextFeature(poFeatureToUpdate.get()) )
+    {
+        if( poFeatureToUpdate->Equal(poTargetFeature) )
+        {
+            bFound = true;
+        }
+    }
+    if( bFound )
+    {
+        bRet = FALSE;
+        printf("ERROR: Spatial filter (%d) with UpdateWithNextFeature() failed to eliminate"
+               "a feature unexpectedly!\n",
+               iGeomField);
+    }
 
 /* -------------------------------------------------------------------- */
 /*     Test infinity envelope                                           */
 /* -------------------------------------------------------------------- */
+
+    DestroyFeatureAndNullify(poTargetFeature);
 
     constexpr double NEG_INF = -std::numeric_limits<double>::infinity();
     constexpr double POS_INF = std::numeric_limits<double>::infinity();
