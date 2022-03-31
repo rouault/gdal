@@ -1179,6 +1179,13 @@ bool OGRFeature::CopySelfTo( OGRFeature* poNew ) const
         {
             if( poNew->papoGeometries[i] )
             {
+                if( papoGeometries[i] )
+                {
+                    // Update in place for compatible geometries
+                    if( poNew->papoGeometries[i]->SetFrom(*(papoGeometries[i])) )
+                        continue;
+                }
+
                 delete poNew->papoGeometries[i];
                 poNew->papoGeometries[i] = nullptr;
             }
