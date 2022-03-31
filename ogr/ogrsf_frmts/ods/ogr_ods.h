@@ -71,6 +71,7 @@ class OGRODSLayer final: public OGRMemLayer
 
     /* For external usage. Mess with FID */
     virtual OGRFeature *        GetNextFeature() override;
+    virtual bool                UpdateWithNextFeature(OGRFeature* poFeature) override;
     virtual OGRFeature         *GetFeature( GIntBig nFeatureId ) override;
     virtual OGRErr              ISetFeature( OGRFeature *poFeature ) override;
     virtual OGRErr              DeleteFeature( GIntBig nFID ) override;

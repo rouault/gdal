@@ -184,6 +184,52 @@ OGRFeature* OGRGeoJSONLayer::GetNextFeature()
 }
 
 /************************************************************************/
+/*                        UpdateWithNextFeature()                       */
+/************************************************************************/
+
+bool OGRGeoJSONLayer::UpdateWithNextFeature(OGRFeature* poRetFeature)
+{
+    if( poReader_ )
+    {
+        if( bHasAppendedFeatures_ )
+        {
+            ResetReading();
+        }
+        while ( true )
+        {
+            OGRFeature* poFeature = poReader_->GetNextFeature(this);
+            if( poFeature == nullptr )
+                return false;
+            if( poFeature->GetFID() == OGRNullFID )
+            {
+                poFeature->SetFID(nNextFID_);
+                nNextFID_ ++;
+            }
+            if( (m_poFilterGeom == nullptr ||
+                FilterGeometry(poFeature->GetGeomFieldRef(m_iGeomFieldFilter)) )
+                && (m_poAttrQuery == nullptr ||
+                    m_poAttrQuery->Evaluate(poFeature)) )
+            {
+                nFeatureReadSinceReset_ ++;
+                *poRetFeature = std::move(*poFeature);
+                delete poFeature;
+                return true;
+            }
+            delete poFeature;
+        }
+    }
+    else
+    {
+        auto ret = OGRMemLayer::UpdateWithNextFeature(poRetFeature);
+        if( ret )
+        {
+            nFeatureReadSinceReset_ ++;
+        }
+        return ret;
+    }
+}
+
+/************************************************************************/
 /*                          GetFeatureCount()                           */
 /************************************************************************/
 

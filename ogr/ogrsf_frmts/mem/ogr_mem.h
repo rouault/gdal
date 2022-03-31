@@ -80,6 +80,7 @@ class CPL_DLL OGRMemLayer CPL_NON_FINAL: public OGRLayer
 
     void                ResetReading() override;
     OGRFeature *        GetNextFeature() override;
+    bool                UpdateWithNextFeature(OGRFeature* poFeature) override;
     virtual OGRErr      SetNextByIndex( GIntBig nIndex ) override;
 
     OGRFeature         *GetFeature( GIntBig nFeatureId ) override;

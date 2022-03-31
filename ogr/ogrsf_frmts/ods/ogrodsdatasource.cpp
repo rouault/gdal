@@ -131,6 +131,25 @@ OGRFeature* OGRODSLayer::GetNextFeature()
 }
 
 /************************************************************************/
+/*                        UpdateWithNextFeature()                       */
+/************************************************************************/
+
+bool OGRODSLayer::UpdateWithNextFeature(OGRFeature* poFeature)
+{
+    while(true)
+    {
+        if(!OGRMemLayer::UpdateWithNextFeature(poFeature) )
+            return false;
+        poFeature->SetFID(poFeature->GetFID() + 1 + (bHasHeaderLine ? 1 : 0));
+        if( m_poAttrQueryODS == nullptr
+               || m_poAttrQueryODS->Evaluate( poFeature ) )
+        {
+            return true;
+        }
+    }
+}
+
+/************************************************************************/
 /*                           GetFeature()                               */
 /************************************************************************/
 

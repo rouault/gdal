@@ -183,6 +183,47 @@ OGRFeature *OGRMemLayer::GetNextFeature()
 }
 
 /************************************************************************/
+/*                     UpdateWithNextFeature()                          */
+/************************************************************************/
+
+bool OGRMemLayer::UpdateWithNextFeature(OGRFeature* poFeature)
+{
+    while( true )
+    {
+        OGRFeature* poFeatureIter = nullptr;
+        if( m_papoFeatures )
+        {
+            if( m_iNextReadFID >= m_nMaxFeatureCount )
+                return false;
+            poFeatureIter = m_papoFeatures[m_iNextReadFID++];
+            if( poFeatureIter == nullptr )
+                continue;
+        }
+        else if( m_oMapFeaturesIter != m_oMapFeatures.end() )
+        {
+            poFeatureIter = m_oMapFeaturesIter->second;
+            ++m_oMapFeaturesIter;
+        }
+        else
+        {
+            break;
+        }
+
+        if( (m_poFilterGeom == nullptr ||
+             FilterGeometry(poFeatureIter->GetGeomFieldRef(m_iGeomFieldFilter)) )
+            && (m_poAttrQuery == nullptr ||
+                m_poAttrQuery->Evaluate(poFeatureIter)) )
+        {
+            m_nFeaturesRead++;
+            // No need for poFeature->Reset();
+            return poFeatureIter->CopySelfTo(poFeature);
+        }
+    }
+
+    return false;
+}
+
+/************************************************************************/
 /*                           SetNextByIndex()                           */
 /************************************************************************/
 

@@ -79,6 +79,7 @@ class OGRGeoJSONLayer final: public OGRMemLayer
 
     virtual void        ResetReading() override;
     virtual OGRFeature* GetNextFeature() override;
+    virtual bool        UpdateWithNextFeature(OGRFeature* poFeature) override;
     virtual OGRFeature* GetFeature(GIntBig nFID) override;
     virtual GIntBig     GetFeatureCount(int bForce) override;
 

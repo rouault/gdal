@@ -112,6 +112,24 @@ OGRFeature* OGRXLSXLayer::GetNextFeature()
     return poFeature;
 }
 
+/************************************************************************/
+/*                        UpdateWithNextFeature()                       */
+/************************************************************************/
+
+bool OGRXLSXLayer::UpdateWithNextFeature(OGRFeature* poFeature)
+{
+    Init();
+    if(!OGRMemLayer::UpdateWithNextFeature(poFeature) )
+        return false;
+    poFeature->SetFID(poFeature->GetFID() +
+                          1 + static_cast<int>(bHasHeaderLine));
+    return true;
+}
+
+/************************************************************************/
+/*                          CreateField()                               */
+/************************************************************************/
+
 OGRErr OGRXLSXLayer::CreateField( OGRFieldDefn *poField, int bApproxOK )
 {
     Init();
