@@ -261,6 +261,8 @@ namespace tut
 
         poCollection->addGeometryDirectly(make<OGRPoint>());
         poCollection->addGeometryDirectly(make<OGRLinearRing>());
+        poCollection->addGeometryDirectly(make<OGRLineString>());
+        poCollection->addGeometryDirectly(make<OGRPolygon>());
 
         return poCollection;
     }
@@ -396,6 +398,34 @@ namespace tut
         testCopyEquals<OGRPolyhedralSurface>();
         testCopyEquals<OGRTriangulatedSurface>();
 
+        OGRGeometryCollection oGC;
+        oGC.addGeometryDirectly(new OGRPoint(1, 2));
+        {
+            const char* pszPoly = "POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))";
+            OGRPolygon* poPoly = new OGRPolygon();
+            poPoly->importFromWkt(&pszPoly);
+            oGC.addGeometryDirectly(poPoly);
+        }
+        oGC.addGeometryDirectly(new OGRLineString());
+        oGC.addGeometryDirectly(new OGRPoint(5, 6));
+
+        OGRGeometryCollection oGC2;
+        oGC2.addGeometryDirectly(new OGRPoint(1, 2));
+        {
+            const char* pszPoly = "POLYGON((4 4,4 6,6 6,6 4,5 4,4 4))";
+            OGRPolygon* poPoly = new OGRPolygon();
+            poPoly->importFromWkt(&pszPoly);
+            oGC2.addGeometryDirectly(poPoly);
+        }
+        oGC2.addGeometryDirectly(new OGRPoint(3, 4));
+
+        OGRGeometryCollection oGCDest;
+        oGCDest = oGC;
+        ensure(oGCDest.Equals(&oGC));
+        oGCDest = oGC2;
+        ensure(oGCDest.Equals(&oGC2));
+        oGCDest = oGC;
+        ensure(oGCDest.Equals(&oGC));
     }
 
     template<>

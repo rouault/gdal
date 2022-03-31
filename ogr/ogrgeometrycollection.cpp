@@ -113,13 +113,33 @@ OGRGeometryCollection& OGRGeometryCollection::operator=(
 {
     if( this != &other)
     {
-        empty();
-
         OGRGeometry::operator=( other );
 
-        for( int i = 0; i < other.nGeomCount; i++ )
+        if( nGeomCount > 0 && nGeomCount >= other.nGeomCount)
         {
-            addGeometry( other.papoGeoms[i] );
+            for( int i = other.nGeomCount; i < nGeomCount; i++ )
+            {
+                delete papoGeoms[i];
+            }
+            nGeomCount = other.nGeomCount;
+            for( int i = 0; i < nGeomCount; i++ )
+            {
+                // Update in place for compatible geometries
+                if( papoGeoms[i]->SetFrom(*(other.papoGeoms[i])) )
+                    continue;
+
+                delete papoGeoms[i];
+                papoGeoms[i] = other.papoGeoms[i]->clone();
+            }
+        }
+        else
+        {
+            empty();
+
+            for( int i = 0; i < other.nGeomCount; i++ )
+            {
+                addGeometry( other.papoGeoms[i] );
+            }
         }
     }
     return *this;

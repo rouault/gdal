@@ -386,6 +386,9 @@ class CPL_DLL OGRGeometry
 
     OGRGeometry& operator=( const OGRGeometry& other );
 
+    /** Updates the content of this geometry with the other one, provided it is of the same type. */
+    virtual bool SetFrom( const OGRGeometry& other ) = 0;
+
     /** Returns if two geometries are equal. */
     bool operator==( const OGRGeometry& other ) const { return CPL_TO_BOOL(Equals(&other)); }
 
@@ -920,6 +923,16 @@ typedef std::unique_ptr<OGRGeometry, OGRGeometryUniquePtrDeleter> OGRGeometryUni
     OGR_FORBID_DOWNCAST_TO_MULTISURFACE \
     OGR_FORBID_DOWNCAST_TO_MULTIPOLYGON
 
+#define OGR_GEOMETRY_SET_FROM_IMPL(Type) \
+    bool SetFrom( const OGRGeometry& other ) override \
+    { \
+        const auto poOther = dynamic_cast<const Type*>(&other); \
+        if( !poOther ) \
+            return false; \
+        *this = *poOther; \
+        return true; \
+    }
+
 //! @endcond
 
 /************************************************************************/
@@ -949,6 +962,8 @@ class CPL_DLL OGRPoint : public OGRGeometry
     ~OGRPoint() override;
 
     OGRPoint& operator=( const OGRPoint& other );
+
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRPoint)
 
     // IWks Interface
     size_t WkbSize() const override;
@@ -1108,6 +1123,8 @@ class CPL_DLL OGRCurve : public OGRGeometry
     OGRCurve& operator=( const OGRCurve& other );
 //! @endcond
 
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRCurve)
+
     /** Type of child elements. */
     typedef OGRPoint ChildType;
 
@@ -1248,6 +1265,8 @@ class CPL_DLL OGRSimpleCurve: public OGRCurve
     ~OGRSimpleCurve() override;
 
     OGRSimpleCurve& operator=( const OGRSimpleCurve& other );
+
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRSimpleCurve)
 
     /** Type of child elements. */
     typedef OGRPoint ChildType;
@@ -1431,6 +1450,8 @@ class CPL_DLL OGRLineString : public OGRSimpleCurve
 
     OGRLineString& operator=(const OGRLineString& other);
 
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRLineString)
+
     virtual OGRLineString *clone() const override;
     virtual OGRLineString* CurveToLine( double dfMaxAngleStepSizeDegrees = 0,
                                         const char* const* papszOptions = nullptr )
@@ -1524,6 +1545,8 @@ class CPL_DLL OGRLinearRing : public OGRLineString
 
     OGRLinearRing& operator=( const OGRLinearRing& other );
 
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRLinearRing)
+
     // Non standard.
     virtual const char *getGeometryName() const override;
     virtual OGRLinearRing *clone() const override;
@@ -1588,6 +1611,8 @@ class CPL_DLL OGRCircularString : public OGRSimpleCurve
     ~OGRCircularString() override;
 
     OGRCircularString& operator=(const OGRCircularString& other);
+
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRCircularString)
 
     // IWks Interface.
     virtual OGRErr importFromWkb( const unsigned char *,
@@ -1803,6 +1828,8 @@ class CPL_DLL OGRCompoundCurve : public OGRCurve
 
     OGRCompoundCurve& operator=( const OGRCompoundCurve& other );
 
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRCompoundCurve)
+
     /** Type of child elements. */
     typedef OGRCurve ChildType;
 
@@ -2006,6 +2033,8 @@ class CPL_DLL OGRCurvePolygon : public OGRSurface
 
     OGRCurvePolygon& operator=( const OGRCurvePolygon& other );
 
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRCurvePolygon)
+
     /** Type of child elements. */
     typedef OGRCurve ChildType;
 
@@ -2167,6 +2196,8 @@ class CPL_DLL OGRPolygon : public OGRCurvePolygon
 
     OGRPolygon& operator=(const OGRPolygon& other);
 
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRPolygon)
+
     /** Type of child elements. */
     typedef OGRLinearRing ChildType;
 
@@ -2296,6 +2327,9 @@ class CPL_DLL OGRTriangle : public OGRPolygon
     OGRTriangle( const OGRTriangle &other );
     OGRTriangle( const OGRPolygon &other, OGRErr &eErr );
     OGRTriangle& operator=( const OGRTriangle& other );
+
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRTriangle)
+
     ~OGRTriangle() override;
     virtual const char *getGeometryName() const override;
     virtual OGRwkbGeometryType getGeometryType() const override;
@@ -2364,6 +2398,8 @@ class CPL_DLL OGRGeometryCollection : public OGRGeometry
     ~OGRGeometryCollection() override;
 
     OGRGeometryCollection& operator=( const OGRGeometryCollection& other );
+
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRGeometryCollection)
 
     /** Type of child elements. */
     typedef OGRGeometry ChildType;
@@ -2502,6 +2538,8 @@ class CPL_DLL OGRMultiSurface : public OGRGeometryCollection
 
     OGRMultiSurface& operator=( const OGRMultiSurface& other );
 
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRMultiSurface)
+
     /** Type of child elements. */
     typedef OGRSurface ChildType;
 
@@ -2619,6 +2657,8 @@ class CPL_DLL OGRMultiPolygon : public OGRMultiSurface
 
     OGRMultiPolygon& operator=(const OGRMultiPolygon& other);
 
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRMultiPolygon)
+
     /** Type of child elements. */
     typedef OGRPolygon ChildType;
 
@@ -2722,6 +2762,8 @@ class CPL_DLL OGRPolyhedralSurface : public OGRSurface
     OGRPolyhedralSurface( const OGRPolyhedralSurface &poGeom );
     ~OGRPolyhedralSurface() override;
     OGRPolyhedralSurface& operator=(const OGRPolyhedralSurface& other);
+
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRPolyhedralSurface)
 
     /** Type of child elements. */
     typedef OGRPolygon ChildType;
@@ -2867,6 +2909,9 @@ class CPL_DLL OGRTriangulatedSurface : public OGRPolyhedralSurface
     const ChildType* const* end() const { return reinterpret_cast<const ChildType* const*>(oMP.end()); }
 
     OGRTriangulatedSurface& operator=( const OGRTriangulatedSurface& other );
+
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRTriangulatedSurface)
+
     virtual const char *getGeometryName() const override;
     virtual OGRwkbGeometryType getGeometryType() const override;
     virtual OGRTriangulatedSurface *clone() const override;
@@ -2929,6 +2974,8 @@ class CPL_DLL OGRMultiPoint : public OGRGeometryCollection
     ~OGRMultiPoint() override;
 
     OGRMultiPoint& operator=(const OGRMultiPoint& other);
+
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRMultiPoint)
 
     /** Type of child elements. */
     typedef OGRPoint ChildType;
@@ -3036,6 +3083,8 @@ class CPL_DLL OGRMultiCurve : public OGRGeometryCollection
 
     OGRMultiCurve& operator=( const OGRMultiCurve& other );
 
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRMultiCurve)
+
     /** Type of child elements. */
     typedef OGRCurve ChildType;
 
@@ -3136,6 +3185,8 @@ class CPL_DLL OGRMultiLineString : public OGRMultiCurve
     ~OGRMultiLineString() override;
 
     OGRMultiLineString& operator=( const OGRMultiLineString& other );
+
+    OGR_GEOMETRY_SET_FROM_IMPL(OGRMultiLineString)
 
     /** Type of child elements. */
     typedef OGRLineString ChildType;

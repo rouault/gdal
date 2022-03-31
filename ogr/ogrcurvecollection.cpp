@@ -110,19 +110,39 @@ OGRCurveCollection::operator=( const OGRCurveCollection& other )
 {
     if( this != &other)
     {
-        empty(nullptr);
-
-        if( other.nCurveCount > 0 )
+        if( nCurveCount > 0 && nCurveCount >= other.nCurveCount)
         {
-            nCurveCount = other.nCurveCount;
-            papoCurves = static_cast<OGRCurve **>(
-                VSI_MALLOC2_VERBOSE(sizeof(void*), nCurveCount));
-
-            if( papoCurves )
+            for( int i = other.nCurveCount; i < nCurveCount; i++ )
             {
-                for( int i = 0; i < nCurveCount; i++ )
+                delete papoCurves[i];
+            }
+            nCurveCount = other.nCurveCount;
+            for( int i = 0; i < nCurveCount; i++ )
+            {
+                // Update in place for compatible geometries
+                if( papoCurves[i]->SetFrom(*(other.papoCurves[i])) )
+                    continue;
+
+                delete papoCurves[i];
+                papoCurves[i] = other.papoCurves[i]->clone();
+            }
+        }
+        else
+        {
+            empty(nullptr);
+
+            if( other.nCurveCount > 0 )
+            {
+                nCurveCount = other.nCurveCount;
+                papoCurves = static_cast<OGRCurve **>(
+                    VSI_MALLOC2_VERBOSE(sizeof(void*), nCurveCount));
+
+                if( papoCurves )
                 {
-                    papoCurves[i] = other.papoCurves[i]->clone();
+                    for( int i = 0; i < nCurveCount; i++ )
+                    {
+                        papoCurves[i] = other.papoCurves[i]->clone();
+                    }
                 }
             }
         }
