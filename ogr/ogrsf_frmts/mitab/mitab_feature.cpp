@@ -6967,7 +6967,9 @@ TABCollection::TABCollection( OGRFeatureDefn *poDefnIn ) :
  **********************************************************************/
 TABCollection::~TABCollection()
 {
-    EmptyCollection();
+    delete m_poRegion;
+    delete m_poPline;
+    delete m_poMpoint;
 }
 
 /**********************************************************************
