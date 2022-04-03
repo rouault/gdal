@@ -80,7 +80,7 @@ tiffFields[] = {
 	{ TIFFTAG_MODEL, -1, -1, TIFF_ASCII, 0, TIFF_SETGET_ASCII, TIFF_SETGET_UNDEFINED, FIELD_CUSTOM, 1, 0, "Model", NULL },
 	{ TIFFTAG_STRIPOFFSETS, -1, -1, TIFF_LONG8, 0, TIFF_SETGET_UNDEFINED, TIFF_SETGET_UNDEFINED, FIELD_STRIPOFFSETS, 0, 0, "StripOffsets", NULL },
 	{ TIFFTAG_ORIENTATION, 1, 1, TIFF_SHORT, 0, TIFF_SETGET_UINT16, TIFF_SETGET_UNDEFINED, FIELD_ORIENTATION, 0, 0, "Orientation", NULL },
-	{ TIFFTAG_SAMPLESPERPIXEL, 1, 1, TIFF_SHORT, 0, TIFF_SETGET_UINT16, TIFF_SETGET_UNDEFINED, FIELD_SAMPLESPERPIXEL, 0, 0, "SamplesPerPixel", NULL },
+	{ TIFFTAG_SAMPLESPERPIXEL, 1, 1, TIFF_LONG, 0, TIFF_SETGET_UINT32, TIFF_SETGET_UNDEFINED, FIELD_SAMPLESPERPIXEL, 0, 0, "SamplesPerPixel", NULL },
 	{ TIFFTAG_ROWSPERSTRIP, 1, 1, TIFF_LONG, 0, TIFF_SETGET_UINT32, TIFF_SETGET_UNDEFINED, FIELD_ROWSPERSTRIP, 0, 0, "RowsPerStrip", NULL },
 	{ TIFFTAG_STRIPBYTECOUNTS, -1, -1, TIFF_LONG8, 0, TIFF_SETGET_UNDEFINED, TIFF_SETGET_UNDEFINED, FIELD_STRIPBYTECOUNTS, 0, 0, "StripByteCounts", NULL },
 	{ TIFFTAG_MINSAMPLEVALUE, -2, -1, TIFF_SHORT, 0, TIFF_SETGET_UINT16, TIFF_SETGET_UNDEFINED, FIELD_MINSAMPLEVALUE, 1, 0, "MinSampleValue", NULL },
@@ -117,7 +117,7 @@ tiffFields[] = {
 	{ TIFFTAG_NUMBEROFINKS, 1, 1, TIFF_SHORT, 0, TIFF_SETGET_UINT16, TIFF_SETGET_UNDEFINED, FIELD_CUSTOM, 1, 0, "NumberOfInks", NULL },
 	{ TIFFTAG_DOTRANGE, 2, 2, TIFF_SHORT, 0, TIFF_SETGET_UINT16_PAIR, TIFF_SETGET_UNDEFINED, FIELD_CUSTOM, 0, 0, "DotRange", NULL },
 	{ TIFFTAG_TARGETPRINTER, -1, -1, TIFF_ASCII, 0, TIFF_SETGET_ASCII, TIFF_SETGET_UNDEFINED, FIELD_CUSTOM, 1, 0, "TargetPrinter", NULL },
-	{ TIFFTAG_EXTRASAMPLES, -1, -1, TIFF_SHORT, 0, TIFF_SETGET_C16_UINT16, TIFF_SETGET_UNDEFINED, FIELD_EXTRASAMPLES, 0, 1, "ExtraSamples", NULL },
+	{ TIFFTAG_EXTRASAMPLES, -3, -1, TIFF_SHORT, 0, TIFF_SETGET_C32_UINT16, TIFF_SETGET_UNDEFINED, FIELD_EXTRASAMPLES, 0, 1, "ExtraSamples", NULL },
 	{ TIFFTAG_SAMPLEFORMAT, -1, -1, TIFF_SHORT, 0, TIFF_SETGET_UINT16, TIFF_SETGET_UNDEFINED, FIELD_SAMPLEFORMAT, 0, 0, "SampleFormat", NULL },
 	{ TIFFTAG_SMINSAMPLEVALUE, -2, -1, TIFF_ANY, 0, TIFF_SETGET_DOUBLE, TIFF_SETGET_UNDEFINED, FIELD_SMINSAMPLEVALUE, 1, 0, "SMinSampleValue", NULL },
 	{ TIFFTAG_SMAXSAMPLEVALUE, -2, -1, TIFF_ANY, 0, TIFF_SETGET_DOUBLE, TIFF_SETGET_UNDEFINED, FIELD_SMAXSAMPLEVALUE, 1, 0, "SMaxSampleValue", NULL },
@@ -152,7 +152,7 @@ tiffFields[] = {
 	{ TIFFTAG_PHOTOSHOP, -3, -3, TIFF_BYTE, 0, TIFF_SETGET_C32_UINT8, TIFF_SETGET_UNDEFINED, FIELD_CUSTOM, 1, 1, "Photoshop", NULL },
 	/*--: EXIFIFD and GPSIFD specified as TIFF_LONG by Aware-Systems and not TIFF_IFD8 as in original LibTiff.
 	 *    However, for IFD-like tags, libtiff uses the data type TIFF_IFD8 in tiffFields[]-tag definition combined with
-	 *    a special handling procedure in order to write either a 32-bit value and the TIFF_IFD type-id into ClassicTIFF files 
+	 *    a special handling procedure in order to write either a 32-bit value and the TIFF_IFD type-id into ClassicTIFF files
 	 *    or a 64-bit value and the TIFF_IFD8 type-id into BigTIFF files. */
 	{ TIFFTAG_EXIFIFD, 1, 1, TIFF_IFD8, 0, TIFF_SETGET_IFD8, TIFF_SETGET_UNDEFINED, FIELD_CUSTOM, 1, 0, "EXIFIFDOffset", (TIFFFieldArray*) &exifFieldArray },
 	{ TIFFTAG_ICCPROFILE, -3, -3, TIFF_UNDEFINED, 0, TIFF_SETGET_C32_UINT8, TIFF_SETGET_UNDEFINED, FIELD_CUSTOM, 0, 1, "ICC Profile", NULL },
@@ -331,7 +331,7 @@ gpsFields[] = {
 	/*  For the GPS tag definitions in gpsFields[] the standard definition for Rationals is TIFF_SETGET_DOUBLE and TIFF_SETGET_C0_FLOAT.
 	 *-- ATTENTION: After the upgrade with Rational2Double, the GPSTAG values can now be written and also read in double precision!
 	 *              In order to achieve double precision for GPS tags:
-	 *              Standard definitions for GPSTAG is kept to TIFF_SETGET_DOUBLE 
+	 *              Standard definitions for GPSTAG is kept to TIFF_SETGET_DOUBLE
 	 *              and TIFF_SETGET_C0_FLOAT is changed to TIFF_SETGET_C0_DOUBLE.
 	 */
 	{		GPSTAG_VERSIONID	, 4, 4, 	TIFF_BYTE	, 0, 	TIFF_SETGET_C0_UINT8	, TIFF_SETGET_UINT8	, FIELD_CUSTOM	, 1, 0, 	"VersionID", NULL },
@@ -377,7 +377,7 @@ gpsFieldArray = { tfiatGps, 0, TIFFArrayCount(gpsFields), (TIFFField*) gpsFields
 
 /*
  *  We have our own local lfind() equivalent to avoid subtle differences
- *  in types passed to lfind() on different systems. 
+ *  in types passed to lfind() on different systems.
  */
 
 static void *
@@ -604,11 +604,11 @@ _TIFFDataSize(TIFFDataType type)
 }
 
 /*
- * Rational2Double: 
+ * Rational2Double:
  * Return size of TIFFSetGetFieldType for internal storage in bytes.
  *
  * XXX: TIFF_RATIONAL values for FIELD_CUSTOM are stored internally as 4-byte float.
- * However, some of them should be stored internally as 8-byte double. 
+ * However, some of them should be stored internally as 8-byte double.
  * This is now managed by the SetGetField of the tag-definition!
  */
 int
@@ -685,6 +685,10 @@ TIFFFindField(TIFF* tif, uint32_t tag, TIFFDataType dt)
 	TIFFField key = {0, 0, 0, TIFF_NOTYPE, 0, 0, 0, 0, 0, 0, NULL, NULL};
 	TIFFField* pkey = &key;
 	const TIFFField **ret;
+	if( tag == TIFFTAG_SAMPLESPERPIXELEX )
+	    tag = TIFFTAG_SAMPLESPERPIXEL;
+	else if( tag == TIFFTAG_EXTRASAMPLESEX )
+	    tag = TIFFTAG_EXTRASAMPLES;
 	if (tif->tif_foundfield && tif->tif_foundfield->field_tag == tag &&
 	    (dt == TIFF_ANY || dt == tif->tif_foundfield->field_type))
 		return tif->tif_foundfield;
@@ -724,7 +728,7 @@ _TIFFFindFieldByName(TIFF* tif, const char *field_name, TIFFDataType dt)
 	key.field_name = (char *)field_name;
 	key.field_type = dt;
 
-	ret = (const TIFFField **) 
+	ret = (const TIFFField **)
             td_lfind(&pkey, tif->tif_fields, &tif->tif_nfields,
                      sizeof(TIFFField *), tagNameCompare);
 
@@ -892,13 +896,13 @@ _TIFFCreateAnonField(TIFF *tif, uint32_t tag, TIFFDataType field_type)
 	}
 	fld->field_subfields = NULL;
 
-	/* 
+	/*
 	 * note that this name is a special sign to TIFFClose() and
 	 * _TIFFSetupFields() to free the field
 	 */
 	(void) snprintf(fld->field_name, 32, "Tag %d", (int) tag);
 
-	return fld;    
+	return fld;
 }
 
 /****************************************************************************

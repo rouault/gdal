@@ -269,8 +269,8 @@ TIFFWriteCustomDirectory(TIFF* tif, uint64_t* pdiroff)
  * Similar to TIFFWriteDirectory(), but if the directory has already
  * been written once, it is relocated to the end of the file, in case it
  * has changed in size.  Note that this will result in the loss of the
- * previously used directory space. 
- */ 
+ * previously used directory space.
+ */
 int
 TIFFRewriteDirectory( TIFF *tif )
 {
@@ -440,7 +440,7 @@ TIFFWriteDirectorySec(TIFF* tif, int isimage, int imagedone, uint64_t* pdiroff)
 		return (1);
 
         _TIFFFillStriles( tif );
-        
+
 	/*
 	 * Clear write state so that subsequent images with
 	 * different characteristics get the right buffers
@@ -466,7 +466,7 @@ TIFFWriteDirectorySec(TIFF* tif, int isimage, int imagedone, uint64_t* pdiroff)
                  * in the previous steps as the "rawcc" data may well be
                  * a previously read tile/strip in mixed read/write mode.
 		 */
-		if (tif->tif_rawcc > 0 
+		if (tif->tif_rawcc > 0
 		    && (tif->tif_flags & TIFF_BEENWRITING) != 0 )
 		{
 		    if( !TIFFFlushData1(tif) )
@@ -566,8 +566,16 @@ TIFFWriteDirectorySec(TIFF* tif, int isimage, int imagedone, uint64_t* pdiroff)
 			}
 			if (TIFFFieldSet(tif,FIELD_SAMPLESPERPIXEL))
 			{
+                if( tif->tif_dir.td_samplesperpixel <= 65535 )
+                {
 				if (!TIFFWriteDirectoryTagShort(tif,&ndir,dir,TIFFTAG_SAMPLESPERPIXEL,tif->tif_dir.td_samplesperpixel))
 					goto bad;
+                }
+                else
+                {
+				if (!TIFFWriteDirectoryTagLong(tif,&ndir,dir,TIFFTAG_SAMPLESPERPIXEL,tif->tif_dir.td_samplesperpixel))
+					goto bad;
+                }
 			}
 			if (TIFFFieldSet(tif,FIELD_ROWSPERSTRIP))
 			{
@@ -644,11 +652,19 @@ TIFFWriteDirectorySec(TIFF* tif, int isimage, int imagedone, uint64_t* pdiroff)
 			}
 			if (TIFFFieldSet(tif,FIELD_EXTRASAMPLES))
 			{
-				if (tif->tif_dir.td_extrasamples)
+				if (tif->tif_dir.td_extrasamples > 0 && tif->tif_dir.td_extrasamples <= 65535 )
 				{
 					uint16_t na;
 					uint16_t* nb;
 					TIFFGetFieldDefaulted(tif,TIFFTAG_EXTRASAMPLES,&na,&nb);
+					if (!TIFFWriteDirectoryTagShortArray(tif,&ndir,dir,TIFFTAG_EXTRASAMPLES,na,nb))
+						goto bad;
+				}
+				else if (tif->tif_dir.td_extrasamples > 65535 )
+				{
+					uint32_t na;
+					uint16_t* nb;
+					TIFFGetFieldDefaulted(tif,TIFFTAG_EXTRASAMPLESEX,&na,&nb);
 					if (!TIFFWriteDirectoryTagShortArray(tif,&ndir,dir,TIFFTAG_EXTRASAMPLES,na,nb))
 						goto bad;
 				}
@@ -840,7 +856,7 @@ TIFFWriteDirectorySec(TIFF* tif, int isimage, int imagedone, uint64_t* pdiroff)
 								goto bad;
 							/*-- ToDo: After Testing, this should be removed and tv_size==4 should be set as default. */
 							if (tv_size != 4) {
-								TIFFErrorExt(0,"TIFFLib: _TIFFWriteDirectorySec()", "Rational2Double: .set_field_type in not 4 but %d", tv_size); 
+								TIFFErrorExt(0,"TIFFLib: _TIFFWriteDirectorySec()", "Rational2Double: .set_field_type in not 4 but %d", tv_size);
 							}
 						}
 					}
@@ -859,7 +875,7 @@ TIFFWriteDirectorySec(TIFF* tif, int isimage, int imagedone, uint64_t* pdiroff)
 								goto bad;
 							/*-- ToDo: After Testing, this should be removed and tv_size==4 should be set as default. */
 							if (tv_size != 4) {
-								TIFFErrorExt(0,"TIFFLib: _TIFFWriteDirectorySec()", "Rational2Double: .set_field_type in not 4 but %d", tv_size); 
+								TIFFErrorExt(0,"TIFFLib: _TIFFWriteDirectorySec()", "Rational2Double: .set_field_type in not 4 but %d", tv_size);
 							}
 						}
 					}
@@ -1366,7 +1382,7 @@ TIFFWriteDirectoryTagShortPerSample(TIFF* tif, uint32_t* ndir, TIFFDirEntry* dir
 	static const char module[] = "TIFFWriteDirectoryTagShortPerSample";
 	uint16_t* m;
 	uint16_t* na;
-	uint16_t nb;
+	uint32_t nb;
 	int o;
 	if (dir==NULL)
 	{
@@ -2407,12 +2423,12 @@ TIFFWriteDirectoryTagCheckedRational(TIFF* tif, uint32_t* ndir, TIFFDirEntry* di
 	static const char module[] = "TIFFWriteDirectoryTagCheckedRational";
 	uint32_t m[2];
 	assert(sizeof(uint32_t) == 4);
-	if (value < 0) 
+	if (value < 0)
 	{
 		TIFFErrorExt(tif->tif_clientdata, module, "Negative value is illegal");
 		return 0;
-	} 
-	else if (value != value) 
+	}
+	else if (value != value)
 	{
 		TIFFErrorExt(tif->tif_clientdata, module, "Not-a-number value is illegal");
 		return 0;
@@ -2439,7 +2455,7 @@ TIFFWriteDirectoryTagCheckedRational(TIFF* tif, uint32_t* ndir, TIFFDirEntry* di
 		m[1]=(uint32_t)(0xFFFFFFFF/value);
 	}
 #else
-	/*--Rational2Double: New function also used for non-custom rational tags. 
+	/*--Rational2Double: New function also used for non-custom rational tags.
 	 *  However, could be omitted here, because TIFFWriteDirectoryTagCheckedRational() is not used by code for custom tags,
 	 *  only by code for named-tiff-tags like FIELD_RESOLUTION and FIELD_POSITION */
 	else {
@@ -2636,7 +2652,7 @@ void DoubleToRational_direct(double value, unsigned long *num, unsigned long *de
 	/*--- OLD Code for debugging and comparison  ---- */
 	/* code merged from TIFFWriteDirectoryTagCheckedRationalArray() and TIFFWriteDirectoryTagCheckedRational() */
 
-	/* First check for zero and also check for negative numbers (which are illegal for RATIONAL) 
+	/* First check for zero and also check for negative numbers (which are illegal for RATIONAL)
 	 * and also check for "not-a-number". In each case just set this to zero to support also rational-arrays.
 	  */
 	if (value<=0.0 || value != value)
@@ -3357,14 +3373,14 @@ _TIFFRewriteField(TIFF* tif, uint16_t tag, TIFFDataType in_datatype,
 /* -------------------------------------------------------------------- */
     if( isMapped(tif) )
     {
-        TIFFErrorExt( tif->tif_clientdata, module, 
+        TIFFErrorExt( tif->tif_clientdata, module,
                       "Memory mapped files not currently supported for this operation." );
         return 0;
     }
 
     if( tif->tif_diroff == 0 )
     {
-        TIFFErrorExt( tif->tif_clientdata, module, 
+        TIFFErrorExt( tif->tif_clientdata, module,
                       "Attempt to reset field on directory not already on disk." );
         return 0;
     }
@@ -3448,7 +3464,7 @@ _TIFFRewriteField(TIFF* tif, uint16_t tag, TIFFDataType in_datatype,
     if (!(tif->tif_flags&TIFF_BIGTIFF))
     {
         uint32_t value;
-        
+
         memcpy( &value, direntry_raw + 4, sizeof(uint32_t) );
         if (tif->tif_flags&TIFF_SWAB)
             TIFFSwabLong( &value );
@@ -3477,7 +3493,7 @@ _TIFFRewriteField(TIFF* tif, uint16_t tag, TIFFDataType in_datatype,
     {
         if( tag == TIFFTAG_TILEOFFSETS || tag == TIFFTAG_STRIPOFFSETS )
         {
-            entry_type = (tif->tif_flags&TIFF_BIGTIFF) ? TIFF_LONG8 : TIFF_LONG; 
+            entry_type = (tif->tif_flags&TIFF_BIGTIFF) ? TIFF_LONG8 : TIFF_LONG;
         }
         else
         {
@@ -3570,7 +3586,7 @@ _TIFFRewriteField(TIFF* tif, uint16_t tag, TIFFDataType in_datatype,
             if((int64_t) ((int32_t *) buf_to_write)[i] != ((int64_t *) data)[i] )
             {
                 _TIFFfree( buf_to_write );
-                TIFFErrorExt( tif->tif_clientdata, module, 
+                TIFFErrorExt( tif->tif_clientdata, module,
                               "Value exceeds 32bit range of output type." );
                 return 0;
             }
@@ -3588,7 +3604,7 @@ _TIFFRewriteField(TIFF* tif, uint16_t tag, TIFFDataType in_datatype,
             if((uint64_t) ((uint32_t *) buf_to_write)[i] != ((uint64_t *) data)[i] )
             {
                 _TIFFfree( buf_to_write );
-                TIFFErrorExt( tif->tif_clientdata, module, 
+                TIFFErrorExt( tif->tif_clientdata, module,
                               "Value exceeds 32bit range of output type." );
                 return 0;
             }
@@ -3696,7 +3712,7 @@ _TIFFRewriteField(TIFF* tif, uint16_t tag, TIFFDataType in_datatype,
     if( !value_in_entry )
     {
         entry_offset = TIFFSeekFile(tif,0,SEEK_END);
-        
+
         if (!WriteOK(tif, buf_to_write, count*TIFFDataWidth(datatype))) {
             _TIFFfree( buf_to_write );
             TIFFErrorExt(tif->tif_clientdata, module,
@@ -3772,7 +3788,7 @@ _TIFFRewriteField(TIFF* tif, uint16_t tag, TIFFDataType in_datatype,
                      tif->tif_name);
         return 0;
     }
-    
+
     return 1;
 }
 /* vim: set ts=8 sts=8 sw=8 noet: */

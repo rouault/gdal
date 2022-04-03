@@ -2,23 +2,23 @@
  * Copyright (c) 1988-1997 Sam Leffler
  * Copyright (c) 1991-1997 Silicon Graphics, Inc.
  *
- * Permission to use, copy, modify, distribute, and sell this software and 
+ * Permission to use, copy, modify, distribute, and sell this software and
  * its documentation for any purpose is hereby granted without fee, provided
  * that (i) the above copyright notices and this permission notice appear in
  * all copies of the software and related documentation, and (ii) the names of
  * Sam Leffler and Silicon Graphics may not be used in any advertising or
  * publicity relating to the software without the specific, prior written
  * permission of Sam Leffler and Silicon Graphics.
- * 
- * THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND, 
- * EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY 
- * WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  
- * 
+ *
+ * THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY
+ * WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+ *
  * IN NO EVENT SHALL SAM LEFFLER OR SILICON GRAPHICS BE LIABLE FOR
  * ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL DAMAGES OF ANY KIND,
  * OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
- * WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF 
- * LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE 
+ * WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF
+ * LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
  * OF THIS SOFTWARE.
  */
 
@@ -89,15 +89,15 @@ static int
 setExtraSamples(TIFF* tif, va_list ap, uint32_t* v)
 {
 /* XXX: Unassociated alpha data == 999 is a known Corel Draw bug, see below */
-#define EXTRASAMPLE_COREL_UNASSALPHA 999 
+#define EXTRASAMPLE_COREL_UNASSALPHA 999
 
 	uint16_t* va;
 	uint32_t i;
         TIFFDirectory* td = &tif->tif_dir;
         static const char module[] = "setExtraSamples";
 
-	*v = (uint16_t) va_arg(ap, uint16_vap);
-	if ((uint16_t) *v > td->td_samplesperpixel)
+	*v = va_arg(ap, uint32_t);
+	if ( *v > td->td_samplesperpixel)
 		return 0;
 	va = va_arg(ap, uint16_t*);
 	if (*v > 0 && va == NULL)		/* typically missing param */
@@ -108,7 +108,7 @@ setExtraSamples(TIFF* tif, va_list ap, uint32_t* v)
 			 * XXX: Corel Draw is known to produce incorrect
 			 * ExtraSamples tags which must be patched here if we
 			 * want to be able to open some of the damaged TIFF
-			 * files: 
+			 * files:
 			 */
 			if (va[i] == EXTRASAMPLE_COREL_UNASSALPHA)
 				va[i] = EXTRASAMPLE_UNASSALPHA;
@@ -128,7 +128,7 @@ setExtraSamples(TIFF* tif, va_list ap, uint32_t* v)
                 td->td_transferfunction[0] = NULL;
         }
 
-	td->td_extrasamples = (uint16_t) *v;
+	td->td_extrasamples = *v;
 	_TIFFsetShortArray(&td->td_sampleinfo, va, td->td_extrasamples);
 	return 1;
 
@@ -136,7 +136,7 @@ setExtraSamples(TIFF* tif, va_list ap, uint32_t* v)
 }
 
 /*
- * Confirm we have "samplesperpixel" ink names separated by \0.  Returns 
+ * Confirm we have "samplesperpixel" ink names separated by \0.  Returns
  * zero if the ink names are not as expected.
  */
 static uint32_t
@@ -181,9 +181,9 @@ _TIFFVSetField(TIFF* tif, uint32_t tag, va_list ap)
 	    return 0;
 	/*
 	 * We want to force the custom code to be used for custom
-	 * fields even if the tag happens to match a well known 
+	 * fields even if the tag happens to match a well known
 	 * one - important for reinterpreted handling of standard
-	 * tag values in custom directories (i.e. EXIF) 
+	 * tag values in custom directories (i.e. EXIF)
 	 */
 	if (fip->field_bit == FIELD_CUSTOM) {
 		standard_tag = 0;
@@ -264,9 +264,19 @@ _TIFFVSetField(TIFF* tif, uint32_t tag, va_list ap)
 			td->td_orientation = (uint16_t) v;
 		break;
 	case TIFFTAG_SAMPLESPERPIXEL:
-		v = (uint16_t) va_arg(ap, uint16_vap);
+    case TIFFTAG_SAMPLESPERPIXELEX:
+		v = (uint32_t) va_arg(ap, uint32_t);
 		if (v == 0)
 			goto badvalue;
+        if( tag == TIFFTAG_SAMPLESPERPIXEL && v > 65535 )
+        {
+            TIFFErrorExt(tif->tif_clientdata,module,
+                         "Conformant TIFF is limited to SamplesPerPixel < 65535. "
+                         "To confirm you want to create a TIFF file with SamplesPerPixel "
+                         "using LONG data type, set the value with the "
+                         "TIFFTAG_SAMPLESPERPIXELEX pseudo-tag.");
+            goto badvalue;
+        }
         if( v != td->td_samplesperpixel )
         {
             /* See http://bugzilla.maptools.org/show_bug.cgi?id=2500 */
@@ -301,7 +311,7 @@ _TIFFVSetField(TIFF* tif, uint32_t tag, va_list ap)
                     td->td_transferfunction[0] = NULL;
             }
         }
-		td->td_samplesperpixel = (uint16_t) v;
+		td->td_samplesperpixel = v;
 		break;
 	case TIFFTAG_ROWSPERSTRIP:
 		v32 = (uint32_t) va_arg(ap, uint32_t);
@@ -635,11 +645,11 @@ _TIFFVSetField(TIFF* tif, uint32_t tag, va_list ap)
 				goto end;
 			}
 
-			if (fip->field_tag == TIFFTAG_DOTRANGE 
+			if (fip->field_tag == TIFFTAG_DOTRANGE
 			    && strcmp(fip->field_name,"DotRange") == 0) {
 				/* TODO: This is an evil exception and should not have been
 				   handled this way ... likely best if we move it into
-				   the directory structure with an explicit field in 
+				   the directory structure with an explicit field in
 				   libtiff 4.1 and assign it a FIELD_ value */
 				uint16_t v2[2];
 				v2[0] = (uint16_t)va_arg(ap, int);
@@ -724,7 +734,7 @@ _TIFFVSetField(TIFF* tif, uint32_t tag, va_list ap)
 							_TIFFmemcpy(val, &v3, tv_size);
 							/*-- ToDo: After Testing, this should be removed and tv_size==4 should be set as default. */
 							if (tv_size != 4) {
-								TIFFErrorExt(0,"TIFFLib: _TIFFVSetField()", "Rational2Double: .set_field_type in not 4 but %d", tv_size); 
+								TIFFErrorExt(0,"TIFFLib: _TIFFVSetField()", "Rational2Double: .set_field_type in not 4 but %d", tv_size);
 							}
 						}
 					}
@@ -752,7 +762,7 @@ _TIFFVSetField(TIFF* tif, uint32_t tag, va_list ap)
 	}
 	if (status) {
 		const TIFFField* fip2=TIFFFieldWithTag(tif,tag);
-		if (fip2)                
+		if (fip2)
 			TIFFSetFieldBit(tif, fip2->field_bit);
 		tif->tif_flags |= TIFF_DIRTYDIRECT;
 	}
@@ -865,7 +875,7 @@ TIFFUnsetField(TIFF* tif, uint32_t tag)
         int i;
 
         for (i = 0; i < td->td_customValueCount; i++) {
-                
+
             tv = td->td_customValues + i;
             if( tv->info->field_tag == tag )
                 break;
@@ -880,7 +890,7 @@ TIFFUnsetField(TIFF* tif, uint32_t tag)
             td->td_customValueCount--;
         }
     }
-        
+
     tif->tif_flags |= TIFF_DIRTYDIRECT;
 
     return (1);
@@ -911,14 +921,14 @@ _TIFFVGetField(TIFF* tif, uint32_t tag, va_list ap)
 
 	/*
 	 * We want to force the custom code to be used for custom
-	 * fields even if the tag happens to match a well known 
+	 * fields even if the tag happens to match a well known
 	 * one - important for reinterpreted handling of standard
-	 * tag values in custom directories (i.e. EXIF) 
+	 * tag values in custom directories (i.e. EXIF)
 	 */
 	if (fip->field_bit == FIELD_CUSTOM) {
 		standard_tag = 0;
 	}
-	
+
         if( standard_tag == TIFFTAG_NUMBEROFINKS )
         {
             int i;
@@ -976,8 +986,19 @@ _TIFFVGetField(TIFF* tif, uint32_t tag, va_list ap)
 			*va_arg(ap, uint16_t*) = td->td_orientation;
 			break;
 		case TIFFTAG_SAMPLESPERPIXEL:
-			*va_arg(ap, uint16_t*) = td->td_samplesperpixel;
+            if( td->td_samplesperpixel > 65535 )
+            {
+                TIFFWarningExt(tif->tif_clientdata,"_TIFFVGetField",
+                               "SamplesPerPixel doesn't fit on a uint16. "
+                               "Use TIFFTAG_SAMPLESPERPIXELEX instead");
+                *va_arg(ap, uint16_t*) = 0;
+                return 0;
+            }
+			*va_arg(ap, uint16_t*) = (uint16_t)td->td_samplesperpixel;
 			break;
+        case TIFFTAG_SAMPLESPERPIXELEX:
+            *va_arg(ap, uint32_t*) = td->td_samplesperpixel;
+            break;
 		case TIFFTAG_ROWSPERSTRIP:
 			*va_arg(ap, uint32_t*) = td->td_rowsperstrip;
 			break;
@@ -1066,7 +1087,20 @@ _TIFFVGetField(TIFF* tif, uint32_t tag, va_list ap)
 			    td->td_sampleinfo[0] == EXTRASAMPLE_ASSOCALPHA);
 			break;
 		case TIFFTAG_EXTRASAMPLES:
-			*va_arg(ap, uint16_t*) = td->td_extrasamples;
+            if( td->td_extrasamples > 65535 )
+            {
+                TIFFWarningExt(tif->tif_clientdata,"_TIFFVGetField",
+                               "ExtraSamples count doesn't fit on a uint16. "
+                               "Use TIFFTAG_EXTRASAMPLESEX instead");
+                *va_arg(ap, uint16_t*) = 0;
+                *va_arg(ap, const uint16_t**) = NULL;
+                return 0;
+            }
+			*va_arg(ap, uint16_t*) = (uint16_t)td->td_extrasamples;
+			*va_arg(ap, const uint16_t**) = td->td_sampleinfo;
+			break;
+		case TIFFTAG_EXTRASAMPLESEX:
+			*va_arg(ap, uint32_t*) = td->td_extrasamples;
 			*va_arg(ap, const uint16_t**) = td->td_sampleinfo;
 			break;
 		case TIFFTAG_TILEWIDTH:
@@ -1173,7 +1207,7 @@ _TIFFVGetField(TIFF* tif, uint32_t tag, va_list ap)
 						   && strcmp(fip->field_name,"DotRange") == 0) {
 						/* TODO: This is an evil exception and should not have been
 						   handled this way ... likely best if we move it into
-						   the directory structure with an explicit field in 
+						   the directory structure with an explicit field in
 						   libtiff 4.1 and assign it a FIELD_ value */
 						*va_arg(ap, uint16_t*) = ((uint16_t *)tv->value)[0];
 						*va_arg(ap, uint16_t*) = ((uint16_t *)tv->value)[1];
@@ -1247,7 +1281,7 @@ _TIFFVGetField(TIFF* tif, uint32_t tag, va_list ap)
 										ret_val = 1;
 										/*-- ToDo: After Testing, this should be removed and tv_size==4 should be set as default. */
 										if (tv_size != 4) {
-											TIFFErrorExt(0,"TIFFLib: _TIFFVGetField()", "Rational2Double: .set_field_type in not 4 but %d", tv_size); 
+											TIFFErrorExt(0,"TIFFLib: _TIFFVGetField()", "Rational2Double: .set_field_type in not 4 but %d", tv_size);
 										}
 									}
 								}
@@ -1393,7 +1427,7 @@ TIFFCreateCustomDirectory(TIFF* tif, const TIFFFieldArray* infoarray)
 	TIFFDefaultDirectory(tif);
 
 	/*
-	 * Reset the field definitions to match the application provided list. 
+	 * Reset the field definitions to match the application provided list.
 	 * Hopefully TIFFDefaultDirectory() won't have done anything irreversible
 	 * based on it's assumption this is an image directory.
 	 */
@@ -1417,7 +1451,7 @@ TIFFCreateEXIFDirectory(TIFF* tif)
 }
 
 /*
- * Creates the EXIF GPS custom directory 
+ * Creates the EXIF GPS custom directory
  */
 int
 TIFFCreateGPSDirectory(TIFF* tif)
@@ -1437,7 +1471,7 @@ TIFFDefaultDirectory(TIFF* tif)
 	const TIFFFieldArray* tiffFieldArray;
 
 	tiffFieldArray = _TIFFGetFields();
-	_TIFFSetupFields(tif, tiffFieldArray);   
+	_TIFFSetupFields(tif, tiffFieldArray);
 
 	_TIFFmemset(td, 0, sizeof (*td));
 	td->td_fillorder = FILLORDER_MSB2LSB;
@@ -1450,7 +1484,7 @@ TIFFDefaultDirectory(TIFF* tif)
 	td->td_tilelength = 0;
 	td->td_tiledepth = 1;
 #ifdef STRIPBYTECOUNTSORTED_UNUSED
-	td->td_stripbytecountsorted = 1; /* Our own arrays always sorted. */  
+	td->td_stripbytecountsorted = 1; /* Our own arrays always sorted. */
 #endif
 	td->td_resolutionunit = RESUNIT_INCH;
 	td->td_sampleformat = SAMPLEFORMAT_UINT;
@@ -1458,9 +1492,9 @@ TIFFDefaultDirectory(TIFF* tif)
 	td->td_ycbcrsubsampling[0] = 2;
 	td->td_ycbcrsubsampling[1] = 2;
 	td->td_ycbcrpositioning = YCBCRPOSITION_CENTERED;
-	tif->tif_postdecode = _TIFFNoPostDecode;  
+	tif->tif_postdecode = _TIFFNoPostDecode;
 	tif->tif_foundfield = NULL;
-	tif->tif_tagmethods.vsetfield = _TIFFVSetField;  
+	tif->tif_tagmethods.vsetfield = _TIFFVSetField;
 	tif->tif_tagmethods.vgetfield = _TIFFVGetField;
 	tif->tif_tagmethods.printdir = NULL;
 	/*

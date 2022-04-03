@@ -2,23 +2,23 @@
  * Copyright (c) 1991-1997 Sam Leffler
  * Copyright (c) 1991-1997 Silicon Graphics, Inc.
  *
- * Permission to use, copy, modify, distribute, and sell this software and 
+ * Permission to use, copy, modify, distribute, and sell this software and
  * its documentation for any purpose is hereby granted without fee, provided
  * that (i) the above copyright notices and this permission notice appear in
  * all copies of the software and related documentation, and (ii) the names of
  * Sam Leffler and Silicon Graphics may not be used in any advertising or
  * publicity relating to the software without the specific, prior written
  * permission of Sam Leffler and Silicon Graphics.
- * 
- * THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND, 
- * EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY 
- * WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  
- * 
+ *
+ * THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY
+ * WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+ *
  * IN NO EVENT SHALL SAM LEFFLER OR SILICON GRAPHICS BE LIABLE FOR
  * ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL DAMAGES OF ANY KIND,
  * OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
- * WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF 
- * LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE 
+ * WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF
+ * LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
  * OF THIS SOFTWARE.
  */
 
@@ -119,7 +119,7 @@ _TIFFCheckRealloc(TIFF* tif, void* buffer,
 void*
 _TIFFCheckMalloc(TIFF* tif, tmsize_t nmemb, tmsize_t elem_size, const char* what)
 {
-	return _TIFFCheckRealloc(tif, NULL, nmemb, elem_size, what);  
+	return _TIFFCheckRealloc(tif, NULL, nmemb, elem_size, what);
 }
 
 static int
@@ -228,7 +228,18 @@ TIFFVGetFieldDefaulted(TIFF* tif, uint32_t tag, va_list ap)
 		*va_arg(ap, uint16_t *) = td->td_orientation;
 		return (1);
 	case TIFFTAG_SAMPLESPERPIXEL:
-		*va_arg(ap, uint16_t *) = td->td_samplesperpixel;
+        if( td->td_samplesperpixel > 65535 )
+        {
+            TIFFWarningExt(tif->tif_clientdata,"_TIFFVGetField",
+                           "SamplesPerPixel doesn't fit on a uint16. "
+                           "Use TIFFTAG_SAMPLESPERPIXELEX instead");
+            *va_arg(ap, uint16_t*) = 0;
+            return 0;
+        }
+		*va_arg(ap, uint16_t *) = (uint16_t)td->td_samplesperpixel;
+		return (1);
+    case TIFFTAG_SAMPLESPERPIXELEX:
+		*va_arg(ap, uint32_t *) = td->td_samplesperpixel;
 		return (1);
 	case TIFFTAG_ROWSPERSTRIP:
 		*va_arg(ap, uint32_t *) = td->td_rowsperstrip;
@@ -269,7 +280,20 @@ TIFFVGetFieldDefaulted(TIFF* tif, uint32_t tag, va_list ap)
 		*va_arg(ap, uint16_t *) = 4;
 		return (1);
 	case TIFFTAG_EXTRASAMPLES:
-		*va_arg(ap, uint16_t *) = td->td_extrasamples;
+        if( td->td_extrasamples > 65535 )
+        {
+            TIFFWarningExt(tif->tif_clientdata,"_TIFFVGetField",
+                           "ExtraSamples doesn't fit on a uint16. "
+                           "Use TIFFTAG_EXTRASAMPLESEX instead");
+            *va_arg(ap, uint16_t*) = 0;
+            *va_arg(ap, const uint16_t **) = NULL;
+            return 0;
+        }
+		*va_arg(ap, uint16_t *) = (uint16_t)td->td_extrasamples;
+		*va_arg(ap, const uint16_t **) = td->td_sampleinfo;
+		return (1);
+	case TIFFTAG_EXTRASAMPLESEX:
+		*va_arg(ap, uint32_t *) = td->td_extrasamples;
 		*va_arg(ap, const uint16_t **) = td->td_sampleinfo;
 		return (1);
 	case TIFFTAG_MATTEING:

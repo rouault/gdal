@@ -1117,7 +1117,7 @@ int TIFFJPEGIsFullStripRequired(TIFF *tif) {
     return (0);
   }
   if (sp->cinfo.d.num_components != (td->td_planarconfig == PLANARCONFIG_CONTIG
-                                         ? td->td_samplesperpixel
+                                         ? (int)td->td_samplesperpixel
                                          : 1)) {
     TIFFErrorExt(tif->tif_clientdata, module, "Improper JPEG component count");
     return (0);

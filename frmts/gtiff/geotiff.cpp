@@ -410,7 +410,7 @@ private:
     GeoTIFFVersionEnum m_eGeoTIFFVersion = GEOTIFF_VERSION_AUTO;
 
     uint16_t      m_nPlanarConfig = 0;
-    uint16_t      m_nSamplesPerPixel = 0;
+    uint32_t      m_nSamplesPerPixel = 0;
     uint16_t      m_nBitsPerSample = 0;
     uint16_t      m_nPhotometric = 0;
     uint16_t      m_nSampleFormat = 0;
@@ -1403,6 +1403,25 @@ public:
                                         void *pProgressData)  override final;
 };
 
+static bool GetExtraSamples(TIFF* hTIFF, uint32_t* pcount, uint16_t** pv)
+{
+#ifdef TIFFTAG_EXTRASAMPLESEX
+    if( TIFFGetField( hTIFF, TIFFTAG_EXTRASAMPLESEX,
+                      pcount, pv ) )
+        return true;
+#else
+    uint16_t count = 0;
+    if( TIFFGetField( hTIFF, TIFFTAG_EXTRASAMPLES,
+                      &count, pv ) )
+    {
+        *pcount = count;
+        return true;
+    }
+    *pcount = 0;
+#endif
+    return false;
+}
+
 /************************************************************************/
 /*                           GTiffRasterBand()                          */
 /************************************************************************/
@@ -1525,9 +1544,9 @@ GTiffRasterBand::GTiffRasterBand( GTiffDataset *poDSIn, int nBandIn ):
     if( bLookForExtraSamples )
     {
         uint16_t *v = nullptr;
-        uint16_t count = 0;
+        uint32_t count = 0;
 
-        if( TIFFGetField( m_poGDS->m_hTIFF, TIFFTAG_EXTRASAMPLES, &count, &v ) )
+        if( GetExtraSamples(m_poGDS->m_hTIFF, &count, &v) )
         {
             const int nBaseSamples = m_poGDS->m_nSamplesPerPixel - count;
             const int nExpectedBaseSamples =
@@ -1547,7 +1566,7 @@ GTiffRasterBand::GTiffRasterBand( GTiffDataset *poDSIn, int nBandIn ):
             }
 
             if( nBand > nBaseSamples
-                && nBand-nBaseSamples-1 < count
+                && (uint32_t)(nBand-nBaseSamples-1) < count
                 && (v[nBand-nBaseSamples-1] == EXTRASAMPLE_ASSOCALPHA
                     || v[nBand-nBaseSamples-1] == EXTRASAMPLE_UNASSALPHA) )
                 m_eBandInterp = GCI_AlphaBand;
@@ -5700,12 +5719,11 @@ CPLErr GTiffRasterBand::SetColorInterpretation( GDALColorInterp eInterp )
 
             // We need to update the number of extra samples.
             uint16_t *v = nullptr;
-            uint16_t count = 0;
-            const uint16_t nNewExtraSamplesCount =
-                static_cast<uint16_t>(m_poGDS->nBands - 3);
+            uint32_t count = 0;
+            const uint32_t nNewExtraSamplesCount =
+                static_cast<uint32_t>(m_poGDS->nBands - 3);
             if( m_poGDS->nBands >= 4 &&
-                TIFFGetField( m_poGDS->m_hTIFF, TIFFTAG_EXTRASAMPLES,
-                              &count, &v ) &&
+                GetExtraSamples( m_poGDS->m_hTIFF, &count, &v ) &&
                 count > nNewExtraSamplesCount )
             {
                 uint16_t * const pasNewExtraSamples =
@@ -5736,13 +5754,13 @@ CPLErr GTiffRasterBand::SetColorInterpretation( GDALColorInterp eInterp )
         TIFFSetField(m_poGDS->m_hTIFF, TIFFTAG_PHOTOMETRIC, m_poGDS->m_nPhotometric);
 
         // We need to update the number of extra samples.
+        uint32_t count = 0;
         uint16_t *v = nullptr;
-        uint16_t count = 0;
-        const uint16_t nNewExtraSamplesCount =
-            static_cast<uint16_t>(m_poGDS->nBands - 1);
+        const uint32_t nNewExtraSamplesCount =
+            static_cast<uint32_t>(m_poGDS->nBands - 1);
         if( m_poGDS->nBands >= 2 )
         {
-            TIFFGetField( m_poGDS->m_hTIFF, TIFFTAG_EXTRASAMPLES, &count, &v );
+            GetExtraSamples( m_poGDS->m_hTIFF, &count, &v );
             if( nNewExtraSamplesCount > count )
             {
                 uint16_t * const pasNewExtraSamples =
@@ -5771,8 +5789,8 @@ CPLErr GTiffRasterBand::SetColorInterpretation( GDALColorInterp eInterp )
     if( eInterp == GCI_AlphaBand || eInterp == GCI_Undefined )
     {
         uint16_t *v = nullptr;
-        uint16_t count = 0;
-        if( TIFFGetField( m_poGDS->m_hTIFF, TIFFTAG_EXTRASAMPLES, &count, &v ) )
+        uint32_t count = 0;
+        if( GetExtraSamples( m_poGDS->m_hTIFF, &count, &v ) )
         {
             const int nBaseSamples = m_poGDS->m_nSamplesPerPixel - count;
 
@@ -5807,7 +5825,7 @@ CPLErr GTiffRasterBand::SetColorInterpretation( GDALColorInterp eInterp )
                 }
             }
 
-            if( nBand > nBaseSamples && nBand - nBaseSamples - 1 < count )
+            if( nBand > nBaseSamples && (uint32_t)(nBand - nBaseSamples - 1) < count )
             {
                 // We need to allocate a new array as (current) libtiff
                 // versions will not like that we reuse the array we got from
@@ -6916,7 +6934,7 @@ CPLErr GTiffRGBABand::IReadBlock( int nBlockXOff, int nBlockYOff,
 
     if( m_poGDS->m_nPlanarConfig == PLANARCONFIG_SEPARATE )
     {
-        for( int iBand = 0; iBand < m_poGDS->m_nSamplesPerPixel; iBand ++ )
+        for( int iBand = 0; iBand < static_cast<int>(m_poGDS->m_nSamplesPerPixel); iBand ++ )
         {
             int nBlockIdBand = nBlockId + iBand * m_poGDS->m_nBlocksPerBand;
             if( !m_poGDS->IsBlockAvailable(nBlockIdBand) )
@@ -9390,6 +9408,22 @@ void GTiffDataset::InitCreationOrOpenOptions( char** papszOptions )
     m_eGeoTIFFVersion = GetGeoTIFFVersion(papszOptions);
 }
 
+static void SetSamplesPerPixel( TIFF* hTIFF, uint32_t val )
+{
+#ifdef TIFFTAG_SAMPLESPERPIXELEX
+    TIFFSetField(hTIFF, TIFFTAG_SAMPLESPERPIXELEX, val);
+#else
+    if( val > 65535 )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Setting SamplesPerPixel > 65535 is not supported with "
+                 "this version of libtiff");
+        val = 0;
+    }
+    TIFFSetField(hTIFF, TIFFTAG_SAMPLESPERPIXEL, val);
+#endif
+}
+
 /************************************************************************/
 /*                      ThreadCompressionFunc()                         */
 /************************************************************************/
@@ -9409,7 +9443,7 @@ void GTiffDataset::ThreadCompressionFunc( void* pData )
     TIFFSetField(hTIFFTmp, TIFFTAG_COMPRESSION, poDS->m_nCompression);
     TIFFSetField(hTIFFTmp, TIFFTAG_PHOTOMETRIC, poDS->m_nPhotometric);
     TIFFSetField(hTIFFTmp, TIFFTAG_SAMPLEFORMAT, poDS->m_nSampleFormat);
-    TIFFSetField(hTIFFTmp, TIFFTAG_SAMPLESPERPIXEL, poDS->m_nSamplesPerPixel);
+    SetSamplesPerPixel(hTIFFTmp, poDS->m_nSamplesPerPixel);
     TIFFSetField(hTIFFTmp, TIFFTAG_ROWSPERSTRIP, poDS->m_nBlockYSize);
     TIFFSetField(hTIFFTmp, TIFFTAG_PLANARCONFIG, poDS->m_nPlanarConfig);
     if( psJob->nPredictor != PREDICTOR_NONE )
@@ -9422,7 +9456,7 @@ void GTiffDataset::ThreadCompressionFunc( void* pData )
 
     TIFFSetField(hTIFFTmp, TIFFTAG_PHOTOMETRIC, poDS->m_nPhotometric);
     TIFFSetField(hTIFFTmp, TIFFTAG_SAMPLEFORMAT, poDS->m_nSampleFormat);
-    TIFFSetField(hTIFFTmp, TIFFTAG_SAMPLESPERPIXEL, poDS->m_nSamplesPerPixel);
+    SetSamplesPerPixel(hTIFFTmp, poDS->m_nSamplesPerPixel);
     TIFFSetField(hTIFFTmp, TIFFTAG_ROWSPERSTRIP, poDS->m_nBlockYSize);
     TIFFSetField(hTIFFTmp, TIFFTAG_PLANARCONFIG, poDS->m_nPlanarConfig);
 
@@ -11231,9 +11265,9 @@ CPLErr GTiffDataset::CreateOverviewsFromSrcOverviews(GDALDataset* poSrcDS,
 /*      Fetch extra sample tag                                          */
 /* -------------------------------------------------------------------- */
     uint16_t *panExtraSampleValues = nullptr;
-    uint16_t nExtraSamples = 0;
+    uint32_t nExtraSamples = 0;
 
-    if( TIFFGetField( m_hTIFF, TIFFTAG_EXTRASAMPLES, &nExtraSamples,
+    if( GetExtraSamples( m_hTIFF, &nExtraSamples,
                       &panExtraSampleValues) )
     {
         uint16_t* panExtraSampleValuesNew =
@@ -11624,9 +11658,9 @@ CPLErr GTiffDataset::IBuildOverviews(
 /*      Fetch extra sample tag                                          */
 /* -------------------------------------------------------------------- */
     uint16_t *panExtraSampleValues = nullptr;
-    uint16_t nExtraSamples = 0;
+    uint32_t nExtraSamples = 0;
 
-    if( TIFFGetField( m_hTIFF, TIFFTAG_EXTRASAMPLES, &nExtraSamples,
+    if( GetExtraSamples( m_hTIFF, &nExtraSamples,
                       &panExtraSampleValues) )
     {
         uint16_t* panExtraSampleValuesNew =
@@ -14755,6 +14789,21 @@ void GTiffDataset::SaveICCProfile( GTiffDataset *pDS, TIFF *l_hTIFF,
     }
 }
 
+static uint32_t GetSamplesPerPixel(TIFF* hTIFF)
+{
+#ifdef TIFFTAG_SAMPLESPERPIXELEX
+    uint32_t nSamplesPerPixel = 0;
+    if( !TIFFGetField(hTIFF, TIFFTAG_SAMPLESPERPIXELEX, &nSamplesPerPixel ) )
+        nSamplesPerPixel = 1;
+    return nSamplesPerPixel;
+#else
+    uint16_t nSamplesPerPixel = 0;
+    if( !TIFFGetField(hTIFF, TIFFTAG_SAMPLESPERPIXEL, &nSamplesPerPixel ) )
+        nSamplesPerPixel = 1;
+    return nSamplesPerPixel;
+#endif
+}
+
 /************************************************************************/
 /*                             OpenOffset()                             */
 /*                                                                      */
@@ -14800,10 +14849,12 @@ CPLErr GTiffDataset::OpenOffset( TIFF *hTIFFIn,
     nRasterXSize = nXSize;
     nRasterYSize = nYSize;
 
-    if( !TIFFGetField(m_hTIFF, TIFFTAG_SAMPLESPERPIXEL, &m_nSamplesPerPixel ) )
-        nBands = 1;
-    else
-        nBands = m_nSamplesPerPixel;
+    m_nSamplesPerPixel = GetSamplesPerPixel(m_hTIFF);
+    if( m_nSamplesPerPixel > INT_MAX )
+    {
+        return CE_Failure;
+    }
+    nBands = static_cast<int>(m_nSamplesPerPixel);
 
     if( !TIFFGetField(m_hTIFF, TIFFTAG_BITSPERSAMPLE, &(m_nBitsPerSample)) )
         m_nBitsPerSample = 1;
@@ -16298,14 +16349,11 @@ void GTiffDataset::ScanDirectories()
                 }
                 else
                 {
-                    uint16_t nSPP = 0;
-                    if( !TIFFGetField(m_hTIFF, TIFFTAG_SAMPLESPERPIXEL, &nSPP ) )
-                        nSPP = 1;
-
+                    uint32_t nSPP = GetSamplesPerPixel(m_hTIFF);
                     CPLString osName, osDesc;
                     osName.Printf( "SUBDATASET_%d_NAME=GTIFF_DIR:%d:%s",
                                 iDirIndex, iDirIndex, m_pszFilename );
-                    osDesc.Printf( "SUBDATASET_%d_DESC=Page %d (%dP x %dL x %dB)",
+                    osDesc.Printf( "SUBDATASET_%d_DESC=Page %d (%dP x %dL x %uB)",
                                 iDirIndex, iDirIndex,
                                 static_cast<int>(nXSize),
                                 static_cast<int>(nYSize),
@@ -16529,9 +16577,7 @@ static GTiffDataset::MaskOffset* GetDiscardLsbOption(TIFF* hTIFF, char** papszOp
     if( !TIFFGetField(hTIFF, TIFFTAG_BITSPERSAMPLE, &nBitsPerSample) )
         nBitsPerSample = 1;
 
-    uint16_t nSamplesPerPixel = 0;
-    if( !TIFFGetField(hTIFF, TIFFTAG_SAMPLESPERPIXEL, &nSamplesPerPixel) )
-        nSamplesPerPixel = 1;
+    uint32_t nSamplesPerPixel = GetSamplesPerPixel(hTIFF);
 
     uint16_t nSampleFormat = 0;
     if( !TIFFGetField(hTIFF, TIFFTAG_SAMPLEFORMAT, &nSampleFormat) )
@@ -16556,11 +16602,11 @@ static GTiffDataset::MaskOffset* GetDiscardLsbOption(TIFF* hTIFF, char** papszOp
     char** papszTokens = CSLTokenizeString2( pszBits, ",", 0 );
     const int nTokens = CSLCount(papszTokens);
     GTiffDataset::MaskOffset* panMaskOffsetLsb = nullptr;
-    if( nTokens == 1 || nTokens == nSamplesPerPixel )
+    if( nTokens == 1 || static_cast<uint32_t>(nTokens) == nSamplesPerPixel )
     {
         panMaskOffsetLsb = static_cast<GTiffDataset::MaskOffset*>(
             CPLCalloc(nSamplesPerPixel, sizeof(GTiffDataset::MaskOffset)));
-        for( int i = 0; i < nSamplesPerPixel; ++i )
+        for( uint32_t i = 0; i < nSamplesPerPixel; ++i )
         {
             const int nBits = atoi(papszTokens[nTokens == 1 ? 0 : i]);
             const int nMaxBits =
@@ -16656,12 +16702,24 @@ TIFF *GTiffDataset::CreateLL( const char * pszFilename,
 
     if( l_nBands > 65535 )
     {
+#ifndef TIFFTAG_SAMPLESPERPIXELEX
         ReportError(pszFilename, CE_Failure, CPLE_AppDefined,
-                  "Attempt to create %dx%dx%d TIFF file, but bands "
-                  "must be lesser or equal to 65535.",
+                  "Attempt to create %dx%dx%d TIFF file, but this version "
+                  "of libtiff only supports a band count lesser or equal to 65535.",
                   nXSize, nYSize, l_nBands );
-
         return nullptr;
+#else
+        if( !CPLTestBool(CSLFetchNameValueDef(papszParamList, "ALLOW_EXTENSIONS", "NO")) )
+        {
+            ReportError(pszFilename, CE_Failure, CPLE_AppDefined,
+                      "Attempt to create %dx%dx%d TIFF file, but conformant TIFF "
+                      "only support a band count lesser or equal to 65535. Recent "
+                      "GDAL and libtiff versions support more, but you need to "
+                      "explicitly set the ALLOW_EXTENSIONS=YES creation option.",
+                      nXSize, nYSize, l_nBands );
+            return nullptr;
+        }
+#endif
     }
 
 /* -------------------------------------------------------------------- */
@@ -17118,7 +17176,7 @@ TIFF *GTiffDataset::CreateLL( const char * pszFilename,
         l_nSampleFormat = SAMPLEFORMAT_UINT;
 
     TIFFSetField( l_hTIFF, TIFFTAG_SAMPLEFORMAT, l_nSampleFormat );
-    TIFFSetField( l_hTIFF, TIFFTAG_SAMPLESPERPIXEL, l_nBands );
+    SetSamplesPerPixel( l_hTIFF, l_nBands );
     TIFFSetField( l_hTIFF, TIFFTAG_PLANARCONFIG, nPlanar );
 
 /* -------------------------------------------------------------------- */
@@ -17469,10 +17527,7 @@ void GTiffWriteJPEGTables( TIFF* hTIFF,
     // we can directly set them, before tif_jpeg.c compute them at the first
     // strip/tile writing, which is too late, since we have already crystalized
     // the directory. This way we avoid a directory rewriting.
-    uint16_t nBands = 0;
-    if( !TIFFGetField( hTIFF, TIFFTAG_SAMPLESPERPIXEL,
-                        &nBands ) )
-        nBands = 1;
+    uint32_t nBands = GetSamplesPerPixel(hTIFF);
 
     uint16_t l_nBitsPerSample = 0;
     if( !TIFFGetField(hTIFF, TIFFTAG_BITSPERSAMPLE,
@@ -17940,7 +17995,7 @@ GDALDataset *GTiffDataset::Create( const char * pszFilename,
     poDS->nRasterYSize = nYSize;
     poDS->eAccess = GA_Update;
     poDS->m_bCrystalized = false;
-    poDS->m_nSamplesPerPixel = static_cast<uint16_t>(l_nBands);
+    poDS->m_nSamplesPerPixel = l_nBands;
     poDS->m_pszFilename = CPLStrdup(pszFilename);
 
     // Don't try to load external metadata files (#6597).
@@ -18610,11 +18665,11 @@ GTiffDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
         GCI_AlphaBand )
     {
         uint16_t *v = nullptr;
-        uint16_t count = 0;
-        if( TIFFGetField( l_hTIFF, TIFFTAG_EXTRASAMPLES, &count, &v ) )
+        uint32_t count = 0;
+        if( GetExtraSamples( l_hTIFF, &count, &v ) )
         {
             const int nBaseSamples = l_nBands - count;
-            if( l_nBands > nBaseSamples && l_nBands - nBaseSamples - 1 < count )
+            if( l_nBands > nBaseSamples && static_cast<uint32_t>(l_nBands - nBaseSamples - 1) < count )
             {
                 // We need to allocate a new array as (current) libtiff
                 // versions will not like that we reuse the array we got from
@@ -20444,11 +20499,11 @@ const char *GTiffDataset::GetMetadataItem( const char *pszName,
         {
             CPLString osRet;
             uint16_t *v = nullptr;
-            uint16_t count = 0;
+            uint32_t count = 0;
 
-            if( TIFFGetField( m_hTIFF, TIFFTAG_EXTRASAMPLES, &count, &v ) )
+            if( GetExtraSamples(m_hTIFF, &count, &v) )
             {
-                for( int i = 0; i < static_cast<int>(count); ++i )
+                for( uint32_t i = 0; i < count; ++i )
                 {
                     if( i > 0 ) osRet += ",";
                     osRet += CPLSPrintf("%d", v[i]);
@@ -21462,6 +21517,9 @@ void GDALRegister_GTiff()
 "     <Value>IF_NEEDED</Value>"
 "     <Value>IF_SAFER</Value>"
 "   </Option>"
+#ifdef TIFFTAG_SAMPLESPERPIXELEX
+"   <Option name='ALLOW_EXTENSIONS' type='boolean'  description='Whether extensions to the TIFF format are allowed' default='FALSE'/>"
+#endif
 "   <Option name='ENDIANNESS' type='string-select' default='NATIVE' description='Force endianness of created file. For DEBUG purpose mostly'>"
 "       <Value>NATIVE</Value>"
 "       <Value>INVERTED</Value>"

@@ -60,6 +60,22 @@ constexpr int knMaxOverviews = 128;
 #define SUPPORTS_GET_OFFSET_BYTECOUNT
 #endif
 
+static void SetSamplesPerPixel( TIFF* hTIFF, uint32_t val )
+{
+#ifdef TIFFTAG_SAMPLESPERPIXELEX
+    TIFFSetField(hTIFF, TIFFTAG_SAMPLESPERPIXELEX, val);
+#else
+    if( val > 65535 )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Setting SamplesPerPixel > 65535 is not supported with "
+                 "this version of libtiff");
+        val = 0;
+    }
+    TIFFSetField(hTIFF, TIFFTAG_SAMPLESPERPIXEL, val);
+#endif
+}
+
 /************************************************************************/
 /*                         GTIFFWriteDirectory()                        */
 /*                                                                      */
@@ -110,7 +126,7 @@ toff_t GTIFFWriteDirectory( TIFF *hTIFF, int nSubfileType,
         TIFFSetField( hTIFF, TIFFTAG_PLANARCONFIG, nPlanarConfig );
 
     TIFFSetField( hTIFF, TIFFTAG_BITSPERSAMPLE, nBitsPerPixel );
-    TIFFSetField( hTIFF, TIFFTAG_SAMPLESPERPIXEL, nSamples );
+    SetSamplesPerPixel( hTIFF, nSamples );
     TIFFSetField( hTIFF, TIFFTAG_COMPRESSION, nCompressFlag );
     TIFFSetField( hTIFF, TIFFTAG_PHOTOMETRIC, nPhotometric );
     TIFFSetField( hTIFF, TIFFTAG_SAMPLEFORMAT, nSampleFormat );

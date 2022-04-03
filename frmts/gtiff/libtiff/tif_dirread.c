@@ -858,8 +858,8 @@ static enum TIFFReadDirEntryErr TIFFReadDirEntryArrayWithLimit(
         original_datasize_clamped =
             ((direntry->tdir_count > 10) ? 10 : (int)direntry->tdir_count) * typesize;
 
-        /* 
-         * As a sanity check, make sure we have no more than a 2GB tag array 
+        /*
+         * As a sanity check, make sure we have no more than a 2GB tag array
          * in either the current data type or the dest data type.  This also
          * avoids problems with overflow of tmsize_t on 32bit systems.
          */
@@ -1333,7 +1333,7 @@ static enum TIFFReadDirEntryErr TIFFReadDirEntryShortArray(TIFF* tif, TIFFDirEnt
 		case TIFF_SHORT:
 			*value=(uint16_t*)origdata;
 			if (tif->tif_flags&TIFF_SWAB)
-				TIFFSwabArrayOfShort(*value,count);  
+				TIFFSwabArrayOfShort(*value,count);
 			return(TIFFReadDirEntryErrOk);
 		case TIFF_SSHORT:
 			{
@@ -2841,7 +2841,7 @@ static enum TIFFReadDirEntryErr TIFFReadDirEntryPersampleShort(TIFF* tif, TIFFDi
 	enum TIFFReadDirEntryErr err;
 	uint16_t* m;
 	uint16_t* na;
-	uint16_t nb;
+	uint32_t nb;
 	if (direntry->tdir_count<(uint64_t)tif->tif_dir.td_samplesperpixel)
 		return(TIFFReadDirEntryErrCount);
 	err=TIFFReadDirEntryShortArray(tif,direntry,&m);
@@ -3629,7 +3629,7 @@ TIFFReadDirectory(TIFF* tif)
 			}
 		}
 	}
-        
+
 	tif->tif_flags &= ~TIFF_BEENWRITING;    /* reset before new dir */
 	tif->tif_flags &= ~TIFF_BUF4WRITE;      /* reset before new dir */
 	tif->tif_flags &= ~TIFF_CHOPPEDUPARRAYS;
@@ -3709,7 +3709,7 @@ TIFFReadDirectory(TIFF* tif)
 				TIFFWarningExt(tif->tif_clientdata, module,
 				    "Unknown field with tag %"PRIu16" (0x%"PRIx16") encountered",
 				    dp->tdir_tag,dp->tdir_tag);
-				/* the following knowingly leaks the 
+				/* the following knowingly leaks the
 				   anonymous field structure */
 				if (!_TIFFMergeFields(tif,
 					_TIFFCreateAnonField(tif,
@@ -3806,7 +3806,7 @@ TIFFReadDirectory(TIFF* tif)
 	for (di=0, dp=dir; di<dircount; di++, dp++)
 	{
 		if (!dp->tdir_ignore) {
-			switch (dp->tdir_tag) 
+			switch (dp->tdir_tag)
 			{
 				case TIFFTAG_MINSAMPLEVALUE:
 				case TIFFTAG_MAXSAMPLEVALUE:
@@ -4080,7 +4080,7 @@ TIFFReadDirectory(TIFF* tif)
 	 * and thus influences the number of strips in the separate planarconfig.
 	 */
 	if (!TIFFFieldSet(tif, FIELD_TILEDIMENSIONS)) {
-		tif->tif_dir.td_nstrips = TIFFNumberOfStrips(tif);  
+		tif->tif_dir.td_nstrips = TIFFNumberOfStrips(tif);
 		tif->tif_dir.td_tilewidth = tif->tif_dir.td_imagewidth;
 		tif->tif_dir.td_tilelength = tif->tif_dir.td_rowsperstrip;
 		tif->tif_dir.td_tiledepth = tif->tif_dir.td_imagedepth;
@@ -4161,8 +4161,8 @@ TIFFReadDirectory(TIFF* tif)
 	 * If it's not the case, define them as such.
 	 */
         color_channels = _TIFFGetMaxColorChannels(tif->tif_dir.td_photometric);
-        if (color_channels && tif->tif_dir.td_samplesperpixel - tif->tif_dir.td_extrasamples > color_channels) {
-                uint16_t old_extrasamples;
+        if (color_channels && tif->tif_dir.td_samplesperpixel - tif->tif_dir.td_extrasamples > (uint32_t)color_channels) {
+                uint32_t old_extrasamples;
                 uint16_t *new_sampleinfo;
 
                 TIFFWarningExt(tif->tif_clientdata,module, "Sum of Photometric type-related "
@@ -4170,7 +4170,7 @@ TIFFReadDirectory(TIFF* tif)
                     "Defining non-color channels as ExtraSamples.");
 
                 old_extrasamples = tif->tif_dir.td_extrasamples;
-                tif->tif_dir.td_extrasamples = (uint16_t) (tif->tif_dir.td_samplesperpixel - color_channels);
+                tif->tif_dir.td_extrasamples = (uint32_t) (tif->tif_dir.td_samplesperpixel - color_channels);
 
                 // sampleinfo should contain information relative to these new extra samples
                 new_sampleinfo = (uint16_t*) _TIFFcalloc(tif->tif_dir.td_extrasamples, sizeof(uint16_t));
@@ -4317,7 +4317,7 @@ TIFFReadDirectory(TIFF* tif)
 	 */
 	if ((tif->tif_dir.td_planarconfig==PLANARCONFIG_CONTIG)&&
 	    (tif->tif_dir.td_nstrips==1)&&
-	    (tif->tif_dir.td_compression==COMPRESSION_NONE)&&  
+	    (tif->tif_dir.td_compression==COMPRESSION_NONE)&&
 	    ((tif->tif_flags&(TIFF_STRIPCHOP|TIFF_ISTILED))==TIFF_STRIPCHOP))
         {
             ChopUpSingleUncompressedStrip(tif);
@@ -4335,7 +4335,7 @@ TIFFReadDirectory(TIFF* tif)
         }
 
         /*
-         * Clear the dirty directory flag. 
+         * Clear the dirty directory flag.
          */
 	tif->tif_flags &= ~TIFF_DIRTYDIRECT;
 	tif->tif_flags &= ~TIFF_DIRTYSTRIP;
@@ -4534,7 +4534,7 @@ TIFFReadCustomDirectory(TIFF* tif, toff_t diroff,
 				}
 			}
 			if (!dp->tdir_ignore) {
-				switch (dp->tdir_tag) 
+				switch (dp->tdir_tag)
 				{
 					case EXIFTAG_SUBJECTDISTANCE:
                         if(fip->field_name != NULL && strncmp(fip->field_name, "Tag ", 4) != 0 ) {
@@ -4567,7 +4567,7 @@ TIFFReadEXIFDirectory(TIFF* tif, toff_t diroff)
 {
 	const TIFFFieldArray* exifFieldArray;
 	exifFieldArray = _TIFFGetExifFields();
-	return TIFFReadCustomDirectory(tif, diroff, exifFieldArray);  
+	return TIFFReadCustomDirectory(tif, diroff, exifFieldArray);
 }
 
 /*
@@ -4578,7 +4578,7 @@ TIFFReadGPSDirectory(TIFF* tif, toff_t diroff)
 {
 	const TIFFFieldArray* gpsFieldArray;
 	gpsFieldArray = _TIFFGetGpsFields();
-	return TIFFReadCustomDirectory(tif, diroff, gpsFieldArray);  
+	return TIFFReadCustomDirectory(tif, diroff, gpsFieldArray);
 }
 
 static int
@@ -5156,7 +5156,10 @@ TIFFFetchNormalTag(TIFF* tif, TIFFDirEntry* dp, int recover)
 				err=TIFFReadDirEntryLong(tif,dp,&data);
 				if (err==TIFFReadDirEntryErrOk)
 				{
-					if (!TIFFSetField(tif,dp->tdir_tag,data))
+                    uint32_t tag = dp->tdir_tag;
+                    if( tag == TIFFTAG_SAMPLESPERPIXEL )
+                        tag = TIFFTAG_SAMPLESPERPIXELEX;
+					if (!TIFFSetField(tif,tag,data))
 						return(0);
 				}
 			}
@@ -5766,7 +5769,7 @@ TIFFFetchStripThing(TIFF* tif, TIFFDirEntry* dir, uint32_t nstrips, uint64_t** l
 	err=TIFFReadDirEntryLong8ArrayWithLimit(tif,dir,&data,nstrips);
 	if (err!=TIFFReadDirEntryErrOk)
 	{
-		const TIFFField* fip = TIFFFieldWithTag(tif,dir->tdir_tag); 
+		const TIFFField* fip = TIFFFieldWithTag(tif,dir->tdir_tag);
 		TIFFReadDirEntryOutputErr(tif,err,module,fip ? fip->field_name : "unknown tagname",0);
 		return(0);
 	}
