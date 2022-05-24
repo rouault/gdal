@@ -36,8 +36,8 @@
 /*                         OGRParquetDataset()                          */
 /************************************************************************/
 
-OGRParquetDataset::OGRParquetDataset(std::unique_ptr<arrow::MemoryPool>&& poMemoryPool):
-    OGRArrowDataset(std::move(poMemoryPool))
+OGRParquetDataset::OGRParquetDataset(const std::shared_ptr<arrow::MemoryPool>& poMemoryPool):
+    OGRArrowDataset(poMemoryPool)
 {
 }
 
