@@ -763,6 +763,7 @@ bool VSIS3HandleHelper::GetConfigurationFromAssumeRoleWithWebIdentity(bool bForc
                                                                       CPLString& osAccessKeyId,
                                                                       CPLString& osSessionToken)
 {
+    CPLDebug("AWS", "GetConfigurationFromAssumeRoleWithWebIdentity start");
     CPLMutexHolder oHolder( &ghMutex );
     if( !bForceRefresh )
     {
@@ -779,6 +780,7 @@ bool VSIS3HandleHelper::GetConfigurationFromAssumeRoleWithWebIdentity(bool bForc
         }
     }
 
+    CPLDebug("AWS", "GetConfigurationFromAssumeRoleWithWebIdentity refresh");
     const CPLString roleArn = !osRoleArnIn.empty() ? osRoleArnIn :
         VSIGetCredential(osPathForOption.c_str(), "AWS_ROLE_ARN", "");
     if( roleArn.empty() )
@@ -822,6 +824,7 @@ bool VSIS3HandleHelper::GetConfigurationFromAssumeRoleWithWebIdentity(bool bForc
         const CPLString osSTS_asuume_role_with_web_identity_URL =
             osStsRootUrl + "/?Action=AssumeRoleWithWebIdentity&RoleSessionName=gdal"
             "&Version=2011-06-15&RoleArn=" + roleArn + "&WebIdentityToken=" + webIdentityToken;
+        CPLDebug("AWS", "GetConfigurationFromAssumeRoleWithWebIdentity osSTS_asuume_role_with_web_identity_URL=%s", osSTS_asuume_role_with_web_identity_URL.c_str());
 
         CPLPushErrorHandler(CPLQuietErrorHandler);
 
@@ -831,6 +834,8 @@ bool VSIS3HandleHelper::GetConfigurationFromAssumeRoleWithWebIdentity(bool bForc
         {
             if( psResult->nStatus == 0 && psResult->pabyData != nullptr )
             {
+                CPLDebug("AWS", "AssumeRoleWithWebIdentity response: %s",
+                     reinterpret_cast<const char*>(psResult->pabyData));
                 CPLXMLTreeCloser oTree(CPLParseXMLString(reinterpret_cast<char*>(psResult->pabyData)));
                 if( oTree )
                 {
@@ -848,6 +853,11 @@ bool VSIS3HandleHelper::GetConfigurationFromAssumeRoleWithWebIdentity(bool bForc
             CPLHTTPDestroyResult(psResult);
         }
     }
+
+    CPLDebug("AWS", "AssumeRoleWithWebIdentity osAccessKeyId=%s\n", osAccessKeyId.c_str());
+    CPLDebug("AWS", "AssumeRoleWithWebIdentity osSecretAccessKey=%s\n", osSecretAccessKey.c_str());
+    CPLDebug("AWS", "AssumeRoleWithWebIdentity osSessionToken=%s\n", osSessionToken.c_str());
+    CPLDebug("AWS", "AssumeRoleWithWebIdentity osExpiration=%s\n", osExpiration.c_str());
 
     GIntBig nExpirationUnix = 0;
     if( !osAccessKeyId.empty() &&
@@ -1128,6 +1138,7 @@ bool VSIS3HandleHelper::GetConfigurationFromAWSConfigFiles(
             pszProfile = VSIGetCredential(osPathForOption.c_str(), "AWS_PROFILE", "");
     }
     const CPLString osProfile(pszProfile[0] != '\0' ? pszProfile : "default");
+    CPLDebug("AWS", "GetConfigurationFromAWSConfigFiles() with profile = %s", osProfile.c_str());
 
 #ifdef WIN32
     const char* pszHome = CPLGetConfigOption("USERPROFILE", nullptr);
@@ -1270,6 +1281,12 @@ bool VSIS3HandleHelper::GetConfigurationFromAWSConfigFiles(
         }
     }
 
+    CPLDebug("AWS", "GetConfigurationFromAWSConfigFiles(): osAccessKeyId = %s", osAccessKeyId.c_str());
+    CPLDebug("AWS", "GetConfigurationFromAWSConfigFiles(): osSecretAccessKey = %s", osSecretAccessKey.c_str());
+    CPLDebug("AWS", "GetConfigurationFromAWSConfigFiles(): osRoleArn = %s", osRoleArn.c_str());
+    CPLDebug("AWS", "GetConfigurationFromAWSConfigFiles(): osSourceProfile = %s", osSourceProfile.c_str());
+    CPLDebug("AWS", "GetConfigurationFromAWSConfigFiles(): osWebIdentityTokenFile = %s", osWebIdentityTokenFile.c_str());
+
     return (!osAccessKeyId.empty() && !osSecretAccessKey.empty()) ||
            (!osRoleArn.empty() && !osSourceProfile.empty()) ||
            (pszProfileOri != nullptr && !osRoleArn.empty() && !osWebIdentityTokenFile.empty());
@@ -1294,6 +1311,14 @@ static bool GetTemporaryCredentialsForRole(const std::string& osRoleArn,
                                            std::string& osTempSessionToken,
                                            std::string& osExpiration)
 {
+    CPLDebug("AWS", "GetTemporaryCredentialsForRole()");
+    CPLDebug("AWS", "osRoleArn = %s", osRoleArn.c_str());
+    CPLDebug("AWS", "osExternalId = %s", osExternalId.c_str());
+    CPLDebug("AWS", "osMFASerial = %s", osMFASerial.c_str());
+    CPLDebug("AWS", "osRoleSessionName = %s", osRoleSessionName.c_str());
+    CPLDebug("AWS", "osSecretAccessKey = %s", osSecretAccessKey.c_str());
+    CPLDebug("AWS", "osAccessKeyId = %s", osAccessKeyId.c_str());
+    CPLDebug("AWS", "osSessionToken = %s", osSessionToken.c_str());
     std::string osXAMZDate = CPLGetConfigOption("AWS_TIMESTAMP", "");
     if( osXAMZDate.empty() )
         osXAMZDate = CPLGetAWS_SIGN4_Timestamp(time(nullptr));
@@ -1361,6 +1386,8 @@ static bool GetTemporaryCredentialsForRole(const std::string& osRoleArn,
     {
         if( psResult->nStatus == 0 && psResult->pabyData != nullptr )
         {
+            CPLDebug("AWS", "AssumedRole response: %s",
+                     reinterpret_cast<const char*>(psResult->pabyData));
             CPLXMLTreeCloser oTree(CPLParseXMLString(reinterpret_cast<char*>(psResult->pabyData)));
             if( oTree )
             {
@@ -1381,6 +1408,9 @@ static bool GetTemporaryCredentialsForRole(const std::string& osRoleArn,
         }
         CPLHTTPDestroyResult(psResult);
     }
+
+    CPLDebug("AWS", "GetTemporaryCredentialsForRole() ret = %d", bRet);
+
     return bRet;
 }
 
@@ -1549,6 +1579,7 @@ bool VSIS3HandleHelper::GetConfiguration(const std::string& osPathForOption,
             // that has a role_arn and web_identity_token_file settings.
             if( !osSourceProfile.empty() )
             {
+                CPLDebug("AWS", "source_profile = %s", osSourceProfile.c_str());
                 CPLString osSecretAccessKeySP;
                 CPLString osAccessKeyIdSP;
                 CPLString osSessionTokenSP;
@@ -1573,6 +1604,7 @@ bool VSIS3HandleHelper::GetConfiguration(const std::string& osPathForOption,
                                                        osRoleSessionNameSP,
                                                        osWebIdentityTokenFile) )
                 {
+                    CPLDebug("AWS", "GetConfigurationFromAWSConfigFiles() for source profile OK");
                     if( GetConfigurationFromAssumeRoleWithWebIdentity(/* bForceRefresh = */ false,
                                                                       osPathForOption,
                                                                       osRoleArnSP,
@@ -1580,9 +1612,12 @@ bool VSIS3HandleHelper::GetConfiguration(const std::string& osPathForOption,
                                                                       osSecretAccessKey, osAccessKeyId,
                                                                       osSessionToken) )
                     {
+                        CPLDebug("AWS", "GetConfigurationFromAssumeRoleWithWebIdentity() for source profile OK");
                         CPLMutexHolder oHolder( &ghMutex );
                         gosRoleArnWebIdentity = osRoleArnSP;
                         gosWebIdentityTokenFile = osWebIdentityTokenFile;
+                        CPLDebug("AWS", "gosRoleArnWebIdentity = %s", gosRoleArnWebIdentity.c_str());
+                        CPLDebug("AWS", "gosWebIdentityTokenFile = %s", gosWebIdentityTokenFile.c_str());
                     }
                 }
             }
