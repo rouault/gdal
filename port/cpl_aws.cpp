@@ -826,12 +826,15 @@ bool VSIS3HandleHelper::GetConfigurationFromAssumeRoleWithWebIdentity(bool bForc
             "&Version=2011-06-15&RoleArn=" + roleArn + "&WebIdentityToken=" + webIdentityToken;
         CPLDebug("AWS", "GetConfigurationFromAssumeRoleWithWebIdentity osSTS_asuume_role_with_web_identity_URL=%s", osSTS_asuume_role_with_web_identity_URL.c_str());
 
-        CPLPushErrorHandler(CPLQuietErrorHandler);
+        //CPLPushErrorHandler(CPLQuietErrorHandler);
 
         CPLHTTPResult* psResult = CPLHTTPFetch( osSTS_asuume_role_with_web_identity_URL.c_str(), nullptr );
-        CPLPopErrorHandler();
+        //CPLPopErrorHandler();
         if( psResult )
         {
+            CPLDebug("AWS", "psResult->nStatus = %d", psResult->nStatus);
+            CPLDebug("AWS", "psResult->pabyData = %s", psResult->pabyData ? reinterpret_cast<const char*>(psResult->pabyData) : "(null)");
+            CPLDebug("AWS", "psResult->pszErrBuf = %s", psResult->pszErrBuf ? psResult->pszErrBuf : "(null)");
             if( psResult->nStatus == 0 && psResult->pabyData != nullptr )
             {
                 CPLDebug("AWS", "AssumeRoleWithWebIdentity response: %s",

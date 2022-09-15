@@ -1895,6 +1895,9 @@ void *CPLHTTPSetOptions(void *pcurl, const char* pszURL,
         }
     }
 
+if( CPLGetConfigOption("CPL_HTTP_SKIP_SET_OPTIONS", nullptr) == nullptr )
+{
+
     const char *pszHttpVersion =
         CSLFetchNameValue( papszOptions, "HTTP_VERSION");
     if( pszHttpVersion == nullptr )
@@ -2250,6 +2253,27 @@ void *CPLHTTPSetOptions(void *pcurl, const char* pszURL,
      */
     unchecked_curl_easy_setopt(http_handle, CURLOPT_NOSIGNAL, 1 );
 
+    const char* pszCookie = CSLFetchNameValue(papszOptions, "COOKIE");
+    if( pszCookie == nullptr )
+        pszCookie = CPLGetConfigOption("GDAL_HTTP_COOKIE", nullptr);
+    if( pszCookie != nullptr )
+        unchecked_curl_easy_setopt(http_handle, CURLOPT_COOKIE, pszCookie);
+
+    const char* pszCookieFile = CSLFetchNameValue(papszOptions, "COOKIEFILE");
+    if( pszCookieFile == nullptr )
+        pszCookieFile = CPLGetConfigOption("GDAL_HTTP_COOKIEFILE", nullptr);
+    if( pszCookieFile != nullptr )
+        unchecked_curl_easy_setopt(http_handle, CURLOPT_COOKIEFILE, pszCookieFile);
+
+    const char* pszCookieJar = CSLFetchNameValue(papszOptions, "COOKIEJAR");
+    if( pszCookieJar == nullptr )
+        pszCookieJar = CPLGetConfigOption("GDAL_HTTP_COOKIEJAR", nullptr);
+    if( pszCookieJar != nullptr )
+        unchecked_curl_easy_setopt(http_handle, CURLOPT_COOKIEJAR, pszCookieJar);
+
+
+}
+
     const char* pszFormFilePath = CSLFetchNameValue( papszOptions, "FORM_FILE_PATH" );
     const char* pszParametersCount = CSLFetchNameValue( papszOptions, "FORM_ITEM_COUNT" );
     if( pszFormFilePath == nullptr && pszParametersCount == nullptr )
@@ -2270,25 +2294,6 @@ void *CPLHTTPSetOptions(void *pcurl, const char* pszURL,
             unchecked_curl_easy_setopt(http_handle, CURLOPT_CUSTOMREQUEST, pszCustomRequest );
         }
     }
-
-    const char* pszCookie = CSLFetchNameValue(papszOptions, "COOKIE");
-    if( pszCookie == nullptr )
-        pszCookie = CPLGetConfigOption("GDAL_HTTP_COOKIE", nullptr);
-    if( pszCookie != nullptr )
-        unchecked_curl_easy_setopt(http_handle, CURLOPT_COOKIE, pszCookie);
-
-    const char* pszCookieFile = CSLFetchNameValue(papszOptions, "COOKIEFILE");
-    if( pszCookieFile == nullptr )
-        pszCookieFile = CPLGetConfigOption("GDAL_HTTP_COOKIEFILE", nullptr);
-    if( pszCookieFile != nullptr )
-        unchecked_curl_easy_setopt(http_handle, CURLOPT_COOKIEFILE, pszCookieFile);
-
-    const char* pszCookieJar = CSLFetchNameValue(papszOptions, "COOKIEJAR");
-    if( pszCookieJar == nullptr )
-        pszCookieJar = CPLGetConfigOption("GDAL_HTTP_COOKIEJAR", nullptr);
-    if( pszCookieJar != nullptr )
-        unchecked_curl_easy_setopt(http_handle, CURLOPT_COOKIEJAR, pszCookieJar);
-
 
     struct curl_slist* headers = nullptr;
     const char *pszHeaderFile = CSLFetchNameValue( papszOptions, "HEADER_FILE" );
