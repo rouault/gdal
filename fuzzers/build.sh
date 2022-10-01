@@ -32,6 +32,11 @@ if test -f "$BUILD_SH_FROM_REPO"; then
     fi
 fi
 
+if test "$CIFUZZ" = "True"; then
+  echo "Running under CI fuzz"
+  exit 0
+fi
+
 rm -rf proj
 git clone --depth 1 https://github.com/OSGeo/PROJ proj
 
