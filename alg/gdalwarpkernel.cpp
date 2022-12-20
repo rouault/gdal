@@ -228,7 +228,7 @@ struct GWKThreadData
 {
     std::unique_ptr<CPLJobQueue> poJobQueue{};
     std::unique_ptr<std::vector<GWKJobStruct>> threadJobs{};
-    int nThreads{0};
+    int nMaxThreads{0};
     int counter{0};
     bool stopFlag{false};
     std::mutex mutex{};
@@ -237,6 +237,8 @@ struct GWKThreadData
     void *pTransformerArgInput{
         nullptr};  // owned by calling layer. Not to be destroyed
     std::map<GIntBig, void *> mapThreadToTransformerArg{};
+    int nTotalThreadCountForThisRun = 0;
+    int nCurThreadCountForThisRun = 0;
 };
 
 /************************************************************************/
@@ -327,7 +329,7 @@ void *GWKThreadsCreate(char **papszWarpOptions,
         nThreads > 0 ? GDALGetGlobalThreadPool(nThreads) : nullptr;
     if (nThreads && poThreadPool)
     {
-        psThreadData->nThreads = nThreads;
+        psThreadData->nMaxThreads = nThreads;
         psThreadData->threadJobs.reset(new std::vector<GWKJobStruct>(
             nThreads,
             GWKJobStruct(psThreadData->mutex, psThreadData->cv,
@@ -354,8 +356,8 @@ void GWKThreadsEnd(void *psThreadDataIn)
     {
         for (auto &pair : psThreadData->mapThreadToTransformerArg)
         {
-            if (pair.second != psThreadData->pTransformerArgInput)
-                GDALDestroyTransformer(pair.second);
+            CPLAssert(pair.second != psThreadData->pTransformerArgInput);
+            GDALDestroyTransformer(pair.second);
         }
         psThreadData->poJobQueue.reset();
     }
@@ -378,14 +380,19 @@ static void ThreadFuncAdapter(void *pData)
 
     {
         std::lock_guard<std::mutex> lock(psThreadData->mutex);
+        ++psThreadData->nCurThreadCountForThisRun;
+
         auto oIter = psThreadData->mapThreadToTransformerArg.find(nThreadId);
         if (oIter != psThreadData->mapThreadToTransformerArg.end())
         {
             pTransformerArg = oIter->second;
         }
-        else if (!psThreadData->bTransformerArgInputAssignedToThread)
+        else if (!psThreadData->bTransformerArgInputAssignedToThread &&
+                 psThreadData->nCurThreadCountForThisRun ==
+                     psThreadData->nTotalThreadCountForThisRun)
         {
-            // Borrow the original transformer, as it has not already been done
+            // If we are the last thread to be started, temporarily borrow the
+            // original transformer
             psThreadData->bTransformerArgInputAssignedToThread = true;
             pTransformerArg = psThreadData->pTransformerArgInput;
             psThreadData->mapThreadToTransformerArg[nThreadId] =
@@ -396,6 +403,9 @@ static void ThreadFuncAdapter(void *pData)
     // If no transformer assigned to current thread, instantiate one
     if (pTransformerArg == nullptr)
     {
+        CPLAssert(psThreadData->pTransformerArgInput != nullptr);
+        CPLAssert(!psThreadData->bTransformerArgInputAssignedToThread);
+
         // This somehow assumes that GDALCloneTransformer() is thread-safe
         // which should normally be the case.
         pTransformerArg =
@@ -413,6 +423,18 @@ static void ThreadFuncAdapter(void *pData)
 
     psJob->pTransformerArg = pTransformerArg;
     psJob->pfnFunc(pData);
+
+    // Give back original transformer, if borrowed.
+    {
+        std::lock_guard<std::mutex> lock(psThreadData->mutex);
+        if (psThreadData->bTransformerArgInputAssignedToThread &&
+            pTransformerArg == psThreadData->pTransformerArgInput)
+        {
+            psThreadData->mapThreadToTransformerArg.erase(
+                psThreadData->mapThreadToTransformerArg.find(nThreadId));
+            psThreadData->bTransformerArgInputAssignedToThread = false;
+        }
+    }
 }
 
 /************************************************************************/
@@ -445,7 +467,7 @@ static CPLErr GWKRun(GDALWarpKernel *poWK, const char *pszFuncName,
         return GWKGenericMonoThread(poWK, pfnFunc);
     }
 
-    int nThreads = std::min(psThreadData->nThreads, nDstYSize / 2);
+    int nThreads = std::min(psThreadData->nMaxThreads, nDstYSize / 2);
     // Config option mostly useful for tests to be able to test multithreading
     // with small rasters
     const int nWarpChunkSize =
@@ -461,6 +483,8 @@ static CPLErr GWKRun(GDALWarpKernel *poWK, const char *pszFuncName,
         nThreads = 1;
 
     CPLDebug("WARP", "Using %d threads", nThreads);
+    psThreadData->nTotalThreadCountForThisRun = nThreads;
+    psThreadData->nCurThreadCountForThisRun = 0;
 
     auto &jobs = *psThreadData->threadJobs;
     CPLAssert(static_cast<int>(jobs.size()) >= nThreads);
