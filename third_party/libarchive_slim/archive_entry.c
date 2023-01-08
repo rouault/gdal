@@ -335,11 +335,15 @@ archive_entry_ctime_nsec(struct archive_entry *entry)
 dev_t
 archive_entry_dev(struct archive_entry *entry)
 {
+#ifdef gdal
 	if (entry->ae_stat.aest_dev_is_broken_down)
 		return ae_makedev(entry->ae_stat.aest_devmajor,
 		    entry->ae_stat.aest_devminor);
 	else
 		return (entry->ae_stat.aest_dev);
+#endif
+    (void)entry;
+    return 0;
 }
 
 int
@@ -351,19 +355,27 @@ archive_entry_dev_is_set(struct archive_entry *entry)
 dev_t
 archive_entry_devmajor(struct archive_entry *entry)
 {
+#ifdef gdal
 	if (entry->ae_stat.aest_dev_is_broken_down)
 		return (entry->ae_stat.aest_devmajor);
 	else
 		return major(entry->ae_stat.aest_dev);
+#endif
+    (void)entry;
+    return 0;
 }
 
 dev_t
 archive_entry_devminor(struct archive_entry *entry)
 {
+#ifdef gdal
 	if (entry->ae_stat.aest_dev_is_broken_down)
 		return (entry->ae_stat.aest_devminor);
 	else
 		return minor(entry->ae_stat.aest_dev);
+#endif
+    (void)entry;
+    return 0;
 }
 
 __LA_MODE_T
@@ -628,35 +640,51 @@ _archive_entry_pathname_l(struct archive_entry *entry,
 __LA_MODE_T
 archive_entry_perm(struct archive_entry *entry)
 {
+#ifdef gdal
 	return (~AE_IFMT & entry->acl.mode);
+#endif
+    (void)entry;
+    return 0;
 }
 
 dev_t
 archive_entry_rdev(struct archive_entry *entry)
 {
+#ifdef gdal
 	if (entry->ae_stat.aest_rdev_is_broken_down)
 		return ae_makedev(entry->ae_stat.aest_rdevmajor,
 		    entry->ae_stat.aest_rdevminor);
 	else
 		return (entry->ae_stat.aest_rdev);
+#endif
+    (void)entry;
+    return 0;
 }
 
 dev_t
 archive_entry_rdevmajor(struct archive_entry *entry)
 {
+#ifdef gdal
 	if (entry->ae_stat.aest_rdev_is_broken_down)
 		return (entry->ae_stat.aest_rdevmajor);
 	else
 		return major(entry->ae_stat.aest_rdev);
+#endif
+    (void)entry;
+    return 0;
 }
 
 dev_t
 archive_entry_rdevminor(struct archive_entry *entry)
 {
+#ifdef gdal
 	if (entry->ae_stat.aest_rdev_is_broken_down)
 		return (entry->ae_stat.aest_rdevminor);
 	else
 		return minor(entry->ae_stat.aest_rdev);
+#endif
+    (void)entry;
+    return 0;
 }
 
 la_int64_t
