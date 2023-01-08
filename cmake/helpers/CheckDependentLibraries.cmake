@@ -698,6 +698,7 @@ gdal_check_package(Blosc "Blosc compression" CAN_DISABLE)
 
 define_find_package2(ARCHIVE archive.h archive)
 gdal_check_package(ARCHIVE "Multi-format archive and compression library library (used for /vsi7z/" CAN_DISABLE)
+gdal_internal_library(ARCHIVE)
 
 define_find_package2(JXL jxl/decode.h jxl PKGCONFIG_NAME libjxl)
 gdal_check_package(JXL "JPEG-XL compression" CAN_DISABLE)

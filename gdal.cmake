@@ -486,6 +486,10 @@ if(ENABLE_DEFLATE64)
     add_subdirectory(frmts/zlib/contrib/infback9)
 endif()
 
+if (NOT GDAL_USE_ARCHIVE AND GDAL_USE_ARCHIVE_INTERNAL AND GDAL_USE_LIBLZMA)
+    add_subdirectory(third_party/libarchive_slim)
+endif()
+
 # Internal zlib and jsonc must be declared before
 add_subdirectory(port)
 
