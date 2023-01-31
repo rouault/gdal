@@ -5141,6 +5141,17 @@ int LayerTranslator::Translate(OGRFeature *poFeatureIn, TargetLayerInfo *psInfo,
                              poOutputSRS, m_poGCPCoordTrans, false);
     }
 
+    if (!m_bTransform && iSrcZField == -1 && m_nCoordDim <= 0 &&
+        m_eGeomOp == GEOMOP_NONE && m_dfGeomOpParam == 0.0 && !m_poClipSrcOri &&
+        !m_poClipDstOri && !m_bMakeValid && eGType == GEOMTYPE_UNCHANGED &&
+        m_eGeomTypeConversion == GTC_DEFAULT &&
+        poSrcLayer->TestCapability(OLCReadWKBGeometries) &&
+        poDstLayer->TestCapability(OLCWriteWKBGeometries))
+    {
+        CPLDebug("OGR2OGR", "RequestWKBOnlyGeometries(true)");
+        poSrcLayer->RequestWKBOnlyGeometries(true);
+    }
+
     while (true)
     {
         if (m_nLimit >= 0 && psInfo->m_nFeaturesRead >= m_nLimit)

@@ -1495,6 +1495,15 @@ int OGRLayer::FilterGeometry(OGRGeometry *poGeometry)
         /*      the filter geometry. */
         /* --------------------------------------------------------------------
          */
+
+        std::unique_ptr<OGRGeometry> poTmpGeomHolder;
+        if (auto poWKBOnlyGeometry =
+                dynamic_cast<const OGRWKBOnlyGeometry *>(poGeometry))
+        {
+            poTmpGeomHolder = poWKBOnlyGeometry->Materialize();
+            poGeometry = poTmpGeomHolder.get();
+        }
+
         if (m_bFilterIsEnvelope)
         {
             OGRLineString *poLS = nullptr;
@@ -7242,4 +7251,31 @@ OGRErr OGR_L_SetActiveSRS(OGRLayerH hLayer, int iGeomField,
     VALIDATE_POINTER1(hLayer, "OGR_L_SetActiveSRS", OGRERR_FAILURE);
     return OGRLayer::FromHandle(hLayer)->SetActiveSRS(
         iGeomField, OGRSpatialReference::FromHandle(hSRS));
+}
+
+/************************************************************************/
+/*                   RequestWKBOnlyGeometries()                         */
+/************************************************************************/
+
+OGRErr OGRLayer::RequestWKBOnlyGeometries(bool bRequestWKBOnlyGeometries)
+{
+    if (bRequestWKBOnlyGeometries)
+    {
+        CPLError(CE_Failure, CPLE_NotSupported,
+                 "RequestWKBOnlyGeometries(true) not supported on this layer");
+        return OGRERR_FAILURE;
+    }
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                     OGR_L_RequestWKBOnlyGeometries()                 */
+/************************************************************************/
+
+OGRErr OGR_L_RequestWKBOnlyGeometries(OGRLayerH hLayer,
+                                      bool bRequestWKBOnlyGeometries)
+{
+    VALIDATE_POINTER1(hLayer, "OGR_L_RequestWKBOnlyGeometries", OGRERR_FAILURE);
+    return OGRLayer::FromHandle(hLayer)->RequestWKBOnlyGeometries(
+        bRequestWKBOnlyGeometries);
 }

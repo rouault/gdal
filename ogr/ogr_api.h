@@ -656,6 +656,8 @@ void CPL_DLL OGR_L_SetSpatialFilterRectEx(OGRLayerH, int iGeomField,
                                           double dfMaxX, double dfMaxY);
 OGRErr CPL_DLL OGR_L_SetAttributeFilter(OGRLayerH, const char *);
 void CPL_DLL OGR_L_ResetReading(OGRLayerH);
+OGRErr CPL_DLL OGR_L_RequestWKBOnlyGeometries(OGRLayerH hLayer,
+                                              bool bRequestWKBOnlyGeometries);
 OGRFeatureH CPL_DLL OGR_L_GetNextFeature(OGRLayerH) CPL_WARN_UNUSED_RESULT;
 
 /** Conveniency macro to iterate over features of a layer.

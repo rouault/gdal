@@ -490,6 +490,7 @@ class OGRGeoPackageLayer CPL_NON_FINAL : public OGRLayer,
     sqlite3_stmt *m_poQueryStatement;
     bool bDoStep;
     bool m_bEOF = false;
+    bool m_bRequestWKBOnlyGeometries = false;
 
     char *m_pszFidColumn;
 
@@ -548,6 +549,8 @@ class OGRGeoPackageLayer CPL_NON_FINAL : public OGRLayer,
     {
         return "";
     }
+
+    OGRErr RequestWKBOnlyGeometries(bool bRequestWKBOnlyGeometries) override;
 };
 
 /************************************************************************/

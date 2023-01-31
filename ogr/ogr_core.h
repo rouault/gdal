@@ -999,6 +999,11 @@ int CPL_DLL OGRParseDate(const char *pszInput, OGRField *psOutput,
     "FastGetArrowStream" /**< Layer capability for fast GetArrowStream()       \
                             implementation */
 
+#define OLCReadWKBGeometries                                                   \
+    "ReadWKBGeometries" /**< Layer capability for reading OGRWKBOnlyGeometry */
+#define OLCWriteWKBGeometries                                                  \
+    "WriteWKBGeometries" /**< Layer capability for writing OGRWKBOnlyGeometry */
+
 #define ODsCCreateLayer                                                        \
     "CreateLayer" /**< Dataset capability for layer creation */
 #define ODsCDeleteLayer                                                        \

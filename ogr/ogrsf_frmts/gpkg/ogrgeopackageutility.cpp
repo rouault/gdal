@@ -246,7 +246,8 @@ GByte *GPkgGeometryFromOGR(const OGRGeometry *poGeometry, int iSrsId,
     GByte byEnv = 1;
     OGRwkbByteOrder eByteOrder = static_cast<OGRwkbByteOrder>(CPL_IS_LSB);
     OGRErr err;
-    OGRBoolean bPoint = (wkbFlatten(poGeometry->getGeometryType()) == wkbPoint);
+    OGRBoolean bPoint =
+        (wkbFlatten(poGeometry->getUnderlyingGeometryType()) == wkbPoint);
     OGRBoolean bEmpty = poGeometry->IsEmpty();
     /* We voluntarily use getCoordinateDimension() so as to get only 2 for
      * XY/XYM */

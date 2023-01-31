@@ -33,6 +33,7 @@
 
 #include <cmath>
 #include <climits>
+#include <functional>
 
 /************************************************************************/
 /*                          OGRWKBNeedSwap()                            */
@@ -126,6 +127,175 @@ bool OGRWKBGetGeomType(const GByte *pabyWkb, size_t nWKBSize, bool &bNeedSwap,
         return true;
     }
     return false;
+}
+
+/************************************************************************/
+/*                           OGRWKBIsEmpty()                            */
+/************************************************************************/
+
+bool OGRWKBIsEmpty(const GByte *pabyWkb, size_t nWKBSize)
+{
+    bool bNeedSwap;
+    uint32_t nType;
+    if (nWKBSize < 5 || !OGRWKBGetGeomType(pabyWkb, nWKBSize, bNeedSwap, nType))
+        return true;
+
+    if (nWKBSize == wkbPoint || nWKBSize == wkbPoint25D ||
+        nWKBSize == wkbPoint + 1000 ||  // wkbPointZ
+        nWKBSize == wkbPointM || nWKBSize == wkbPointZM)
+    {
+        if (nWKBSize < 5 + 2 * sizeof(double))
+            return true;
+        const double x = OGRWKBReadFloat64(pabyWkb + 5, bNeedSwap);
+        const double y =
+            OGRWKBReadFloat64(pabyWkb + 5 + sizeof(double), bNeedSwap);
+        return std::isnan(x) && std::isnan(y);
+    }
+    if (nWKBSize < 9)
+        return true;
+    const auto nPointsOrParts = OGRWKBReadUInt32(pabyWkb + 5, bNeedSwap);
+    return nPointsOrParts == 0;
+}
+
+/************************************************************************/
+/*                      OGRWKBVisitPoints()                             */
+/************************************************************************/
+
+static bool
+OGRWKBVisitPoints(const GByte *&pabyWkb, size_t &nWKBSize,
+                  const std::function<void(const OGRPoint &)> &visitPoint)
+{
+    bool bNeedSwap;
+    uint32_t nType;
+    if (nWKBSize < 5 || !OGRWKBGetGeomType(pabyWkb, nWKBSize, bNeedSwap, nType))
+        return false;
+
+    OGRwkbGeometryType eGeomType = wkbUnknown;
+    OGRReadWKBGeometryType(pabyWkb, wkbVariantIso, &eGeomType);
+    if (eGeomType == wkbUnknown)
+        return false;
+
+    const int nDim =
+        2 + (wkbHasZ(eGeomType) ? 1 : 0) + (wkbHasM(eGeomType) ? 1 : 0);
+    if (wkbFlatten(eGeomType) == wkbPoint)
+    {
+        if (nWKBSize < 5 + 2 * sizeof(double))
+            return false;
+        const double x = OGRWKBReadFloat64(pabyWkb + 5, bNeedSwap);
+        const double y =
+            OGRWKBReadFloat64(pabyWkb + 5 + sizeof(double), bNeedSwap);
+        OGRPoint p(x, y);
+        visitPoint(p);
+        pabyWkb += 5 + nDim * sizeof(double);
+        nWKBSize -= 5 + nDim * sizeof(double);
+        return true;
+    }
+
+    if (nWKBSize < 9)
+        return false;
+    const auto nPointsOrParts = OGRWKBReadUInt32(pabyWkb + 5, bNeedSwap);
+    switch (wkbFlatten(eGeomType))
+    {
+        case wkbLineString:
+        case wkbCircularString:
+        {
+            pabyWkb += 9;
+            nWKBSize -= 9;
+            OGRPoint p;
+            if (nWKBSize / (nDim * sizeof(double)) < nPointsOrParts)
+                return false;
+            for (uint32_t i = 0; i < nPointsOrParts; ++i)
+            {
+                const double x = OGRWKBReadFloat64(
+                    pabyWkb + i * nDim * sizeof(double), bNeedSwap);
+                const double y = OGRWKBReadFloat64(
+                    pabyWkb + sizeof(double) + i * nDim * sizeof(double),
+                    bNeedSwap);
+                p.setX(x);
+                p.setY(y);
+                visitPoint(p);
+            }
+            pabyWkb += nDim * nPointsOrParts * sizeof(double);
+            nWKBSize -= nDim * nPointsOrParts * sizeof(double);
+            break;
+        }
+
+        case wkbPolygon:
+        {
+            pabyWkb += 9;
+            nWKBSize -= 9;
+            OGRPoint p;
+            for (uint32_t i = 0; i < nPointsOrParts; ++i)
+            {
+                if (nWKBSize < sizeof(uint32_t))
+                    return false;
+                const auto nRingPoints = OGRWKBReadUInt32(pabyWkb, bNeedSwap);
+                pabyWkb += sizeof(uint32_t);
+                nWKBSize -= sizeof(uint32_t);
+                if (nWKBSize / (nDim * sizeof(double)) < nRingPoints)
+                    return false;
+                for (uint32_t j = 0; j < nRingPoints; ++j)
+                {
+                    const double x = OGRWKBReadFloat64(
+                        pabyWkb + j * nDim * sizeof(double), bNeedSwap);
+                    const double y = OGRWKBReadFloat64(
+                        pabyWkb + sizeof(double) + j * nDim * sizeof(double),
+                        bNeedSwap);
+                    p.setX(x);
+                    p.setY(y);
+                    visitPoint(p);
+                }
+                pabyWkb += nDim * nRingPoints * sizeof(double);
+                nWKBSize -= nDim * nRingPoints * sizeof(double);
+            }
+            break;
+        }
+
+        case wkbMultiPoint:
+        case wkbMultiLineString:
+        case wkbMultiPolygon:
+        case wkbGeometryCollection:
+        case wkbMultiCurve:
+        case wkbMultiSurface:
+        case wkbCompoundCurve:
+        case wkbCurvePolygon:
+        case wkbPolyhedralSurface:
+        case wkbTIN:
+        {
+            pabyWkb += 9;
+            nWKBSize -= 9;
+            for (uint32_t i = 0; i < nPointsOrParts; ++i)
+            {
+                if (!OGRWKBVisitPoints(pabyWkb, nWKBSize, visitPoint))
+                {
+                    return false;
+                }
+            }
+            break;
+        }
+
+        default:
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "OGRWKBVisitPoints(): unhandled geometry type %d",
+                     eGeomType);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/************************************************************************/
+/*                       OGRWKBGetEnvelope()                            */
+/************************************************************************/
+
+bool OGRWKBGetEnvelope(const GByte *pabyWkb, size_t nWKBSize,
+                       OGREnvelope &sEnvelope)
+{
+    return OGRWKBVisitPoints(pabyWkb, nWKBSize,
+                             [&sEnvelope](const OGRPoint &point)
+                             { sEnvelope.Merge(point.getX(), point.getY()); });
 }
 
 /************************************************************************/

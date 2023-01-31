@@ -457,6 +457,12 @@ class CPL_DLL OGRGeometry
 
     // Non-standard.
     virtual OGRwkbGeometryType getGeometryType() const = 0;
+    /*! @cond Doxygen_Suppress */
+    virtual OGRwkbGeometryType getUnderlyingGeometryType() const
+    {
+        return getGeometryType();
+    }
+    /*! @endcond */
     OGRwkbGeometryType getIsoGeometryType() const;
     virtual const char *getGeometryName() const = 0;
     void dumpReadable(FILE *, const char * = nullptr,
@@ -1068,6 +1074,68 @@ typedef std::unique_ptr<OGRGeometry, OGRGeometryUniquePtrDeleter>
     OGR_FORBID_DOWNCAST_TO_MULTIPOLYGON
 
 //! @endcond
+
+/************************************************************************/
+/*                         OGRWKBOnlyGeometry                           */
+/************************************************************************/
+
+/**
+ * Special OGRGeometry subclass that only holds its WKB representation.
+ *
+ * Used for optimizations when passing geometries between drivers or
+ * application code that does not require to query aspects of the geometry.
+ *
+ * @since GDAL 3.7
+ */
+class CPL_DLL OGRWKBOnlyGeometry final : public OGRGeometry
+{
+    std::vector<GByte> m_abyWKB{};
+    OGREnvelope m_sEnvelope{};
+
+  public:
+    OGRWKBOnlyGeometry(const void *pabyWKB, size_t nWKBSize);
+    OGRWKBOnlyGeometry(const void *pabyWKB, size_t nWKBSize,
+                       const OGREnvelope &sEnvelope);
+
+    /** Get WKB */
+    const std::vector<GByte> &Wkb() const
+    {
+        return m_abyWKB;
+    }
+
+    int getDimension() const override;
+    void empty() override;
+    OGRBoolean IsEmpty() const override;
+    OGRWKBOnlyGeometry *clone() const override;
+    void getEnvelope(OGREnvelope *psEnvelope) const override;
+    void getEnvelope(OGREnvelope3D *psEnvelope) const override;
+    size_t WkbSize() const override
+    {
+        return m_abyWKB.size();
+    }
+    OGRErr importFromWkb(const unsigned char *, size_t, OGRwkbVariant,
+                         size_t &nBytesConsumedOut) override;
+    OGRErr exportToWkb(OGRwkbByteOrder, unsigned char *,
+                       OGRwkbVariant = wkbVariantOldOgc) const override;
+    OGRErr importFromWkt(const char **ppszInput) override;
+    std::string exportToWkt(const OGRWktOptions &opts = OGRWktOptions(),
+                            OGRErr *err = nullptr) const override;
+
+    OGRwkbGeometryType getGeometryType() const override;
+    const char *getGeometryName() const override;
+    void flattenTo2D() override;
+
+    void accept(IOGRGeometryVisitor *visitor) override;
+    void accept(IOGRConstGeometryVisitor *visitor) const override;
+
+    OGRErr transform(OGRCoordinateTransformation *poCT) override;
+
+    OGRBoolean Equals(const OGRGeometry *) const override;
+
+    OGRwkbGeometryType getUnderlyingGeometryType() const override;
+
+    std::unique_ptr<OGRGeometry> Materialize() const;
+};
 
 /************************************************************************/
 /*                               OGRPoint                               */

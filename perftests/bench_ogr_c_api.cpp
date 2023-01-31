@@ -38,6 +38,7 @@ static void Usage()
 {
     printf(
         "Usage: bench_ogr_c_api [-where filter] [-spat xmin ymin xmax ymax]\n");
+    printf("                       [-wkb_only_geometry]\n");
     printf("                       filename [layer_name]\n");
     exit(1);
 }
@@ -59,6 +60,7 @@ int main(int argc, char *argv[])
     const char *pszDataset = nullptr;
     std::unique_ptr<OGRPolygon> poSpatialFilter;
     const char *pszLayerName = nullptr;
+    bool bRequestWKBOnlyGeometries = false;
     for (int iArg = 1; iArg < argc; ++iArg)
     {
         if (iArg + 1 < argc && strcmp(argv[iArg], "-where") == 0)
@@ -79,6 +81,10 @@ int main(int argc, char *argv[])
             poSpatialFilter->addRing(&oRing);
 
             iArg += 4;
+        }
+        else if (strcmp(argv[iArg], "-wkb_only_geometry") == 0)
+        {
+            bRequestWKBOnlyGeometries = true;
         }
         else if (argv[iArg][0] == '-')
         {
@@ -131,6 +137,8 @@ int main(int argc, char *argv[])
         poLayer->SetAttributeFilter(pszWhere);
     if (poSpatialFilter)
         poLayer->SetSpatialFilter(poSpatialFilter.get());
+    if (bRequestWKBOnlyGeometries)
+        poLayer->RequestWKBOnlyGeometries(bRequestWKBOnlyGeometries);
 
     OGRLayerH hLayer = OGRLayer::ToHandle(poLayer);
     OGRFeatureDefnH hFDefn = OGR_L_GetLayerDefn(hLayer);

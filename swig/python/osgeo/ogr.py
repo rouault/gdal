@@ -367,6 +367,10 @@ OLCRename = _ogr.OLCRename
 
 OLCFastGetArrowStream = _ogr.OLCFastGetArrowStream
 
+OLCReadWKBGeometries = _ogr.OLCReadWKBGeometries
+
+OLCWriteWKBGeometries = _ogr.OLCWriteWKBGeometries
+
 ODsCCreateLayer = _ogr.ODsCCreateLayer
 
 ODsCDeleteLayer = _ogr.ODsCDeleteLayer
@@ -1411,6 +1415,10 @@ class Layer(MajorObject):
 
         """
         return _ogr.Layer_GetFIDColumn(self, *args)
+
+    def RequestWKBOnlyGeometries(self, *args) -> "OGRErr":
+        r"""RequestWKBOnlyGeometries(Layer self, bool bRequestWKBOnlyGeometries) -> OGRErr"""
+        return _ogr.Layer_RequestWKBOnlyGeometries(self, *args)
 
     def GetFeature(self, *args) -> "OGRFeatureShadow *":
         r"""

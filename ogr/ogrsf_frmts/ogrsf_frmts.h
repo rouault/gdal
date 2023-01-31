@@ -180,6 +180,8 @@ class CPL_DLL OGRLayer : public GDALMajorObject
 
     virtual OGRErr SetAttributeFilter(const char *);
 
+    virtual OGRErr RequestWKBOnlyGeometries(bool bRequestWKBOnlyGeometries);
+
     virtual void ResetReading() = 0;
     virtual OGRFeature *GetNextFeature() CPL_WARN_UNUSED_RESULT = 0;
     virtual OGRErr SetNextByIndex(GIntBig nIndex);

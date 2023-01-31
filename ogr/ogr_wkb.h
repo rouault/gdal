@@ -31,12 +31,17 @@
 
 #include "cpl_port.h"
 
+#include "ogr_core.h"
+
 bool OGRWKBGetGeomType(const GByte *pabyWkb, size_t nWKBSize, bool &bNeedSwap,
                        uint32_t &nType);
 bool OGRWKBPolygonGetArea(const GByte *&pabyWkb, size_t &nWKBSize,
                           double &dfArea);
 bool OGRWKBMultiPolygonGetArea(const GByte *&pabyWkb, size_t &nWKBSize,
                                double &dfArea);
+bool OGRWKBIsEmpty(const GByte *pabyWkb, size_t nWKBSize);
+bool OGRWKBGetEnvelope(const GByte *pabyWkb, size_t nWKBSize,
+                       OGREnvelope &sEnvelope);
 
 /** Modifies a PostGIS-style Extended WKB geometry to a regular WKB one.
  * pabyEWKB will be modified in place.

@@ -7605,3 +7605,298 @@ void OGRGeometry::HomogenizeDimensionalityWith(OGRGeometry *poOtherGeom)
         poOtherGeom->setMeasured(TRUE);
 }
 //! @endcond
+
+/************************************************************************/
+/*                        OGRWKBOnlyGeometry()                          */
+/************************************************************************/
+
+/**
+ * \brief Create a OGRWKBOnlyGeometry.
+ */
+
+OGRWKBOnlyGeometry::OGRWKBOnlyGeometry(const void *pabyWKB, size_t nWKBSize)
+{
+    m_abyWKB.insert(m_abyWKB.end(), static_cast<const GByte *>(pabyWKB),
+                    static_cast<const GByte *>(pabyWKB) + nWKBSize);
+    if (m_abyWKB.size() >= 5)
+    {
+        OGRwkbGeometryType eGeometryType = wkbUnknown;
+        OGRReadWKBGeometryType(m_abyWKB.data(), wkbVariantIso, &eGeometryType);
+        if (OGR_GT_HasZ(eGeometryType))
+            flags |= OGR_G_3D;
+        if (OGR_GT_HasM(eGeometryType))
+            flags |= OGR_G_MEASURED;
+    }
+}
+
+/************************************************************************/
+/*                        OGRWKBOnlyGeometry()                          */
+/************************************************************************/
+
+/**
+ * \brief Create a OGRWKBOnlyGeometry.
+ */
+
+OGRWKBOnlyGeometry::OGRWKBOnlyGeometry(const void *pabyWKB, size_t nWKBSize,
+                                       const OGREnvelope &sEnvelope)
+    : m_sEnvelope(sEnvelope)
+{
+    m_abyWKB.insert(m_abyWKB.end(), static_cast<const GByte *>(pabyWKB),
+                    static_cast<const GByte *>(pabyWKB) + nWKBSize);
+    if (m_abyWKB.size() >= 5)
+    {
+        OGRwkbGeometryType eGeometryType = wkbUnknown;
+        OGRReadWKBGeometryType(m_abyWKB.data(), wkbVariantIso, &eGeometryType);
+        if (OGR_GT_HasZ(eGeometryType))
+            flags |= OGR_G_3D;
+        if (OGR_GT_HasM(eGeometryType))
+            flags |= OGR_G_MEASURED;
+    }
+}
+
+/************************************************************************/
+/*                            getDimension()                            */
+/************************************************************************/
+
+int OGRWKBOnlyGeometry::getDimension() const
+
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::getDimension() not supported");
+    return 0;
+}
+
+/************************************************************************/
+/*                          getGeometryType()                           */
+/************************************************************************/
+
+OGRwkbGeometryType OGRWKBOnlyGeometry::getGeometryType() const
+
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::getGeometryType() not supported");
+    return wkbUnknown;
+}
+
+/************************************************************************/
+/*                          getGeometryName()                           */
+/************************************************************************/
+
+const char *OGRWKBOnlyGeometry::getGeometryName() const
+
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::getGeometryName() not supported");
+    return "UNKNOWN";
+}
+
+/************************************************************************/
+/*                            flattenTo2D()                             */
+/************************************************************************/
+
+void OGRWKBOnlyGeometry::flattenTo2D()
+
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::flattenTo2D() not supported");
+}
+
+/************************************************************************/
+/*                               empty()                                */
+/************************************************************************/
+
+void OGRWKBOnlyGeometry::empty()
+
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::empty() not supported");
+}
+
+/************************************************************************/
+/*                               clone()                                */
+/************************************************************************/
+
+OGRWKBOnlyGeometry *OGRWKBOnlyGeometry::clone() const
+
+{
+    return new (std::nothrow)
+        OGRWKBOnlyGeometry(m_abyWKB.data(), m_abyWKB.size());
+}
+
+/************************************************************************/
+/*                    getUnderlyingGeometryType()                       */
+/************************************************************************/
+
+OGRwkbGeometryType OGRWKBOnlyGeometry::getUnderlyingGeometryType() const
+{
+    OGRwkbGeometryType eGeometryType = wkbUnknown;
+    if (m_abyWKB.size() >= 5)
+    {
+        OGRReadWKBGeometryType(m_abyWKB.data(), wkbVariantIso, &eGeometryType);
+    }
+    return eGeometryType;
+}
+
+/************************************************************************/
+/*                            getEnvelope()                             */
+/************************************************************************/
+
+void OGRWKBOnlyGeometry::getEnvelope(OGREnvelope *psEnvelope) const
+
+{
+    if (m_sEnvelope.IsInit())
+    {
+        if (psEnvelope)
+            *psEnvelope = m_sEnvelope;
+    }
+    else
+    {
+        OGREnvelope sEnvelope;
+        if (OGRWKBGetEnvelope(m_abyWKB.data(), m_abyWKB.size(), sEnvelope))
+        {
+            *psEnvelope = sEnvelope;
+        }
+        else
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "OGRWKBOnlyGeometry::getEnvelope() failed");
+        }
+    }
+}
+
+/************************************************************************/
+/*                            getEnvelope()                             */
+/************************************************************************/
+
+void OGRWKBOnlyGeometry::getEnvelope(CPL_UNUSED OGREnvelope3D *psEnvelope) const
+
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::getEnvelope() not supported");
+}
+
+/************************************************************************/
+/*                            exportToWkb()                             */
+/*                                                                      */
+/*      Build a well known binary representation of this object.        */
+/************************************************************************/
+
+OGRErr
+OGRWKBOnlyGeometry::exportToWkb(CPL_UNUSED OGRwkbByteOrder eByteOrder,
+                                unsigned char *pabyData,
+                                CPL_UNUSED OGRwkbVariant eWkbVariant) const
+
+{
+    memcpy(pabyData, m_abyWKB.data(), m_abyWKB.size());
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                           importFromWkb()                            */
+/*                                                                      */
+/*      Initialize from serialized stream in well known binary          */
+/*      format.                                                         */
+/************************************************************************/
+
+OGRErr OGRWKBOnlyGeometry::importFromWkb(
+    CPL_UNUSED const unsigned char *pabyData, CPL_UNUSED size_t nSize,
+    CPL_UNUSED OGRwkbVariant eWkbVariant, CPL_UNUSED size_t &nBytesConsumedOut)
+
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::importFromWkb() not supported");
+    return OGRERR_FAILURE;
+}
+
+/************************************************************************/
+/*                           importFromWkt()                            */
+/************************************************************************/
+
+OGRErr OGRWKBOnlyGeometry::importFromWkt(CPL_UNUSED const char **ppszInput)
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::importFromWkt() not supported");
+    return OGRERR_FAILURE;
+}
+
+/************************************************************************/
+/*                            exportToWkt()                             */
+/************************************************************************/
+
+std::string
+OGRWKBOnlyGeometry::exportToWkt(CPL_UNUSED const OGRWktOptions &opts,
+                                OGRErr *err) const
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::importFromWkt() not supported");
+    if (err)
+        *err = OGRERR_FAILURE;
+    return std::string();
+}
+
+/************************************************************************/
+/*                              accept()                                */
+/************************************************************************/
+
+void OGRWKBOnlyGeometry::accept(CPL_UNUSED IOGRGeometryVisitor *visitor)
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::accept() not supported");
+}
+
+/************************************************************************/
+/*                              accept()                                */
+/************************************************************************/
+
+void OGRWKBOnlyGeometry::accept(
+    CPL_UNUSED IOGRConstGeometryVisitor *visitor) const
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::accept() not supported");
+}
+
+/************************************************************************/
+/*                            transform()                               */
+/************************************************************************/
+
+OGRErr
+OGRWKBOnlyGeometry::transform(CPL_UNUSED OGRCoordinateTransformation *poCT)
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::transform() not supported");
+    return OGRERR_FAILURE;
+}
+
+/************************************************************************/
+/*                               Equals()                               */
+/************************************************************************/
+
+OGRBoolean
+OGRWKBOnlyGeometry::Equals(CPL_UNUSED const OGRGeometry *poOther) const
+
+{
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "OGRWKBOnlyGeometry::Equals() not supported");
+    return false;
+}
+
+/************************************************************************/
+/*                              IsEmpty()                               */
+/************************************************************************/
+
+OGRBoolean OGRWKBOnlyGeometry::IsEmpty() const
+{
+    return OGRWKBIsEmpty(m_abyWKB.data(), m_abyWKB.size());
+}
+
+/************************************************************************/
+/*                            Materialize()                             */
+/************************************************************************/
+
+std::unique_ptr<OGRGeometry> OGRWKBOnlyGeometry::Materialize() const
+{
+    OGRGeometry *poGeom = nullptr;
+    OGRGeometryFactory::createFromWkb(m_abyWKB.data(), nullptr, &poGeom,
+                                      m_abyWKB.size(), wkbVariantIso);
+    return std::unique_ptr<OGRGeometry>(poGeom);
+}

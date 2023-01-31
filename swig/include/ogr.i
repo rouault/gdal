@@ -500,6 +500,9 @@ typedef void retGetPoints;
 %constant char *OLCRename              = "Rename";
 %constant char *OLCFastGetArrowStream  = "FastGetArrowStream";
 
+%constant char *OLCReadWKBGeometries   = "ReadWKBGeometries";
+%constant char *OLCWriteWKBGeometries  = "WriteWKBGeometries";
+
 %constant char *ODsCCreateLayer        = "CreateLayer";
 %constant char *ODsCDeleteLayer        = "DeleteLayer";
 %constant char *ODsCCreateGeomFieldAfterCreateLayer  = "CreateGeomFieldAfterCreateLayer";
@@ -550,6 +553,9 @@ typedef int OGRErr;
 #define OLCZGeometries         "ZGeometries"
 #define OLCRename              "Rename"
 #define OLCFastGetArrowStream  "FastGetArrowStream"
+
+#define OLCReadWKBGeometries   "ReadWKBGeometries"
+#define OLCWriteWKBGeometries  "WriteWKBGeometries"
 
 #define ODsCCreateLayer        "CreateLayer"
 #define ODsCDeleteLayer        "DeleteLayer"
@@ -1180,6 +1186,10 @@ public:
 
   const char * GetFIDColumn() {
     return OGR_L_GetFIDColumn(self);
+  }
+
+  OGRErr RequestWKBOnlyGeometries(bool bRequestWKBOnlyGeometries) {
+    return OGR_L_RequestWKBOnlyGeometries(self, bRequestWKBOnlyGeometries);
   }
 
 %newobject GetFeature;

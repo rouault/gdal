@@ -1883,7 +1883,7 @@ void OGRGeoPackageTableLayer::CheckGeometryType(OGRFeature *poFeature)
         if (poGeom != nullptr)
         {
             bool bUpdateGpkgGeometryColumnsTable = false;
-            OGRwkbGeometryType eGeomType = poGeom->getGeometryType();
+            OGRwkbGeometryType eGeomType = poGeom->getUnderlyingGeometryType();
             if (m_nZFlag == 0 && wkbHasZ(eGeomType))
             {
                 m_nZFlag = 2;
@@ -3589,6 +3589,10 @@ int OGRGeoPackageTableLayer::TestCapability(const char *pszCap)
         return TRUE;
     else if (EQUAL(pszCap, OLCZGeometries))
         return TRUE;
+    else if (EQUAL(pszCap, OLCWriteWKBGeometries))
+    {
+        return TRUE;
+    }
     else
     {
         return OGRGeoPackageLayer::TestCapability(pszCap);
@@ -4214,11 +4218,19 @@ bool OGRGeoPackageTableLayer::CreateGeometryExtensionIfNecessary(
     bool bRet = true;
     if (poGeom != nullptr)
     {
-        OGRwkbGeometryType eGType = wkbFlatten(poGeom->getGeometryType());
+        OGRwkbGeometryType eGType =
+            wkbFlatten(poGeom->getUnderlyingGeometryType());
         if (eGType >= wkbGeometryCollection)
         {
             if (eGType > wkbGeometryCollection)
                 CreateGeometryExtensionIfNecessary(eGType);
+            std::unique_ptr<OGRGeometry> poTmpGeomHolder;
+            if (auto poWKBOnlyGeometry =
+                    dynamic_cast<const OGRWKBOnlyGeometry *>(poGeom))
+            {
+                poTmpGeomHolder = poWKBOnlyGeometry->Materialize();
+                poGeom = poTmpGeomHolder.get();
+            }
             const OGRGeometryCollection *poGC =
                 dynamic_cast<const OGRGeometryCollection *>(poGeom);
             if (poGC != nullptr)

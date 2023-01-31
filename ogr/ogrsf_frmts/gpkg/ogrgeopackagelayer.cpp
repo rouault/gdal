@@ -386,21 +386,53 @@ OGRFeature *OGRGeoPackageLayer::TranslateFeature(sqlite3_stmt *hStmt)
             // coverity[tainted_data_return]
             const GByte *pabyGpkg = static_cast<const GByte *>(
                 sqlite3_column_blob(hStmt, iGeomCol));
-            OGRGeometry *poGeom =
-                GPkgGeometryToOGR(pabyGpkg, iGpkgSize, nullptr);
-            if (poGeom == nullptr)
+            bool bInstanciateGeom = true;
+            if (m_bRequestWKBOnlyGeometries)
             {
-                // Try also spatialite geometry blobs
-                if (OGRSQLiteImportSpatiaLiteGeometry(pabyGpkg, iGpkgSize,
-                                                      &poGeom) != OGRERR_NONE)
+                GPkgHeader oHeader;
+                OGRErr err = GPkgHeaderFromWKB(pabyGpkg, iGpkgSize, &oHeader);
+                if (err == OGRERR_NONE)
                 {
-                    CPLError(CE_Failure, CPLE_AppDefined,
-                             "Unable to read geometry");
+                    bInstanciateGeom = false;
+                    /* WKB pointer */
+                    const GByte *pabyWkb = pabyGpkg + oHeader.nHeaderLen;
+                    size_t nWkbLen = iGpkgSize - oHeader.nHeaderLen;
+                    OGREnvelope sEnvelope;
+                    if (oHeader.bExtentHasXY)
+                    {
+                        sEnvelope.MinX = oHeader.MinX;
+                        sEnvelope.MinY = oHeader.MinY;
+                        sEnvelope.MaxX = oHeader.MaxX;
+                        sEnvelope.MaxY = oHeader.MaxY;
+                    }
+                    OGRGeometry *poGeom =
+                        oHeader.bExtentHasXY
+                            ? new OGRWKBOnlyGeometry(pabyWkb, nWkbLen,
+                                                     sEnvelope)
+                            : new OGRWKBOnlyGeometry(pabyWkb, nWkbLen);
+                    if (poGeom != nullptr)
+                        poGeom->assignSpatialReference(poSrs);
+                    poFeature->SetGeometryDirectly(poGeom);
                 }
             }
-            if (poGeom != nullptr)
-                poGeom->assignSpatialReference(poSrs);
-            poFeature->SetGeometryDirectly(poGeom);
+            if (bInstanciateGeom)
+            {
+                OGRGeometry *poGeom =
+                    GPkgGeometryToOGR(pabyGpkg, iGpkgSize, nullptr);
+                if (poGeom == nullptr)
+                {
+                    // Try also spatialite geometry blobs
+                    if (OGRSQLiteImportSpatiaLiteGeometry(
+                            pabyGpkg, iGpkgSize, &poGeom) != OGRERR_NONE)
+                    {
+                        CPLError(CE_Failure, CPLE_AppDefined,
+                                 "Unable to read geometry");
+                    }
+                }
+                if (poGeom != nullptr)
+                    poGeom->assignSpatialReference(poSrs);
+                poFeature->SetGeometryDirectly(poGeom);
+            }
         }
     }
 
@@ -875,6 +907,10 @@ int OGRGeoPackageLayer::TestCapability(const char *pszCap)
         return TRUE;
     else if (EQUAL(pszCap, OLCZGeometries))
         return TRUE;
+    else if (EQUAL(pszCap, OLCReadWKBGeometries))
+    {
+        return TRUE;
+    }
     else
         return FALSE;
 }
@@ -1137,4 +1173,15 @@ OGRErr OGRGeoPackageLayer::SetIgnoredFields(const char **papszFields)
         ResetReading();
     }
     return eErr;
+}
+
+/************************************************************************/
+/*                       RequestWKBOnlyGeometries()                     */
+/************************************************************************/
+
+OGRErr
+OGRGeoPackageLayer::RequestWKBOnlyGeometries(bool bRequestWKBOnlyGeometries)
+{
+    m_bRequestWKBOnlyGeometries = bRequestWKBOnlyGeometries;
+    return OGRERR_NONE;
 }
