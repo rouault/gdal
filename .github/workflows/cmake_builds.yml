@@ -91,7 +91,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=$PWD/install-gdal \
             "-DCMAKE_UNITY_BUILD=${CMAKE_UNITY_BUILD}" \
             -DGDAL_USE_MYSQL:BOOL=OFF \
-            -DBUILD_CSHARP_BINDINGS=ON
+            -DBUILD_CSHARP_BINDINGS=ON -DGDAL_USE_MSSQL_ODBC=OFF
         working-directory: ${{ github.workspace }}
       - name: Build
         run: cmake --build build -j 3
