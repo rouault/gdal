@@ -700,6 +700,10 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
 
         if (nExtendedTREBytes >= 3)
         {
+            if ((int)psSegInfo->nSegmentHeaderSize <
+                nOffset + nExtendedTREBytes)
+                GOTO_header_too_small();
+
             psImage->nIXSOFLOffsetInSubfileHeader = nOffset;
             char szIXSOFL[4];
             memcpy(szIXSOFL, pachHeader + nOffset, 3);
@@ -711,10 +715,6 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
 
             if (nExtendedTREBytes > 3)
             {
-                if ((int)psSegInfo->nSegmentHeaderSize <
-                    nOffset + nExtendedTREBytes)
-                    GOTO_header_too_small();
-
                 psImage->pachTRE = (char *)CPLRealloc(
                     psImage->pachTRE,
                     psImage->nTREBytes + nExtendedTREBytes - 3);
