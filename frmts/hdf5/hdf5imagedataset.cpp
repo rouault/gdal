@@ -39,8 +39,6 @@
 
 #include <algorithm>
 
-CPL_CVSID("$Id$")
-
 class HDF5ImageDataset final : public HDF5Dataset
 {
     typedef enum
@@ -61,11 +59,10 @@ class HDF5ImageDataset final : public HDF5Dataset
 
     friend class HDF5ImageRasterBand;
 
-    char *pszProjection;
-    char *pszGCPProjection;
+    OGRSpatialReference m_oSRS{};
+    OGRSpatialReference m_oGCPSRS{};
     GDAL_GCP *pasGCPList;
     int nGCPCount;
-    OGRSpatialReference oSRS;
 
     hsize_t *dims;
     hsize_t *maxdims;
@@ -81,6 +78,9 @@ class HDF5ImageDataset final : public HDF5Dataset
     HDF5CSKProductEnum iCSKProductType;
     double adfGeoTransform[6];
     bool bHasGeoTransform;
+    int m_nXIndex = -1;
+    int m_nYIndex = -1;
+    int m_nOtherDimIndex = -1;
 
     CPLErr CreateODIMH5Projection();
 
@@ -92,17 +92,9 @@ class HDF5ImageDataset final : public HDF5Dataset
     static GDALDataset *Open(GDALOpenInfo *);
     static int Identify(GDALOpenInfo *);
 
-    const char *_GetProjectionRef() override;
-    const OGRSpatialReference *GetSpatialRef() const override
-    {
-        return GetSpatialRefFromOldGetProjectionRef();
-    }
+    const OGRSpatialReference *GetSpatialRef() const override;
     virtual int GetGCPCount() override;
-    virtual const char *_GetGCPProjection() override;
-    const OGRSpatialReference *GetGCPSpatialRef() const override
-    {
-        return GetGCPSpatialRefFromOldGetGCPProjection();
-    }
+    const OGRSpatialReference *GetGCPSpatialRef() const override;
     virtual const GDAL_GCP *GetGCPs() override;
     virtual CPLErr GetGeoTransform(double *padfTransform) override;
 
@@ -122,11 +114,11 @@ class HDF5ImageDataset final : public HDF5Dataset
     }
     int GetYIndex() const
     {
-        return IsComplexCSKL1A() ? 0 : ndims - 2;
+        return m_nYIndex;
     }
     int GetXIndex() const
     {
-        return IsComplexCSKL1A() ? 1 : ndims - 1;
+        return m_nXIndex;
     }
 
     /**
@@ -147,12 +139,12 @@ class HDF5ImageDataset final : public HDF5Dataset
     void CaptureCSKGeolocation(int iProductType);
 
     /**
-    * Get Geotransform information for COSMO-SKYMED files
-    * In case of success it stores the transformation
-    * in adfGeoTransform. In case of failure it doesn't
-    * modify adfGeoTransform
-    * @param iProductType type of HDF5 subproduct, see HDF5CSKProduct
-    */
+     * Get Geotransform information for COSMO-SKYMED files
+     * In case of success it stores the transformation
+     * in adfGeoTransform. In case of failure it doesn't
+     * modify adfGeoTransform
+     * @param iProductType type of HDF5 subproduct, see HDF5CSKProduct
+     */
     void CaptureCSKGeoTransform(int iProductType);
 
     /**
@@ -171,13 +163,14 @@ class HDF5ImageDataset final : public HDF5Dataset
 /*                           HDF5ImageDataset()                         */
 /************************************************************************/
 HDF5ImageDataset::HDF5ImageDataset()
-    : pszProjection(nullptr), pszGCPProjection(nullptr), pasGCPList(nullptr),
-      nGCPCount(0), oSRS(OGRSpatialReference()), dims(nullptr),
-      maxdims(nullptr), poH5Objects(nullptr), ndims(0), dimensions(0),
-      dataset_id(-1), dataspace_id(-1), size(0), datatype(-1), native(-1),
+    : pasGCPList(nullptr), nGCPCount(0), dims(nullptr), maxdims(nullptr),
+      poH5Objects(nullptr), ndims(0), dimensions(0), dataset_id(-1),
+      dataspace_id(-1), size(0), datatype(-1), native(-1),
       iSubdatasetType(UNKNOWN_PRODUCT), iCSKProductType(PROD_UNKNOWN),
       bHasGeoTransform(false)
 {
+    m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    m_oGCPSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     adfGeoTransform[0] = 0.0;
     adfGeoTransform[1] = 1.0;
     adfGeoTransform[2] = 0.0;
@@ -191,6 +184,8 @@ HDF5ImageDataset::HDF5ImageDataset()
 /************************************************************************/
 HDF5ImageDataset::~HDF5ImageDataset()
 {
+    HDF5_GLOBAL_LOCK();
+
     FlushCache(true);
 
     if (dataset_id > 0)
@@ -201,9 +196,6 @@ HDF5ImageDataset::~HDF5ImageDataset()
         H5Tclose(datatype);
     if (native > 0)
         H5Tclose(native);
-
-    CPLFree(pszProjection);
-    CPLFree(pszGCPProjection);
 
     CPLFree(dims);
     CPLFree(maxdims);
@@ -329,6 +321,8 @@ double HDF5ImageRasterBand::GetNoDataValue(int *pbSuccess)
 CPLErr HDF5ImageRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff,
                                        void *pImage)
 {
+    HDF5_GLOBAL_LOCK();
+
     HDF5ImageDataset *poGDS = static_cast<HDF5ImageDataset *>(poDS);
 
     memset(pImage, 0,
@@ -345,19 +339,12 @@ CPLErr HDF5ImageRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff,
     hsize_t col_dims[3] = {0, 0, 0};
     hsize_t rank = std::min(poGDS->ndims, 2);
 
-    if (poGDS->IsComplexCSKL1A())
+    if (poGDS->ndims == 3)
     {
         rank = 3;
-        offset[2] = nBand - 1;
-        count[2] = 1;
-        col_dims[2] = 1;
-    }
-    else if (poGDS->ndims == 3)
-    {
-        rank = 3;
-        offset[0] = nBand - 1;
-        count[0] = 1;
-        col_dims[0] = 1;
+        offset[poGDS->m_nOtherDimIndex] = nBand - 1;
+        count[poGDS->m_nOtherDimIndex] = 1;
+        col_dims[poGDS->m_nOtherDimIndex] = 1;
     }
 
     const int nYIndex = poGDS->GetYIndex();
@@ -435,6 +422,8 @@ GDALDataset *HDF5ImageDataset::Open(GDALOpenInfo *poOpenInfo)
     if (!STARTS_WITH_CI(poOpenInfo->pszFilename, "HDF5:"))
         return nullptr;
 
+    HDF5_GLOBAL_LOCK();
+
     // Confirm the requested access is supported.
     if (poOpenInfo->eAccess == GA_Update)
     {
@@ -495,13 +484,11 @@ GDALDataset *HDF5ImageDataset::Open(GDALOpenInfo *poOpenInfo)
     poDS->hGroupID = H5Gopen(poDS->hHDF5, "/");
     if (poDS->hGroupID < 0)
     {
-        poDS->bIsHDFEOS = false;
         delete poDS;
         return nullptr;
     }
 
     // This is an HDF5 file.
-    poDS->bIsHDFEOS = TRUE;
     poDS->ReadGlobalAttributes(FALSE);
 
     // Create HDF5 Data Hierarchy in a link list.
@@ -540,25 +527,123 @@ GDALDataset *HDF5ImageDataset::Open(GDALOpenInfo *poOpenInfo)
     // Check if the hdf5 is a well known product type
     poDS->IdentifyProductType();
 
+    poDS->m_nYIndex = poDS->IsComplexCSKL1A() ? 0 : poDS->ndims - 2;
+    poDS->m_nXIndex = poDS->IsComplexCSKL1A() ? 1 : poDS->ndims - 1;
+
+    if (poDS->IsComplexCSKL1A())
+    {
+        poDS->m_nOtherDimIndex = 2;
+    }
+    else if (poDS->ndims == 3)
+    {
+        poDS->m_nOtherDimIndex = 0;
+    }
+
+    if (HDF5EOSParser::HasHDFEOS(poDS->hGroupID))
+    {
+        HDF5EOSParser oHDFEOSParser;
+        if (oHDFEOSParser.Parse(poDS->hGroupID))
+        {
+            CPLDebug("HDF5", "Successfully parsed HDFEOS metadata");
+            HDF5EOSParser::GridDataFieldMetadata oGridDataFieldMetadata;
+            HDF5EOSParser::SwathDataFieldMetadata oSwathDataFieldMetadata;
+            if (oHDFEOSParser.GetDataModel() ==
+                    HDF5EOSParser::DataModel::GRID &&
+                oHDFEOSParser.GetGridDataFieldMetadata(
+                    osSubdatasetName.c_str(), oGridDataFieldMetadata) &&
+                static_cast<int>(oGridDataFieldMetadata.aoDimensions.size()) ==
+                    poDS->ndims)
+            {
+                int iDim = 0;
+                for (auto &oDim : oGridDataFieldMetadata.aoDimensions)
+                {
+                    if (oDim.osName == "XDim")
+                        poDS->m_nXIndex = iDim;
+                    else if (oDim.osName == "YDim")
+                        poDS->m_nYIndex = iDim;
+                    else
+                        poDS->m_nOtherDimIndex = iDim;
+                    ++iDim;
+                }
+
+                if (oGridDataFieldMetadata.poGridMetadata->GetGeoTransform(
+                        poDS->adfGeoTransform))
+                    poDS->bHasGeoTransform = true;
+
+                auto poSRS = oGridDataFieldMetadata.poGridMetadata->GetSRS();
+                if (poSRS)
+                    poDS->m_oSRS = *(poSRS.get());
+            }
+            else if (oHDFEOSParser.GetDataModel() ==
+                         HDF5EOSParser::DataModel::SWATH &&
+                     oHDFEOSParser.GetSwathDataFieldMetadata(
+                         osSubdatasetName.c_str(), oSwathDataFieldMetadata) &&
+                     static_cast<int>(
+                         oSwathDataFieldMetadata.aoDimensions.size()) ==
+                         poDS->ndims &&
+                     oSwathDataFieldMetadata.iXDim >= 0 &&
+                     oSwathDataFieldMetadata.iYDim >= 0)
+            {
+                poDS->m_nXIndex = oSwathDataFieldMetadata.iXDim;
+                poDS->m_nYIndex = oSwathDataFieldMetadata.iYDim;
+                poDS->m_nOtherDimIndex = oSwathDataFieldMetadata.iOtherDim;
+                if (!oSwathDataFieldMetadata.osLongitudeSubdataset.empty())
+                {
+                    // Arbitrary
+                    poDS->SetMetadataItem("SRS", SRS_WKT_WGS84_LAT_LONG,
+                                          "GEOLOCATION");
+                    poDS->SetMetadataItem(
+                        "X_DATASET",
+                        ("HDF5:\"" + osFilename +
+                         "\":" + oSwathDataFieldMetadata.osLongitudeSubdataset)
+                            .c_str(),
+                        "GEOLOCATION");
+                    poDS->SetMetadataItem("X_BAND", "1", "GEOLOCATION");
+                    poDS->SetMetadataItem(
+                        "Y_DATASET",
+                        ("HDF5:\"" + osFilename +
+                         "\":" + oSwathDataFieldMetadata.osLatitudeSubdataset)
+                            .c_str(),
+                        "GEOLOCATION");
+                    poDS->SetMetadataItem("Y_BAND", "1", "GEOLOCATION");
+                    poDS->SetMetadataItem(
+                        "PIXEL_OFFSET",
+                        CPLSPrintf("%d", oSwathDataFieldMetadata.nPixelOffset),
+                        "GEOLOCATION");
+                    poDS->SetMetadataItem(
+                        "PIXEL_STEP",
+                        CPLSPrintf("%d", oSwathDataFieldMetadata.nPixelStep),
+                        "GEOLOCATION");
+                    poDS->SetMetadataItem(
+                        "LINE_OFFSET",
+                        CPLSPrintf("%d", oSwathDataFieldMetadata.nLineOffset),
+                        "GEOLOCATION");
+                    poDS->SetMetadataItem(
+                        "LINE_STEP",
+                        CPLSPrintf("%d", oSwathDataFieldMetadata.nLineStep),
+                        "GEOLOCATION");
+                    // Not totally sure about that
+                    poDS->SetMetadataItem("GEOREFERENCING_CONVENTION",
+                                          "PIXEL_CENTER", "GEOLOCATION");
+                }
+            }
+        }
+    }
+
     poDS->nRasterYSize =
         poDS->GetYIndex() < 0
             ? 1
             : static_cast<int>(poDS->dims[poDS->GetYIndex()]);  // nRows
     poDS->nRasterXSize =
         static_cast<int>(poDS->dims[poDS->GetXIndex()]);  // nCols
-    if (poDS->IsComplexCSKL1A())
+    if (poDS->m_nOtherDimIndex >= 0)
     {
-        poDS->nBands = static_cast<int>(poDS->dims[2]);
-    }
-    else if (poDS->ndims == 3)
-    {
-        poDS->nBands = static_cast<int>(poDS->dims[0]);
+        poDS->nBands = static_cast<int>(poDS->dims[poDS->m_nOtherDimIndex]);
     }
     else
     {
         poDS->nBands = 1;
     }
-
     for (int i = 1; i <= poDS->nBands; i++)
     {
         HDF5ImageRasterBand *const poBand =
@@ -567,7 +652,8 @@ GDALDataset *HDF5ImageDataset::Open(GDALOpenInfo *poOpenInfo)
         poDS->SetBand(i, poBand);
     }
 
-    poDS->CreateProjections();
+    if (!poDS->GetMetadata("GEOLOCATION"))
+        poDS->CreateProjections();
 
     // Setup/check for pam .aux.xml.
     poDS->TryLoadXML();
@@ -638,8 +724,8 @@ CPLErr HDF5ImageDataset::CreateODIMH5Projection()
         pszLL_lat == nullptr || pszUR_lon == nullptr || pszUR_lat == nullptr)
         return CE_Failure;
 
-    oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-    if (oSRS.importFromProj4(pszProj4String) != OGRERR_NONE)
+    m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    if (m_oSRS.importFromProj4(pszProj4String) != OGRERR_NONE)
         return CE_Failure;
 
     OGRSpatialReference oSRSWGS84;
@@ -647,7 +733,7 @@ CPLErr HDF5ImageDataset::CreateODIMH5Projection()
     oSRSWGS84.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     OGRCoordinateTransformation *poCT =
-        OGRCreateCoordinateTransformation(&oSRSWGS84, &oSRS);
+        OGRCreateCoordinateTransformation(&oSRSWGS84, &m_oSRS);
     if (poCT == nullptr)
         return CE_Failure;
 
@@ -675,9 +761,6 @@ CPLErr HDF5ImageDataset::CreateODIMH5Projection()
     adfGeoTransform[3] = dfURY;
     adfGeoTransform[4] = 0;
     adfGeoTransform[5] = -dfPixelY;
-
-    CPLFree(pszProjection);
-    oSRS.exportToWkt(&pszProjection);
 
     return CE_None;
 }
@@ -741,8 +824,8 @@ CPLErr HDF5ImageDataset::CreateProjections()
                 return CE_None;
             }
 
-            // The Latitude and Longitude arrays must have a rank of 2 to retrieve
-            // GCPs.
+            // The Latitude and Longitude arrays must have a rank of 2 to
+            // retrieve GCPs.
             if (poH5Objects->nRank != 2 ||
                 poH5Objects->paDims[0] != static_cast<size_t>(nRasterYSize) ||
                 poH5Objects->paDims[1] != static_cast<size_t>(nRasterXSize))
@@ -796,22 +879,19 @@ CPLErr HDF5ImageDataset::CreateProjections()
                 H5Dread(LongitudeDatasetID, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL,
                         H5P_DEFAULT, Longitude);
 
-                oSRS.SetWellKnownGeogCS("WGS84");
-                CPLFree(pszProjection);
-                pszProjection = nullptr;
-                CPLFree(pszGCPProjection);
-                oSRS.exportToWkt(&pszGCPProjection);
+                m_oSRS.Clear();
+                m_oGCPSRS.SetWellKnownGeogCS("WGS84");
 
                 const int nYLimit =
                     (static_cast<int>(nRasterYSize) / nDeltaLat) * nDeltaLat;
                 const int nXLimit =
                     (static_cast<int>(nRasterXSize) / nDeltaLon) * nDeltaLon;
 
-                // The original code in https://trac.osgeo.org/gdal/changeset/8066
-                // always add +180 to the longitudes, but without justification
-                // I suspect this might be due to handling products crossing the
-                // antimeridian. Trying to do it just when needed through a
-                // heuristics.
+                // The original code in
+                // https://trac.osgeo.org/gdal/changeset/8066 always add +180 to
+                // the longitudes, but without justification I suspect this
+                // might be due to handling products crossing the antimeridian.
+                // Trying to do it just when needed through a heuristics.
                 bool bHasLonNearMinus180 = false;
                 bool bHasLonNearPlus180 = false;
                 bool bHasLonNearZero = false;
@@ -892,16 +972,14 @@ CPLErr HDF5ImageDataset::CreateProjections()
 }
 
 /************************************************************************/
-/*                          GetProjectionRef()                          */
+/*                         GetSpatialRef()                              */
 /************************************************************************/
 
-const char *HDF5ImageDataset::_GetProjectionRef()
-
+const OGRSpatialReference *HDF5ImageDataset::GetSpatialRef() const
 {
-    if (pszProjection)
-        return pszProjection;
-
-    return GDALPamDataset::_GetProjectionRef();
+    if (!m_oSRS.IsEmpty())
+        return &m_oSRS;
+    return GDALPamDataset::GetSpatialRef();
 }
 
 /************************************************************************/
@@ -918,16 +996,16 @@ int HDF5ImageDataset::GetGCPCount()
 }
 
 /************************************************************************/
-/*                          GetGCPProjection()                          */
+/*                        GetGCPSpatialRef()                            */
 /************************************************************************/
 
-const char *HDF5ImageDataset::_GetGCPProjection()
+const OGRSpatialReference *HDF5ImageDataset::GetGCPSpatialRef() const
 
 {
-    if (nGCPCount > 0)
-        return pszGCPProjection;
+    if (nGCPCount > 0 && !m_oGCPSRS.IsEmpty())
+        return &m_oGCPSRS;
 
-    return GDALPamDataset::_GetGCPProjection();
+    return GDALPamDataset::GetGCPSpatialRef();
 }
 
 /************************************************************************/
@@ -1026,7 +1104,7 @@ void HDF5ImageDataset::IdentifyProductType()
 void HDF5ImageDataset::CaptureCSKGeolocation(int iProductType)
 {
     // Set the ellipsoid to WGS84.
-    oSRS.SetWellKnownGeogCS("WGS84");
+    m_oSRS.SetWellKnownGeogCS("WGS84");
 
     if (iProductType == PROD_CSK_L1C || iProductType == PROD_CSK_L1D)
     {
@@ -1043,8 +1121,8 @@ void HDF5ImageDataset::CaptureCSKGeolocation(int iProductType)
                 CE_Failure ||
             GetMetadataItem("Projection_ID") == nullptr)
         {
-            pszProjection = CPLStrdup("");
-            pszGCPProjection = CPLStrdup("");
+            m_oSRS.Clear();
+            m_oGCPSRS.Clear();
             CPLError(CE_Failure, CPLE_OpenFailed,
                      "The CSK hdf5 file geolocation information is "
                      "malformed");
@@ -1058,10 +1136,10 @@ void HDF5ImageDataset::CaptureCSKGeolocation(int iProductType)
             if (EQUAL(osProjectionID, "UTM"))
             {
                 // @TODO: use SetUTM
-                oSRS.SetProjCS(SRS_PT_TRANSVERSE_MERCATOR);
-                oSRS.SetTM(dfCenterCoord[0], dfCenterCoord[1],
-                           dfProjScaleFactor[0], dfProjFalseEastNorth[0],
-                           dfProjFalseEastNorth[1]);
+                m_oSRS.SetProjCS(SRS_PT_TRANSVERSE_MERCATOR);
+                m_oSRS.SetTM(dfCenterCoord[0], dfCenterCoord[1],
+                             dfProjScaleFactor[0], dfProjFalseEastNorth[0],
+                             dfProjFalseEastNorth[1]);
             }
             else
             {
@@ -1069,17 +1147,12 @@ void HDF5ImageDataset::CaptureCSKGeolocation(int iProductType)
                 // If the projection is UPS.
                 if (EQUAL(osProjectionID, "UPS"))
                 {
-                    oSRS.SetProjCS(SRS_PT_POLAR_STEREOGRAPHIC);
-                    oSRS.SetPS(dfCenterCoord[0], dfCenterCoord[1],
-                               dfProjScaleFactor[0], dfProjFalseEastNorth[0],
-                               dfProjFalseEastNorth[1]);
+                    m_oSRS.SetProjCS(SRS_PT_POLAR_STEREOGRAPHIC);
+                    m_oSRS.SetPS(dfCenterCoord[0], dfCenterCoord[1],
+                                 dfProjScaleFactor[0], dfProjFalseEastNorth[0],
+                                 dfProjFalseEastNorth[1]);
                 }
             }
-
-            // Export Projection to Wkt.
-            // In case of error then clean the projection.
-            if (oSRS.exportToWkt(&pszProjection) != OGRERR_NONE)
-                pszProjection = CPLStrdup("");
 
             CPLFree(dfCenterCoord);
             CPLFree(dfProjScaleFactor);
@@ -1088,10 +1161,7 @@ void HDF5ImageDataset::CaptureCSKGeolocation(int iProductType)
     }
     else
     {
-        // Export GCPProjection to Wkt.
-        // In case of error then clean the projection
-        if (oSRS.exportToWkt(&pszGCPProjection) != OGRERR_NONE)
-            pszGCPProjection = CPLStrdup("");
+        m_oGCPSRS = m_oSRS;
     }
 }
 
@@ -1100,12 +1170,12 @@ void HDF5ImageDataset::CaptureCSKGeolocation(int iProductType)
 /************************************************************************/
 
 /**
-* Get Geotransform information for COSMO-SKYMED files
-* In case of success it stores the transformation
-* in adfGeoTransform. In case of failure it doesn't
-* modify adfGeoTransform
-* @param iProductType type of CSK subproduct, see HDF5CSKProduct
-*/
+ * Get Geotransform information for COSMO-SKYMED files
+ * In case of success it stores the transformation
+ * in adfGeoTransform. In case of failure it doesn't
+ * modify adfGeoTransform
+ * @param iProductType type of CSK subproduct, see HDF5CSKProduct
+ */
 void HDF5ImageDataset::CaptureCSKGeoTransform(int iProductType)
 {
     const char *pszSubdatasetName = GetSubdatasetName();
