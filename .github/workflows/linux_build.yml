@@ -210,7 +210,6 @@ jobs:
             -e TRAVIS \
             -e TRAVIS_BRANCH \
             -e GDAL_SOURCE_DIR \
-            -e "COVERALLS_REPO_TOKEN=${{ secrets.COVERALLS_REPO_TOKEN }}" \
             --security-opt seccomp=unconfined \
             --add-host=host.docker.internal:host-gateway \
             --rm \
@@ -227,6 +226,13 @@ jobs:
           DOCKER_BUILDKIT: 1
         run: |
           docker push ${CONTAINER_NAME_FULL}
+
+      - name: Upload coveralls report
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.id == 'coverage' }}
+        with:
+          name: coveralls_report
+          path: build-${{ matrix.id }}/coveralls.json
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v3
