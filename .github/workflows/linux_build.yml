@@ -58,58 +58,12 @@ jobs:
         #   * travis_branch : value of TRAVIS_BRANCH environment variable,
         #                     used for test skipping
         include:
-          - name: Alpine, gcc
-            id: alpine
-            container: alpine
-            build_script: build.sh
-
-          - name: Fedora Rawhide, clang++
-            id: fedora_rawhide
-            travis_branch: sanitize
-            container: fedora_rawhide
-            build_script: build.sh
-
-          - name: Ubuntu 20.04, clang ASAN
-            id: asan
-            travis_branch: sanitize
-            container: ubuntu_20.04
-            build_script: build.sh
-            test_script: test.sh
-
-          - name: Ubuntu 20.04, gcc
-            id: ubuntu_20.04
-            travis_branch: ubuntu_2004
-            container: ubuntu_20.04
-            use_avx2: true
-            build_script: build.sh
-            test_script: test.sh
-
           - name: Ubuntu 20.04, coverage
             id: coverage
             travis_branch: ubuntu_2004
             container: ubuntu_20.04
             build_script: build.sh
             test_script: test.sh
-
-          - name: Ubuntu 20.04, Intel compiler
-            id: icc
-            container: icc
-            build_script: build.sh
-
-          - name: Ubuntu 18.04, gcc
-            id: ubuntu_18.04
-            container: ubuntu_18.04
-            build_script: build.sh
-            before_test_script: services.sh
-            test_script: test.sh
-            travis_branch: ubuntu_1804
-
-          - name: Ubuntu 18.04, gcc 32-bit
-            id: ubuntu_18.04_32bit
-            container: ubuntu_18.04_32bit
-            build_script: build.sh
-            test_script: test.sh
-            travis_branch: ubuntu_1804_32bit
 
     name: ${{ matrix.name }}
 

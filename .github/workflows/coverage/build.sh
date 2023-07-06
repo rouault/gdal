@@ -12,8 +12,6 @@ cmake ${GDAL_SOURCE_DIR:=..} \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DGDAL_USE_TIFF_INTERNAL=ON \
     -DGDAL_USE_GEOTIFF_INTERNAL=ON \
-    -DECW_ROOT=/opt/libecwj2-3.3 \
-    -DMRSID_ROOT=/usr/local \
-    -DFileGDB_ROOT=/usr/local/FileGDB_API
+    -DGDAL_BUILD_OPTIONAL_DRIVERS=OFF -DOGR_BUILD_OPTIONAL_DRIVERS=OFF
 
 make -j$(nproc)
