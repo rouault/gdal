@@ -9,6 +9,8 @@ echo 'Running CPP unit tests'
 
 echo 'Running Python unit tests'
 # install test dependencies
+# One of the dependencies of jsonschema 4.18 is rpds_py which requires a Rust compiler
+sudo -H pip3 install -U "jsonschema<4.18"
 sudo -H pip3 install -U -r autotest/requirements.txt
 
 # https://github.com/rouault/gdal/runs/1300694473
