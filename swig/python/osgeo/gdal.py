@@ -4122,6 +4122,115 @@ _gdal.GDALTransformerInfoShadow_swigregister(GDALTransformerInfoShadow)
 def Transformer(*args):
     r"""Transformer(Dataset src, Dataset dst, char ** options) -> GDALTransformerInfoShadow"""
     return _gdal.Transformer(*args)
+class SuggestedWarpOutputRes(object):
+    r"""Proxy of C++ SuggestedWarpOutputRes class."""
+
+    thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
+
+    def __init__(self, *args, **kwargs):
+        raise AttributeError("No constructor defined")
+    __repr__ = _swig_repr
+    width = property(_gdal.SuggestedWarpOutputRes_width_get, doc=r"""width : int""")
+    height = property(_gdal.SuggestedWarpOutputRes_height_get, doc=r"""height : int""")
+    xmin = property(_gdal.SuggestedWarpOutputRes_xmin_get, doc=r"""xmin : double""")
+    ymin = property(_gdal.SuggestedWarpOutputRes_ymin_get, doc=r"""ymin : double""")
+    xmax = property(_gdal.SuggestedWarpOutputRes_xmax_get, doc=r"""xmax : double""")
+    ymax = property(_gdal.SuggestedWarpOutputRes_ymax_get, doc=r"""ymax : double""")
+    __swig_destroy__ = _gdal.delete_SuggestedWarpOutputRes
+
+    def GetGeotransform(self, *args):
+        r"""GetGeotransform(SuggestedWarpOutputRes self)"""
+        return _gdal.SuggestedWarpOutputRes_GetGeotransform(self, *args)
+
+    geotransform = property(_gdal.SuggestedWarpOutputRes_GetGeotransform, doc=r"""geotransform : double[6]""")
+
+
+# Register SuggestedWarpOutputRes in _gdal:
+_gdal.SuggestedWarpOutputRes_swigregister(SuggestedWarpOutputRes)
+
+
+def SuggestedWarpOutputFromTransformer(*args):
+    r"""SuggestedWarpOutputFromTransformer(Dataset src, GDALTransformerInfoShadow transformer) -> SuggestedWarpOutputRes"""
+    return _gdal.SuggestedWarpOutputFromTransformer(*args)
+
+def SuggestedWarpOutputFromOptions(*args):
+    r"""SuggestedWarpOutputFromOptions(Dataset src, char ** options) -> SuggestedWarpOutputRes"""
+    return _gdal.SuggestedWarpOutputFromOptions(*args)
+
+
+def SuggestedWarpOutput(*args):
+    """
+    Suggest output dataset size and extent.
+
+    SuggestedWarpOutput(src: Dataset, transformer: Transformer) -> SuggestedWarpOutputRes
+    SuggestedWarpOutput(src: Dataset, options: list[str]) -> SuggestedWarpOutputRes
+
+    This function is used to suggest the size, and georeferenced extents
+    appropriate given the indicated transformation and input file.  It walks
+    the edges of the input file (approximately 20 sample points along each
+    edge) transforming into output coordinates in order to get an extents box.
+
+    Then a resolution is computed with the intent that the length of the
+    distance from the top left corner of the output imagery to the bottom right
+    corner would represent the same number of pixels as in the source image.
+    Note that if the image is somewhat rotated the diagonal taken isn't of the
+    whole output bounding rectangle, but instead of the locations where the
+    top/left and bottom/right corners transform.  The output pixel size is
+    always square.  This is intended to approximately preserve the resolution
+    of the input data in the output file.
+
+    There are 2 forms of this method:
+
+    - one that takes the output of gdal.Transformer(src, dst, options) as the second argument.
+      The src argument of the gdal.Transformer() call should nominally be the src
+      argument passed to this function.
+      The dst argument of the gdal.Transformer() call should nominally be None
+      The third argument of the gdal.Transformer() call should be a list of strings,
+      that are transforming options accepted by
+      :cpp:func:`GDALCreateGenImgProjTransformer2` (e.g ``DST_SRS``)
+
+    - one that takes a list of strings as the second argument. Those strings
+      are the transforming options accepted by
+      :cpp:func:`GDALCreateGenImgProjTransformer2` (e.g ``DST_SRS``)
+
+    Parameters
+    ----------
+
+    src: Dataset
+        Source dataset
+    transformer: Transformer
+        The return value of gdal.Transformer(src, None, options)
+        (exclusive with below options parameter)
+    options: list[str]
+        List of strings that are the transforming options accepted by
+        :cpp:func:`GDALCreateGenImgProjTransformer2` (e.g ``DST_SRS``)
+        (exclusive with above transformer parameter)
+
+    Returns
+    -------
+
+    A SuggestedWarpOutputRes class instance with the following members:
+    - width: number of pixels in width of the output dataset
+    - height: number of pixels in height of the output dataset
+    - xmin: minimum value of the georeferenced X coordinates
+    - ymin: maximum value of the georeferenced Y coordinates
+    - xmax: minimum value of the georeferenced X coordinates
+    - ymax: maximum value of the georeferenced Y coordinates
+    - geotransform: affine geotransformation matrix (6 values)
+
+    Example
+    -------
+
+    >>> ds = gdal.Open("my.tif")
+    ... res = gdal.SuggestedWarpOutput(ds, ["DST_SRS=EPSG:4326"])
+    ... print(res.width, res.height, res.xmin, res.ymin, res.xmax, res.ymax, res.geotransform)
+
+    """
+    if isinstance(args[1], GDALTransformerInfoShadow):
+        return _gdal.SuggestedWarpOutputFromTransformer(*args)
+    else:
+        return _gdal.SuggestedWarpOutputFromOptions(*args)
+
 
 def _ApplyVerticalShiftGrid(*args, **kwargs):
     r"""_ApplyVerticalShiftGrid(Dataset src_ds, Dataset grid_ds, bool inverse=False, double srcUnitToMeter=1.0, double dstUnitToMeter=1.0, char ** options=None) -> Dataset"""

@@ -2741,33 +2741,34 @@ SWIGINTERN PyObject *SWIG_PyStaticMethod_New(PyObject *SWIGUNUSEDPARM(self), PyO
 #define SWIGTYPE_p_OSRSpatialReferenceShadow swig_types[44]
 #define SWIGTYPE_p_StatBuf swig_types[45]
 #define SWIGTYPE_p_Statistics swig_types[46]
-#define SWIGTYPE_p_VSIDIR swig_types[47]
-#define SWIGTYPE_p_VSILFILE swig_types[48]
-#define SWIGTYPE_p_char swig_types[49]
-#define SWIGTYPE_p_double swig_types[50]
-#define SWIGTYPE_p_f_double_p_q_const__char_p_void__int swig_types[51]
-#define SWIGTYPE_p_int swig_types[52]
-#define SWIGTYPE_p_p_GByte swig_types[53]
-#define SWIGTYPE_p_p_GDALDatasetShadow swig_types[54]
-#define SWIGTYPE_p_p_GDALDimensionHS swig_types[55]
-#define SWIGTYPE_p_p_GDALEDTComponentHS swig_types[56]
-#define SWIGTYPE_p_p_GDALRasterBandShadow swig_types[57]
-#define SWIGTYPE_p_p_GDAL_GCP swig_types[58]
-#define SWIGTYPE_p_p_GUIntBig swig_types[59]
-#define SWIGTYPE_p_p_OGRLayerShadow swig_types[60]
-#define SWIGTYPE_p_p_OSRSpatialReferenceShadow swig_types[61]
-#define SWIGTYPE_p_p_char swig_types[62]
-#define SWIGTYPE_p_p_double swig_types[63]
-#define SWIGTYPE_p_p_int swig_types[64]
-#define SWIGTYPE_p_p_p_GDALAttributeHS swig_types[65]
-#define SWIGTYPE_p_p_p_GDALDimensionHS swig_types[66]
-#define SWIGTYPE_p_p_p_GDALEDTComponentHS swig_types[67]
-#define SWIGTYPE_p_p_p_GDALMDArrayHS swig_types[68]
-#define SWIGTYPE_p_p_void swig_types[69]
-#define SWIGTYPE_p_size_t swig_types[70]
-#define SWIGTYPE_p_vsi_l_offset swig_types[71]
-static swig_type_info *swig_types[73];
-static swig_module_info swig_module = {swig_types, 72, 0, 0, 0, 0};
+#define SWIGTYPE_p_SuggestedWarpOutputRes swig_types[47]
+#define SWIGTYPE_p_VSIDIR swig_types[48]
+#define SWIGTYPE_p_VSILFILE swig_types[49]
+#define SWIGTYPE_p_char swig_types[50]
+#define SWIGTYPE_p_double swig_types[51]
+#define SWIGTYPE_p_f_double_p_q_const__char_p_void__int swig_types[52]
+#define SWIGTYPE_p_int swig_types[53]
+#define SWIGTYPE_p_p_GByte swig_types[54]
+#define SWIGTYPE_p_p_GDALDatasetShadow swig_types[55]
+#define SWIGTYPE_p_p_GDALDimensionHS swig_types[56]
+#define SWIGTYPE_p_p_GDALEDTComponentHS swig_types[57]
+#define SWIGTYPE_p_p_GDALRasterBandShadow swig_types[58]
+#define SWIGTYPE_p_p_GDAL_GCP swig_types[59]
+#define SWIGTYPE_p_p_GUIntBig swig_types[60]
+#define SWIGTYPE_p_p_OGRLayerShadow swig_types[61]
+#define SWIGTYPE_p_p_OSRSpatialReferenceShadow swig_types[62]
+#define SWIGTYPE_p_p_char swig_types[63]
+#define SWIGTYPE_p_p_double swig_types[64]
+#define SWIGTYPE_p_p_int swig_types[65]
+#define SWIGTYPE_p_p_p_GDALAttributeHS swig_types[66]
+#define SWIGTYPE_p_p_p_GDALDimensionHS swig_types[67]
+#define SWIGTYPE_p_p_p_GDALEDTComponentHS swig_types[68]
+#define SWIGTYPE_p_p_p_GDALMDArrayHS swig_types[69]
+#define SWIGTYPE_p_p_void swig_types[70]
+#define SWIGTYPE_p_size_t swig_types[71]
+#define SWIGTYPE_p_vsi_l_offset swig_types[72]
+static swig_type_info *swig_types[74];
+static swig_module_info swig_module = {swig_types, 73, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -7233,6 +7234,78 @@ SWIGINTERN int GDALTransformerInfoShadow_TransformGeolocations(GDALTransformerIn
        GDALCreateGenImgProjTransformer2( (GDALDatasetH)src, (GDALDatasetH)dst,
                                          options );
     return obj;
+  }
+
+
+typedef struct
+{
+  int     width;
+  int     height;
+  double  xmin;
+  double  ymin;
+  double  xmax;
+  double  ymax;
+  double  geotransform[6];
+} SuggestedWarpOutputRes;
+
+SWIGINTERN void delete_SuggestedWarpOutputRes(SuggestedWarpOutputRes *self){
+    CPLFree(self);
+  }
+SWIGINTERN void SuggestedWarpOutputRes_GetGeotransform(SuggestedWarpOutputRes *self,double geotransform[6]){
+      memcpy(geotransform, self->geotransform, 6 * sizeof(double));
+  }
+
+#ifdef SWIGPYTHON
+  SuggestedWarpOutputRes* SuggestedWarpOutputFromTransformer(
+                                               GDALDatasetShadow *src,
+                                               GDALTransformerInfoShadow* transformer )
+#else
+  SuggestedWarpOutputRes* SuggestedWarpOutput( GDALDatasetShadow *src,
+                                               GDALTransformerInfoShadow* transformer )
+#endif
+  {
+    SuggestedWarpOutputRes* res = (SuggestedWarpOutputRes*)CPLMalloc(sizeof(SuggestedWarpOutputRes));
+    double extent[4];
+    if( GDALSuggestedWarpOutput2(src, GDALGenImgProjTransform, transformer,
+                                 res->geotransform,&(res->width), &(res->height),
+                                 extent, 0) != CE_None )
+    {
+        CPLFree(res);
+        return NULL;
+    }
+    res->xmin = extent[0];
+    res->ymin = extent[1];
+    res->xmax = extent[2];
+    res->ymax = extent[3];
+    return res;
+  }
+
+
+#ifdef SWIGPYTHON
+  SuggestedWarpOutputRes* SuggestedWarpOutputFromOptions( GDALDatasetShadow *src,
+                                                          char** options )
+#else
+  SuggestedWarpOutputRes* SuggestedWarpOutput( GDALDatasetShadow *src,
+                                               char** options )
+#endif
+  {
+    SuggestedWarpOutputRes* res = (SuggestedWarpOutputRes*)CPLMalloc(sizeof(SuggestedWarpOutputRes));
+    double extent[4];
+    void* pTransformArg = GDALCreateGenImgProjTransformer2( src, NULL, options );
+    if( GDALSuggestedWarpOutput2(src, GDALGenImgProjTransform, pTransformArg,
+                                 res->geotransform,&(res->width), &(res->height),
+                                 extent, 0) != CE_None )
+    {
+        GDALDestroyTransformer(pTransformArg);
+        CPLFree(res);
+        return NULL;
+    }
+    GDALDestroyTransformer(pTransformArg);
+    res->xmin = extent[0];
+    res->ymin = extent[1];
+    res->xmax = extent[2];
+    res->ymax = extent[3];
+    return res;
   }
 
 
@@ -39355,6 +39428,379 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_SuggestedWarpOutputRes_width_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  SuggestedWarpOutputRes *arg1 = (SuggestedWarpOutputRes *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  int result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_SuggestedWarpOutputRes, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SuggestedWarpOutputRes_width_get" "', argument " "1"" of type '" "SuggestedWarpOutputRes *""'"); 
+  }
+  arg1 = reinterpret_cast< SuggestedWarpOutputRes * >(argp1);
+  {
+    SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+    result = (int) ((arg1)->width);
+    SWIG_PYTHON_THREAD_END_ALLOW;
+  }
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SuggestedWarpOutputRes_height_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  SuggestedWarpOutputRes *arg1 = (SuggestedWarpOutputRes *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  int result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_SuggestedWarpOutputRes, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SuggestedWarpOutputRes_height_get" "', argument " "1"" of type '" "SuggestedWarpOutputRes *""'"); 
+  }
+  arg1 = reinterpret_cast< SuggestedWarpOutputRes * >(argp1);
+  {
+    SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+    result = (int) ((arg1)->height);
+    SWIG_PYTHON_THREAD_END_ALLOW;
+  }
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SuggestedWarpOutputRes_xmin_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  SuggestedWarpOutputRes *arg1 = (SuggestedWarpOutputRes *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  double result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_SuggestedWarpOutputRes, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SuggestedWarpOutputRes_xmin_get" "', argument " "1"" of type '" "SuggestedWarpOutputRes *""'"); 
+  }
+  arg1 = reinterpret_cast< SuggestedWarpOutputRes * >(argp1);
+  {
+    SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+    result = (double) ((arg1)->xmin);
+    SWIG_PYTHON_THREAD_END_ALLOW;
+  }
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SuggestedWarpOutputRes_ymin_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  SuggestedWarpOutputRes *arg1 = (SuggestedWarpOutputRes *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  double result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_SuggestedWarpOutputRes, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SuggestedWarpOutputRes_ymin_get" "', argument " "1"" of type '" "SuggestedWarpOutputRes *""'"); 
+  }
+  arg1 = reinterpret_cast< SuggestedWarpOutputRes * >(argp1);
+  {
+    SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+    result = (double) ((arg1)->ymin);
+    SWIG_PYTHON_THREAD_END_ALLOW;
+  }
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SuggestedWarpOutputRes_xmax_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  SuggestedWarpOutputRes *arg1 = (SuggestedWarpOutputRes *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  double result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_SuggestedWarpOutputRes, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SuggestedWarpOutputRes_xmax_get" "', argument " "1"" of type '" "SuggestedWarpOutputRes *""'"); 
+  }
+  arg1 = reinterpret_cast< SuggestedWarpOutputRes * >(argp1);
+  {
+    SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+    result = (double) ((arg1)->xmax);
+    SWIG_PYTHON_THREAD_END_ALLOW;
+  }
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SuggestedWarpOutputRes_ymax_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  SuggestedWarpOutputRes *arg1 = (SuggestedWarpOutputRes *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  double result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_SuggestedWarpOutputRes, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SuggestedWarpOutputRes_ymax_get" "', argument " "1"" of type '" "SuggestedWarpOutputRes *""'"); 
+  }
+  arg1 = reinterpret_cast< SuggestedWarpOutputRes * >(argp1);
+  {
+    SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+    result = (double) ((arg1)->ymax);
+    SWIG_PYTHON_THREAD_END_ALLOW;
+  }
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_delete_SuggestedWarpOutputRes(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  SuggestedWarpOutputRes *arg1 = (SuggestedWarpOutputRes *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_SuggestedWarpOutputRes, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_SuggestedWarpOutputRes" "', argument " "1"" of type '" "SuggestedWarpOutputRes *""'"); 
+  }
+  arg1 = reinterpret_cast< SuggestedWarpOutputRes * >(argp1);
+  {
+    if ( bUseExceptions ) {
+      ClearErrorState();
+    }
+    {
+      SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+      delete_SuggestedWarpOutputRes(arg1);
+      SWIG_PYTHON_THREAD_END_ALLOW;
+    }
+#ifndef SED_HACKS
+    if ( bUseExceptions ) {
+      CPLErr eclass = CPLGetLastErrorType();
+      if ( eclass == CE_Failure || eclass == CE_Fatal ) {
+        SWIG_exception( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      }
+    }
+#endif
+  }
+  resultobj = SWIG_Py_Void();
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SuggestedWarpOutputRes_GetGeotransform(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  SuggestedWarpOutputRes *arg1 = (SuggestedWarpOutputRes *) 0 ;
+  double *arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  double argout2[6] ;
+  PyObject *swig_obj[1] ;
+  
+  {
+    /* %typemap(in,numinputs=0) (double argout2[ANY]) */
+    memset(argout2, 0, sizeof(argout2));
+    arg2 = argout2;
+  }
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_SuggestedWarpOutputRes, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SuggestedWarpOutputRes_GetGeotransform" "', argument " "1"" of type '" "SuggestedWarpOutputRes *""'"); 
+  }
+  arg1 = reinterpret_cast< SuggestedWarpOutputRes * >(argp1);
+  {
+    if ( bUseExceptions ) {
+      ClearErrorState();
+    }
+    {
+      SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+      SuggestedWarpOutputRes_GetGeotransform(arg1,arg2);
+      SWIG_PYTHON_THREAD_END_ALLOW;
+    }
+#ifndef SED_HACKS
+    if ( bUseExceptions ) {
+      CPLErr eclass = CPLGetLastErrorType();
+      if ( eclass == CE_Failure || eclass == CE_Fatal ) {
+        SWIG_exception( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      }
+    }
+#endif
+  }
+  resultobj = SWIG_Py_Void();
+  {
+    /* %typemap(argout) (double argout[ANY]) */
+    PyObject *out = CreateTupleFromDoubleArray( arg2, 6 );
+    resultobj = t_output_helper(resultobj,out);
+  }
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *SuggestedWarpOutputRes_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *obj;
+  if (!SWIG_Python_UnpackTuple(args, "swigregister", 1, 1, &obj)) return NULL;
+  SWIG_TypeNewClientData(SWIGTYPE_p_SuggestedWarpOutputRes, SWIG_NewClientData(obj));
+  return SWIG_Py_Void();
+}
+
+SWIGINTERN PyObject *_wrap_SuggestedWarpOutputFromTransformer(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  GDALDatasetShadow *arg1 = (GDALDatasetShadow *) 0 ;
+  GDALTransformerInfoShadow *arg2 = (GDALTransformerInfoShadow *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject *swig_obj[2] ;
+  SuggestedWarpOutputRes *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "SuggestedWarpOutputFromTransformer", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_GDALDatasetShadow, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SuggestedWarpOutputFromTransformer" "', argument " "1"" of type '" "GDALDatasetShadow *""'"); 
+  }
+  arg1 = reinterpret_cast< GDALDatasetShadow * >(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2,SWIGTYPE_p_GDALTransformerInfoShadow, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "SuggestedWarpOutputFromTransformer" "', argument " "2"" of type '" "GDALTransformerInfoShadow *""'"); 
+  }
+  arg2 = reinterpret_cast< GDALTransformerInfoShadow * >(argp2);
+  {
+    if ( bUseExceptions ) {
+      ClearErrorState();
+    }
+    {
+      SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+      result = (SuggestedWarpOutputRes *)SuggestedWarpOutputFromTransformer(arg1,arg2);
+      SWIG_PYTHON_THREAD_END_ALLOW;
+    }
+#ifndef SED_HACKS
+    if ( bUseExceptions ) {
+      CPLErr eclass = CPLGetLastErrorType();
+      if ( eclass == CE_Failure || eclass == CE_Fatal ) {
+        SWIG_exception( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      }
+    }
+#endif
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_SuggestedWarpOutputRes, SWIG_POINTER_OWN |  0 );
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SuggestedWarpOutputFromOptions(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
+  GDALDatasetShadow *arg1 = (GDALDatasetShadow *) 0 ;
+  char **arg2 = (char **) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  SuggestedWarpOutputRes *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "SuggestedWarpOutputFromOptions", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_GDALDatasetShadow, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SuggestedWarpOutputFromOptions" "', argument " "1"" of type '" "GDALDatasetShadow *""'"); 
+  }
+  arg1 = reinterpret_cast< GDALDatasetShadow * >(argp1);
+  {
+    /* %typemap(in) char **options */
+    int bErr = FALSE;
+    arg2 = CSLFromPySequence(swig_obj[1], &bErr);
+    if( bErr )
+    {
+      SWIG_fail;
+    }
+  }
+  {
+    if ( bUseExceptions ) {
+      ClearErrorState();
+    }
+    {
+      SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+      result = (SuggestedWarpOutputRes *)SuggestedWarpOutputFromOptions(arg1,arg2);
+      SWIG_PYTHON_THREAD_END_ALLOW;
+    }
+#ifndef SED_HACKS
+    if ( bUseExceptions ) {
+      CPLErr eclass = CPLGetLastErrorType();
+      if ( eclass == CE_Failure || eclass == CE_Fatal ) {
+        SWIG_exception( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      }
+    }
+#endif
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_SuggestedWarpOutputRes, SWIG_POINTER_OWN |  0 );
+  {
+    /* %typemap(freearg) char **options */
+    CSLDestroy( arg2 );
+  }
+  if ( ReturnSame(bLocalUseExceptionsCode) ) { CPLErr eclass = CPLGetLastErrorType(); if ( eclass == CE_Failure || eclass == CE_Fatal ) { Py_XDECREF(resultobj); SWIG_Error( SWIG_RuntimeError, CPLGetLastErrorMsg() ); return NULL; } }
+  return resultobj;
+fail:
+  {
+    /* %typemap(freearg) char **options */
+    CSLDestroy( arg2 );
+  }
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap__ApplyVerticalShiftGrid(PyObject *SWIGUNUSEDPARM(self), PyObject *args, PyObject *kwargs) {
   PyObject *resultobj = 0; int bLocalUseExceptionsCode = bUseExceptions;
   GDALDatasetShadow *arg1 = (GDALDatasetShadow *) 0 ;
@@ -45058,6 +45504,17 @@ static PyMethodDef SwigMethods[] = {
 	 { "GDALTransformerInfoShadow_TransformGeolocations", (PyCFunction)(void(*)(void))_wrap_GDALTransformerInfoShadow_TransformGeolocations, METH_VARARGS|METH_KEYWORDS, "GDALTransformerInfoShadow_TransformGeolocations(GDALTransformerInfoShadow self, Band xBand, Band yBand, Band zBand, GDALProgressFunc callback=0, void * callback_data=None, char ** options=None) -> int"},
 	 { "GDALTransformerInfoShadow_swigregister", GDALTransformerInfoShadow_swigregister, METH_O, NULL},
 	 { "Transformer", _wrap_Transformer, METH_VARARGS, "Transformer(Dataset src, Dataset dst, char ** options) -> GDALTransformerInfoShadow"},
+	 { "SuggestedWarpOutputRes_width_get", _wrap_SuggestedWarpOutputRes_width_get, METH_O, "SuggestedWarpOutputRes_width_get(SuggestedWarpOutputRes self) -> int"},
+	 { "SuggestedWarpOutputRes_height_get", _wrap_SuggestedWarpOutputRes_height_get, METH_O, "SuggestedWarpOutputRes_height_get(SuggestedWarpOutputRes self) -> int"},
+	 { "SuggestedWarpOutputRes_xmin_get", _wrap_SuggestedWarpOutputRes_xmin_get, METH_O, "SuggestedWarpOutputRes_xmin_get(SuggestedWarpOutputRes self) -> double"},
+	 { "SuggestedWarpOutputRes_ymin_get", _wrap_SuggestedWarpOutputRes_ymin_get, METH_O, "SuggestedWarpOutputRes_ymin_get(SuggestedWarpOutputRes self) -> double"},
+	 { "SuggestedWarpOutputRes_xmax_get", _wrap_SuggestedWarpOutputRes_xmax_get, METH_O, "SuggestedWarpOutputRes_xmax_get(SuggestedWarpOutputRes self) -> double"},
+	 { "SuggestedWarpOutputRes_ymax_get", _wrap_SuggestedWarpOutputRes_ymax_get, METH_O, "SuggestedWarpOutputRes_ymax_get(SuggestedWarpOutputRes self) -> double"},
+	 { "delete_SuggestedWarpOutputRes", _wrap_delete_SuggestedWarpOutputRes, METH_O, "delete_SuggestedWarpOutputRes(SuggestedWarpOutputRes self)"},
+	 { "SuggestedWarpOutputRes_GetGeotransform", _wrap_SuggestedWarpOutputRes_GetGeotransform, METH_O, "SuggestedWarpOutputRes_GetGeotransform(SuggestedWarpOutputRes self)"},
+	 { "SuggestedWarpOutputRes_swigregister", SuggestedWarpOutputRes_swigregister, METH_O, NULL},
+	 { "SuggestedWarpOutputFromTransformer", _wrap_SuggestedWarpOutputFromTransformer, METH_VARARGS, "SuggestedWarpOutputFromTransformer(Dataset src, GDALTransformerInfoShadow transformer) -> SuggestedWarpOutputRes"},
+	 { "SuggestedWarpOutputFromOptions", _wrap_SuggestedWarpOutputFromOptions, METH_VARARGS, "SuggestedWarpOutputFromOptions(Dataset src, char ** options) -> SuggestedWarpOutputRes"},
 	 { "_ApplyVerticalShiftGrid", (PyCFunction)(void(*)(void))_wrap__ApplyVerticalShiftGrid, METH_VARARGS|METH_KEYWORDS, "_ApplyVerticalShiftGrid(Dataset src_ds, Dataset grid_ds, bool inverse=False, double srcUnitToMeter=1.0, double dstUnitToMeter=1.0, char ** options=None) -> Dataset"},
 	 { "ApplyGeoTransform", _wrap_ApplyGeoTransform, METH_VARARGS, "ApplyGeoTransform(double [6] padfGeoTransform, double dfPixel, double dfLine)"},
 	 { "InvGeoTransform", _wrap_InvGeoTransform, METH_O, "InvGeoTransform(double [6] gt_in) -> RETURN_NONE"},
@@ -45219,6 +45676,7 @@ static swig_type_info _swigt__p_OGRStyleTableShadow = {"_p_OGRStyleTableShadow",
 static swig_type_info _swigt__p_OSRSpatialReferenceShadow = {"_p_OSRSpatialReferenceShadow", "OSRSpatialReferenceShadow *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_StatBuf = {"_p_StatBuf", "StatBuf *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_Statistics = {"_p_Statistics", "Statistics *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_SuggestedWarpOutputRes = {"_p_SuggestedWarpOutputRes", "SuggestedWarpOutputRes *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_VSIDIR = {"_p_VSIDIR", "VSIDIR *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_VSILFILE = {"_p_VSILFILE", "VSILFILE *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *|retStringAndCPLFree *", 0, 0, (void*)0, 0};
@@ -45293,6 +45751,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_OSRSpatialReferenceShadow,
   &_swigt__p_StatBuf,
   &_swigt__p_Statistics,
+  &_swigt__p_SuggestedWarpOutputRes,
   &_swigt__p_VSIDIR,
   &_swigt__p_VSILFILE,
   &_swigt__p_char,
@@ -45367,6 +45826,7 @@ static swig_cast_info _swigc__p_OGRStyleTableShadow[] = {  {&_swigt__p_OGRStyleT
 static swig_cast_info _swigc__p_OSRSpatialReferenceShadow[] = {  {&_swigt__p_OSRSpatialReferenceShadow, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_StatBuf[] = {  {&_swigt__p_StatBuf, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_Statistics[] = {  {&_swigt__p_Statistics, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_SuggestedWarpOutputRes[] = {  {&_swigt__p_SuggestedWarpOutputRes, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_VSIDIR[] = {  {&_swigt__p_VSIDIR, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_VSILFILE[] = {  {&_swigt__p_VSILFILE, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
@@ -45441,6 +45901,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_OSRSpatialReferenceShadow,
   _swigc__p_StatBuf,
   _swigc__p_Statistics,
+  _swigc__p_SuggestedWarpOutputRes,
   _swigc__p_VSIDIR,
   _swigc__p_VSILFILE,
   _swigc__p_char,
