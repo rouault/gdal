@@ -1045,7 +1045,7 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                snprintf(szData, nDataLen, "%d ",
+                snprintf(szData, nDataLen, "%d",
                          static_cast<signed char *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
@@ -1053,6 +1053,8 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1060,7 +1062,7 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                snprintf(szData, nDataLen, "%u ",
+                snprintf(szData, nDataLen, "%u",
                          static_cast<unsigned char *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
@@ -1068,6 +1070,8 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1075,13 +1079,15 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                snprintf(szData, nDataLen, "%d ", static_cast<short *>(buf)[i]);
+                snprintf(szData, nDataLen, "%d", static_cast<short *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
                     CPLError(CE_Warning, CPLE_OutOfMemory,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1089,7 +1095,7 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                snprintf(szData, nDataLen, "%u ",
+                snprintf(szData, nDataLen, "%u",
                          static_cast<unsigned short *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
@@ -1097,6 +1103,8 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1104,13 +1112,15 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                snprintf(szData, nDataLen, "%d ", static_cast<int *>(buf)[i]);
+                snprintf(szData, nDataLen, "%d", static_cast<int *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
                     CPLError(CE_Warning, CPLE_OutOfMemory,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1118,7 +1128,7 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                snprintf(szData, nDataLen, "%u ",
+                snprintf(szData, nDataLen, "%u",
                          static_cast<unsigned int *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
@@ -1126,6 +1136,8 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1167,13 +1179,15 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                snprintf(szData, nDataLen, "%ld ", static_cast<long *>(buf)[i]);
+                snprintf(szData, nDataLen, "%ld", static_cast<long *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
                     CPLError(CE_Warning, CPLE_OutOfMemory,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1181,7 +1195,7 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                snprintf(szData, nDataLen, "%lu ",
+                snprintf(szData, nDataLen, "%lu",
                          static_cast<unsigned long *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
@@ -1189,6 +1203,8 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1196,7 +1212,7 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                CPLsnprintf(szData, nDataLen, "%.8g ",
+                CPLsnprintf(szData, nDataLen, "%.8g",
                             static_cast<float *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
@@ -1204,6 +1220,8 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1211,7 +1229,7 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
         {
             for (hsize_t i = 0; i < nAttrElmts; i++)
             {
-                CPLsnprintf(szData, nDataLen, "%.15g ",
+                CPLsnprintf(szData, nDataLen, "%.15g",
                             static_cast<double *>(buf)[i]);
                 if (psContext->m_osValue.size() > MAX_METADATA_LEN)
                 {
@@ -1219,6 +1237,8 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
                              "Header data too long. Truncated");
                     break;
                 }
+                if (i > 0)
+                    psContext->m_osValue += ' ';
                 psContext->m_osValue += szData;
             }
         }
@@ -1238,7 +1258,8 @@ static herr_t HDF5AttrIterate(hid_t hH5ObjID, const char *pszAttrName,
 /*                           CreateMetadata()                           */
 /************************************************************************/
 CPLErr HDF5Dataset::CreateMetadata(hid_t hHDF5, HDF5GroupObjects *poH5Object,
-                                   int nType, CPLStringList &aosMetadata)
+                                   int nType, bool bPrefixWithDatasetName,
+                                   CPLStringList &aosMetadata)
 {
 
     if (!poH5Object->pszPath)
@@ -1251,17 +1272,20 @@ CPLErr HDF5Dataset::CreateMetadata(hid_t hHDF5, HDF5GroupObjects *poH5Object,
 
     HDF5DatasetCreateMetadataContext sContext(aosMetadata);
 
-    // Convert "/" into "_" for the path component
-    const char *pszPath = poH5Object->pszUnderscorePath;
-    if (pszPath != nullptr && strlen(pszPath) > 0)
+    if (bPrefixWithDatasetName)
     {
-        const CPLStringList aosTokens(
-            CSLTokenizeString2(pszPath, "/", CSLT_HONOURSTRINGS));
-        for (int i = 0; i < aosTokens.size(); ++i)
+        // Convert "/" into "_" for the path component
+        const char *pszPath = poH5Object->pszUnderscorePath;
+        if (pszPath != nullptr && strlen(pszPath) > 0)
         {
-            if (i != 0)
-                sContext.m_osKey += '_';
-            sContext.m_osKey += aosTokens[i];
+            const CPLStringList aosTokens(
+                CSLTokenizeString2(pszPath, "/", CSLT_HONOURSTRINGS));
+            for (int i = 0; i < aosTokens.size(); ++i)
+            {
+                if (i != 0)
+                    sContext.m_osKey += '_';
+                sContext.m_osKey += aosTokens[i];
+            }
         }
     }
 
@@ -1382,7 +1406,7 @@ CPLErr HDF5Dataset::HDF5ListGroupObjects(HDF5GroupObjects *poRootGroup,
 
     if (poRootGroup->nType == H5G_GROUP)
     {
-        CreateMetadata(m_hHDF5, poRootGroup, H5G_GROUP, m_aosMetadata);
+        CreateMetadata(m_hHDF5, poRootGroup, H5G_GROUP, true, m_aosMetadata);
     }
 
     // Create Sub dataset list.
@@ -1400,7 +1424,7 @@ CPLErr HDF5Dataset::HDF5ListGroupObjects(HDF5GroupObjects *poRootGroup,
     }
     else if (poRootGroup->nType == H5G_DATASET && bSUBDATASET)
     {
-        CreateMetadata(m_hHDF5, poRootGroup, H5G_DATASET, m_aosMetadata);
+        CreateMetadata(m_hHDF5, poRootGroup, H5G_DATASET, true, m_aosMetadata);
 
         CPLString osStr;
         switch (poRootGroup->nRank)
