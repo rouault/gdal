@@ -7919,9 +7919,9 @@ std::shared_ptr<GDALMDArrayResampled> GDALMDArrayResampled::Create(
                          poLongVar->GetName().c_str(),
                          poLatVar->GetName().c_str());
                 std::string osFilenameLong =
-                    CPLSPrintf("/vsimem/%p/longitude.tif", poParent.get());
+                    CPLSPrintf("/vsimem/%p_longitude.tif", poParent.get());
                 std::string osFilenameLat =
-                    CPLSPrintf("/vsimem/%p/latitude.tif", poParent.get());
+                    CPLSPrintf("/vsimem/%p_latitude.tif", poParent.get());
                 std::unique_ptr<GDALDataset> poTmpLongDS(
                     longDimCount == 1
                         ? poLongVar->AsClassicDataset(0, 0)
