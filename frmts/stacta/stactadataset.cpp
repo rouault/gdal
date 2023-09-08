@@ -470,8 +470,9 @@ CPLErr STACTARawDataset::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
                             return CE_Failure;
                         }
                         VSIFCloseL(fp);
-                        const CPLString osMEMFilename("/vsimem/stacta/" +
-                                                      osURL);
+                        const CPLString osMEMFilename(
+                            CPLSPrintf("/vsimem/stacta_%p_%d_%d.%s", this, iY,
+                                       iX, CPLGetExtension(osURL)));
                         VSIFCloseL(VSIFileFromMemBuffer(osMEMFilename, pabyBuf,
                                                         nSize, TRUE));
                         poTileDS = std::unique_ptr<GDALDataset>(
