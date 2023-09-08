@@ -34,44 +34,6 @@
 #include "parsexsd.h"
 
 /************************************************************************/
-/*                      OGRWFSRecursiveUnlink()                         */
-/************************************************************************/
-
-void OGRWFSRecursiveUnlink(const char *pszName)
-
-{
-    char **papszFileList = VSIReadDir(pszName);
-
-    for (int i = 0; papszFileList != nullptr && papszFileList[i] != nullptr;
-         i++)
-    {
-        VSIStatBufL sStatBuf;
-
-        if (EQUAL(papszFileList[i], ".") || EQUAL(papszFileList[i], ".."))
-            continue;
-
-        CPLString osFullFilename =
-            CPLFormFilename(pszName, papszFileList[i], nullptr);
-
-        if (VSIStatL(osFullFilename, &sStatBuf) == 0)
-        {
-            if (VSI_ISREG(sStatBuf.st_mode))
-            {
-                VSIUnlink(osFullFilename);
-            }
-            else if (VSI_ISDIR(sStatBuf.st_mode))
-            {
-                OGRWFSRecursiveUnlink(osFullFilename);
-            }
-        }
-    }
-
-    CSLDestroy(papszFileList);
-
-    VSIRmdir(pszName);
-}
-
-/************************************************************************/
 /*                            OGRWFSLayer()                             */
 /************************************************************************/
 
@@ -150,7 +112,7 @@ OGRWFSLayer::~OGRWFSLayer()
     delete poFetchedFilterGeom;
 
     CPLString osTmpDirName = CPLSPrintf("/vsimem/tempwfs_%p", this);
-    OGRWFSRecursiveUnlink(osTmpDirName);
+    VSIRmdirRecursive(osTmpDirName);
 
     CPLFree(pszRequiredOutputFormat);
 }
@@ -913,7 +875,7 @@ GDALDataset *OGRWFSLayer::FetchGetFeature(int nRequestMaxFeatures)
         CPLHTTPParseMultipartMime(psResult))
     {
         bIsMultiPart = true;
-        OGRWFSRecursiveUnlink(osTmpDirName);
+        VSIRmdirRecursive(osTmpDirName);
         VSIMkdir(osTmpDirName, 0);
         for (int i = 0; i < psResult->nMimePartCount; i++)
         {

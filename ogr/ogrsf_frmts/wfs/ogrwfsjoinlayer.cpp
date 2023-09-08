@@ -218,7 +218,7 @@ OGRWFSJoinLayer::~OGRWFSJoinLayer()
         GDALClose(poBaseDS);
 
     CPLString osTmpDirName = CPLSPrintf("/vsimem/tempwfs_%p", this);
-    OGRWFSRecursiveUnlink(osTmpDirName);
+    VSIRmdirRecursive(osTmpDirName);
 }
 
 /************************************************************************/

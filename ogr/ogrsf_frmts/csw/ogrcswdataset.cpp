@@ -261,7 +261,7 @@ OGRCSWLayer::~OGRCSWLayer()
     poFeatureDefn->Release();
     GDALClose(poBaseDS);
     CPLString osTmpDirName = CPLSPrintf("/vsimem/tempcsw_%p", this);
-    OGRWFSRecursiveUnlink(osTmpDirName);
+    VSIRmdirRecursive(osTmpDirName);
 }
 
 /************************************************************************/

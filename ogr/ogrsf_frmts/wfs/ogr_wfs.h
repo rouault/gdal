@@ -41,7 +41,6 @@
 #include "ogr_swq.h"
 
 const CPLXMLNode *WFSFindNode(const CPLXMLNode *psXML, const char *pszRootName);
-void OGRWFSRecursiveUnlink(const char *pszName);
 CPLString
 WFS_TurnSQLFilterToOGCFilter(const swq_expr_node *poExpr, OGRDataSource *poDS,
                              OGRFeatureDefn *poFDefn, int nVersion,
