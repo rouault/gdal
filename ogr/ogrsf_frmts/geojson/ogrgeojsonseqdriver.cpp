@@ -49,7 +49,6 @@ class OGRGeoJSONSeqDataSource final : public GDALDataset
     friend class OGRGeoJSONSeqLayer;
 
     std::vector<std::unique_ptr<OGRLayer>> m_apoLayers{};
-    CPLString m_osTmpFile;
     VSILFILE *m_fp = nullptr;
     bool m_bSupportsRead = true;
     bool m_bAtEOF = false;
@@ -152,10 +151,6 @@ OGRGeoJSONSeqDataSource::~OGRGeoJSONSeqDataSource()
     if (m_fp)
     {
         VSIFCloseL(m_fp);
-    }
-    if (!m_osTmpFile.empty())
-    {
-        VSIUnlink(m_osTmpFile);
     }
 }
 
@@ -718,9 +713,8 @@ bool OGRGeoJSONSeqDataSource::Open(GDALOpenInfo *poOpenInfo,
         if (poOpenInfo->eAccess == GA_Update)
             return false;
 
-        m_osTmpFile = CPLSPrintf("/vsimem/geojsonseq/%p", this);
         m_fp = VSIFileFromMemBuffer(
-            m_osTmpFile.c_str(),
+            nullptr,
             reinterpret_cast<GByte *>(CPLStrdup(poOpenInfo->pszFilename)),
             strlen(poOpenInfo->pszFilename), true);
     }
@@ -741,10 +735,8 @@ bool OGRGeoJSONSeqDataSource::Open(GDALOpenInfo *poOpenInfo,
             }
             else
             {
-                m_osTmpFile = CPLSPrintf("/vsimem/geojsonseq/%p", this);
                 m_fp = VSIFileFromMemBuffer(
-                    m_osTmpFile.c_str(),
-                    reinterpret_cast<GByte *>(pszStoredContent),
+                    nullptr, reinterpret_cast<GByte *>(pszStoredContent),
                     strlen(pszStoredContent), true);
             }
         }
@@ -772,8 +764,7 @@ bool OGRGeoJSONSeqDataSource::Open(GDALOpenInfo *poOpenInfo,
                 return false;
             }
 
-            m_osTmpFile = CPLSPrintf("/vsimem/geojsonseq/%p", this);
-            m_fp = VSIFileFromMemBuffer(m_osTmpFile.c_str(), pResult->pabyData,
+            m_fp = VSIFileFromMemBuffer(nullptr, pResult->pabyData,
                                         pResult->nDataLen, true);
             pResult->pabyData = nullptr;
             pResult->nDataLen = 0;
