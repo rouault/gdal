@@ -2346,7 +2346,7 @@ GDALDataset *OGCAPITiledLayer::OpenTile(int nX, int nY, bool &bEmptyContent)
         return nullptr;
 
     CPLString osTempFile;
-    osTempFile.Printf("/vsimem/ogcapi/%p", this);
+    osTempFile.Printf("/vsimem/ogcapi_%p", this);
     VSIFCloseL(VSIFileFromMemBuffer(osTempFile.c_str(),
                                     reinterpret_cast<GByte *>(&m_osTileData[0]),
                                     m_osTileData.size(), false));
