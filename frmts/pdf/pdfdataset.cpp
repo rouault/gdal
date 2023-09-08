@@ -2201,7 +2201,7 @@ CPLErr PDFDataset::ReadPixels(int nReqXOff, int nReqYOff, int nReqXSize,
             }
             papszArgs = CSLAddString(papszArgs, m_osFilename.c_str());
 
-            osTmpFilename = CPLSPrintf("/vsimem/pdf/temp_%p.ppm", this);
+            osTmpFilename = CPLSPrintf("/vsimem/pdf_temp_%p.ppm", this);
             VSILFILE *fpOut = VSIFOpenL(osTmpFilename, "wb");
             if (fpOut != nullptr)
             {

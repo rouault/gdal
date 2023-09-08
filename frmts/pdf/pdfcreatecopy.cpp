@@ -4300,7 +4300,7 @@ GDALPDFObjectNum GDALPDFBaseWriter::WriteBlock(
             if (poJPEGDriver != nullptr && nJPEGQuality > 0)
                 papszOptions = CSLAddString(
                     papszOptions, CPLSPrintf("QUALITY=%d", nJPEGQuality));
-            snprintf(szTmp, sizeof(szTmp), "/vsimem/pdftemp/%p.jpg", this);
+            snprintf(szTmp, sizeof(szTmp), "/vsimem/pdftemp_%p.jpg", this);
         }
         else
         {
@@ -4353,7 +4353,7 @@ GDALPDFObjectNum GDALPDFBaseWriter::WriteBlock(
                     papszOptions = CSLAddString(papszOptions, "GMLJP2=OFF");
                 }
             }
-            snprintf(szTmp, sizeof(szTmp), "/vsimem/pdftemp/%p.jp2", this);
+            snprintf(szTmp, sizeof(szTmp), "/vsimem/pdftemp_%p.jp2", this);
         }
 
         if (poJPEGDriver == nullptr)
