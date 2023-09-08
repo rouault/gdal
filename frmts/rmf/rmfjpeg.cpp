@@ -49,7 +49,7 @@ size_t RMFDataset::JPEGDecompress(const GByte *pabyIn, GUInt32 nSizeIn,
     CPLString osTmpFilename;
     VSILFILE *fp;
 
-    osTmpFilename.Printf("/vsimem/rmfjpeg/%p.jpg", pabyIn);
+    osTmpFilename.Printf("/vsimem/rmfjpeg_%p.jpg", pabyIn);
 
     fp = VSIFileFromMemBuffer(osTmpFilename, const_cast<GByte *>(pabyIn),
                               nSizeIn, FALSE);
@@ -166,7 +166,7 @@ size_t RMFDataset::JPEGCompress(const GByte *pabyIn, GUInt32 nSizeIn,
     }
 
     CPLString osTmpFilename;
-    osTmpFilename.Printf("/vsimem/rmfjpeg/%p.jpg", pabyIn);
+    osTmpFilename.Printf("/vsimem/rmfjpeg_%p.jpg", pabyIn);
 
     char szQuality[32] = {};
     if (poDS != nullptr && poDS->sHeader.iJpegQuality > 0)
