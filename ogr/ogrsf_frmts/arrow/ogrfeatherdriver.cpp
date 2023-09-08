@@ -81,11 +81,8 @@ static bool IsArrowIPCStream(GDALOpenInfo *poOpenInfo)
                 return false;
             }
 
-            const std::string osTmpFilename(
-                CPLSPrintf("/vsimem/_arrow/%p", poOpenInfo));
             auto fp = VSIVirtualHandleUniquePtr(VSIFileFromMemBuffer(
-                osTmpFilename.c_str(), poOpenInfo->pabyHeader, nSizeToRead,
-                false));
+                nullptr, poOpenInfo->pabyHeader, nSizeToRead, false));
             auto infile =
                 std::make_shared<OGRArrowRandomAccessFile>(std::move(fp));
             auto options = arrow::ipc::IpcReadOptions::Defaults();
@@ -93,7 +90,6 @@ static bool IsArrowIPCStream(GDALOpenInfo *poOpenInfo)
                 arrow::ipc::RecordBatchStreamReader::Open(infile, options);
             CPLDebug("ARROW", "RecordBatchStreamReader::Open(): %s",
                      result.status().message().c_str());
-            VSIUnlink(osTmpFilename.c_str());
             return result.ok();
         }
 
