@@ -1101,7 +1101,7 @@ static bool DealWithCOGOptions(CPLStringList &aosCreateOptions, int nSrcCount,
     GDALWarpAppOptions oClonedOptions(*psOptions);
     oClonedOptions.bQuiet = true;
     CPLString osTmpFilename;
-    osTmpFilename.Printf("/vsimem/gdalwarp/%p.tif", &oClonedOptions);
+    osTmpFilename.Printf("/vsimem/gdalwarp_%p.tif", &oClonedOptions);
     CPLStringList aosTmpGTiffCreateOptions;
     aosTmpGTiffCreateOptions.SetNameValue("SPARSE_OK", "YES");
     aosTmpGTiffCreateOptions.SetNameValue("TILED", "YES");
