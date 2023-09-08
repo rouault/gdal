@@ -1063,9 +1063,7 @@ int KmlSuperOverlayReadDataset::CloseDependentDatasets()
     int bRet = FALSE;
     if (poDSIcon != nullptr)
     {
-        CPLString l_osFilename(poDSIcon->GetDescription());
         delete poDSIcon;
-        VSIUnlink(l_osFilename);
         poDSIcon = nullptr;
         bRet = TRUE;
     }
@@ -1801,7 +1799,7 @@ static GDALDataset *KmlSuperOverlayLoadIcon(const char *pszBaseFilename,
 
     static int nInc = 0;
     osSubFilename =
-        CPLSPrintf("/vsimem/kmlsuperoverlay/%d_%p", nInc++, pszBaseFilename);
+        CPLSPrintf("/vsimem/kmlsuperoverlay_%d_%p", nInc++, pszBaseFilename);
     VSIFCloseL(VSIFileFromMemBuffer(osSubFilename, pabyBuffer, nRead, TRUE));
 
     GDALDataset *poDSIcon = (GDALDataset *)GDALOpen(osSubFilename, GA_ReadOnly);
@@ -1809,6 +1807,10 @@ static GDALDataset *KmlSuperOverlayLoadIcon(const char *pszBaseFilename,
     {
         VSIUnlink(osSubFilename);
         return nullptr;
+    }
+    else
+    {
+        poDSIcon->MarkSuppressOnClose();
     }
 
     return poDSIcon;
