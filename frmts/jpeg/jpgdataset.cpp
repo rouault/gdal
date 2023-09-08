@@ -2818,7 +2818,7 @@ GDALDataset *JPGDatasetCommon::OpenFLIRRawThermalImage()
 
     GByte *pabyData =
         static_cast<GByte *>(CPLMalloc(m_abyRawThermalImage.size()));
-    const std::string osTmpFilename(CPLSPrintf("/vsimem/jpeg/%p", pabyData));
+    const std::string osTmpFilename(CPLSPrintf("/vsimem/jpeg_%p", pabyData));
     memcpy(pabyData, m_abyRawThermalImage.data(), m_abyRawThermalImage.size());
     VSILFILE *fpRaw = VSIFileFromMemBuffer(osTmpFilename.c_str(), pabyData,
                                            m_abyRawThermalImage.size(), true);
