@@ -850,7 +850,7 @@ void GTiffDataset::InitCompressionThreads(bool bUpdateMode,
                          i < static_cast<int>(m_asCompressionJobs.size()); ++i)
                     {
                         m_asCompressionJobs[i].pszTmpFilename =
-                            CPLStrdup(CPLSPrintf("/vsimem/gtiff/thread/job/%p",
+                            CPLStrdup(CPLSPrintf("/vsimem/gtiff_thread_job_%p",
                                                  &m_asCompressionJobs[i]));
                         m_asCompressionJobs[i].nStripOrTile = -1;
                     }
