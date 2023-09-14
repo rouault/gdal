@@ -56,11 +56,23 @@ jobs:
         #                   inside container, from build subdirectory.
         #   * travis_branch : value of TRAVIS_BRANCH environment variable,
         #                     used for test skipping
+        #   * base_image: value of the FROM statement in Dockerfile.ci
+        #   * build_script_dir: defaults to id, but can be overridden if
+        #                       several configs use the same scripts (e.g. alpine
+        #                       and alpine_i386)
         include:
           - name: Alpine, gcc
             id: alpine
             container: alpine
             build_script: build.sh
+            base_image: alpine:edge
+
+          - name: Alpine i386
+            id: alpine_i386
+            container: alpine_i386
+            build_script: build.sh
+            build_script_dir: alpine
+            base_image: i386/alpine:edge
 
           - name: Fedora Rawhide, clang++
             id: fedora_rawhide
@@ -174,8 +186,12 @@ jobs:
           else
             BUILD_ARG_INLINE_CACHE="--build-arg BUILDKIT_INLINE_CACHE=1"
           fi
+          if test "${{ matrix.base_image }}" != ""; then
+            BUILD_ARG_BASE_IMAGE="--build-arg BASE_IMAGE=${{ matrix.base_image }}"
+          fi
           docker build \
             ${BUILD_ARG_INLINE_CACHE} \
+            ${BUILD_ARG_BASE_IMAGE} \
             ${DOCKER_BUILD_CACHE_FROM} \
             -t ${CONTAINER_NAME_FULL} \
             -f .github/workflows/${{ matrix.container }}/Dockerfile.ci \
@@ -221,7 +237,9 @@ jobs:
         # about the quotes not matching.
       - name: Build
         run: |
-          if test -f ".github/workflows/${{ matrix.id }}/${{ matrix.build_script }}"; then
+          if test -f ".github/workflows/${{ matrix.build_script_dir }}/${{ matrix.build_script }}"; then
+            BUILD_CMD="$(pwd)/.github/workflows/${{ matrix.build_script_dir }}/${{ matrix.build_script }}"
+          elif test -f ".github/workflows/${{ matrix.id }}/${{ matrix.build_script }}"; then
             BUILD_CMD="$(pwd)/.github/workflows/${{ matrix.id }}/${{ matrix.build_script }}"
           else
             BUILD_CMD="sh -c 'cmake .. && make -j$(nproc)'"
