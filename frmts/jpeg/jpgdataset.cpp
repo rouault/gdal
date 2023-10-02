@@ -4054,7 +4054,7 @@ GDALDataset *JPGDataset::CreateCopyStage2(
     }
 
     // Append masks to the jpeg file if necessary.
-    int nCloneFlags = GCIF_PAM_DEFAULT;
+    int nCloneFlags = GCIF_PAM_DEFAULT & ~GCIF_METADATA;
     if (bAppendMask)
     {
         CPLDebug("JPEG", "Appending Mask Bitmap");
@@ -4104,6 +4104,26 @@ GDALDataset *JPGDataset::CreateCopyStage2(
         if (poDS)
         {
             poDS->CloneInfo(poSrcDS, nCloneFlags);
+
+            char **papszExcludedDomains =
+                CSLAddString(nullptr, "COLOR_PROFILE");
+            char **papszMD = poSrcDS->GetMetadata();
+            bool bOnlyEXIF = true;
+            for (char **papszIter = papszMD; papszIter && *papszIter;
+                 ++papszIter)
+            {
+                if (!STARTS_WITH_CI(*papszIter, "EXIF_"))
+                {
+                    bOnlyEXIF = false;
+                    break;
+                }
+            }
+            if (bOnlyEXIF)
+                papszExcludedDomains = CSLAddString(papszExcludedDomains, "");
+            GDALDriver::DefaultCopyMetadata(poSrcDS, poDS, papszOptions,
+                                            papszExcludedDomains);
+            CSLDestroy(papszExcludedDomains);
+
             return poDS;
         }
 
