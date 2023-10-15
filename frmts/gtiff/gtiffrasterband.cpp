@@ -252,6 +252,24 @@ CPLErr GTiffRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
             --m_poGDS->m_nJPEGOverviewVisibilityCounter;
         if (bTried)
             return eErr;
+
+        if (eRWFlag == GF_Read && TIFFIsTiled(m_poGDS->m_hTIFF) &&
+            nXSize == nRasterXSize && nYSize == nRasterYSize &&
+            nXSize / nBufXSize >= nBlockXSize &&
+            nYSize / nBufYSize >= nBlockYSize &&
+            psExtraArg->eResampleAlg == GRIORA_NearestNeighbour &&
+            (m_poGDS->m_nCompression == COMPRESSION_NONE ||
+             m_poGDS->m_nCompression == COMPRESSION_ADOBE_DEFLATE ||
+             m_poGDS->m_nCompression == COMPRESSION_LZW) &&
+            (m_poGDS->m_nBitsPerSample == 8 ||
+             m_poGDS->m_nBitsPerSample == 16 ||
+             m_poGDS->m_nBitsPerSample == 32 ||
+             m_poGDS->m_nBitsPerSample == 64))
+        {
+            return m_poGDS->ExtremeTiledDownsampling(
+                pData, nBufXSize, nBufYSize, eBufType, 1, &nBand, nPixelSpace,
+                nLineSpace, 0, psExtraArg);
+        }
     }
 
     if (m_poGDS->m_eVirtualMemIOUsage != GTiffDataset::VirtualMemIOEnum::NO)

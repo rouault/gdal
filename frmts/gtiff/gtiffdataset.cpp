@@ -480,6 +480,22 @@ CPLErr GTiffDataset::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
             --m_nJPEGOverviewVisibilityCounter;
         if (bTried)
             return eErr;
+
+        if (eRWFlag == GF_Read && TIFFIsTiled(m_hTIFF) &&
+            nXSize == nRasterXSize && nYSize == nRasterYSize &&
+            nXSize / nBufXSize >= m_nBlockXSize &&
+            nYSize / nBufYSize >= m_nBlockYSize &&
+            psExtraArg->eResampleAlg == GRIORA_NearestNeighbour &&
+            (m_nCompression == COMPRESSION_NONE ||
+             m_nCompression == COMPRESSION_ADOBE_DEFLATE ||
+             m_nCompression == COMPRESSION_LZW) &&
+            (m_nBitsPerSample == 8 || m_nBitsPerSample == 16 ||
+             m_nBitsPerSample == 32 || m_nBitsPerSample == 64))
+        {
+            return ExtremeTiledDownsampling(
+                pData, nBufXSize, nBufYSize, eBufType, nBandCount, panBandMap,
+                nPixelSpace, nLineSpace, nBandSpace, psExtraArg);
+        }
     }
 
     if (m_eVirtualMemIOUsage != VirtualMemIOEnum::NO)

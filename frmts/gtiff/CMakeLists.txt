@@ -36,8 +36,10 @@ add_gdal_driver(
           gt_overview.cpp
           gt_wkt_srs.cpp
           tifvsi.cpp
+          lzw_partial_decode.c
   BUILTIN CXX_WFLAGS_EFFCXX)
 gdal_standard_includes(gdal_GTIFF)
+target_include_directories(gdal_GTIFF PRIVATE ${GDAL_RASTER_FORMAT_SOURCE_DIR}/mem)
 
 if (GDAL_ENABLE_DRIVER_JPEG)
   target_compile_definitions(gdal_GTIFF PRIVATE -DHAVE_LIBJPEG)

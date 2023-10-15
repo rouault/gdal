@@ -50,10 +50,12 @@
 #include "cpl_vsi.h"
 #include "cpl_vsi_virtual.h"
 #include "cpl_worker_thread_pool.h"
+#include "cpl_zlib_header.h"  // to avoid warnings when including zlib.h
 #include "fetchbufferdirectio.h"
 #include "gdal_mdreader.h"    // MD_DOMAIN_RPC
 #include "geovalues.h"        // RasterPixelIsPoint
 #include "gt_wkt_srs_priv.h"  // GDALGTIFKeyGetSHORT()
+#include "memdataset.h"
 #include "tif_jxl.h"
 #include "tifvsi.h"
 #include "xtiffio.h"
@@ -3104,6 +3106,278 @@ int GTiffDataset::DirectIO(GDALRWFlag eRWFlag, int nXOff, int nYOff, int nXSize,
     CPLFree(panSizes);
 
     return eErr;
+}
+
+/************************************************************************/
+/*                      ExtremeTiledDownsampling()                      */
+/************************************************************************/
+
+#include "lzw_partial_decode.h"
+
+CPLErr GTiffDataset::ExtremeTiledDownsampling(
+    void *pData, int nBufXSize, int nBufYSize, GDALDataType eBufType,
+    int nBandCount, int *panBandMap, GSpacing nPixelSpace, GSpacing nLineSpace,
+    GSpacing nBandSpace, GDALRasterIOExtraArg * /* psExtraArg*/)
+{
+    CPLDebug("GTiff", "Using ExtremeTiledDownsampling()");
+
+    CPLAssert(TIFFIsTiled(m_hTIFF));
+    CPLAssert(m_nCompression == COMPRESSION_NONE ||
+              m_nCompression == COMPRESSION_ADOBE_DEFLATE ||
+              m_nCompression == COMPRESSION_LZW);
+    CPLAssert(m_nBitsPerSample == 8 || m_nBitsPerSample == 16 ||
+              m_nBitsPerSample == 32 || m_nBitsPerSample == 64);
+
+    // Make sure that TIFFTAG_TILEOFFSETS is up-to-date.
+    if (eAccess == GA_Update)
+    {
+        FlushCache(false);
+        VSI_TIFFFlushBufferedWrite(TIFFClientdata(m_hTIFF));
+    }
+
+    const int nSkipFactorX = nRasterXSize / nBufXSize / m_nBlockXSize;
+    CPLAssert(nSkipFactorX >= 1);
+    const int nSkipFactorY = nRasterYSize / nBufYSize / m_nBlockYSize;
+    CPLAssert(nSkipFactorY >= 1);
+    const int nTmpWidth =
+        DIV_ROUND_UP(nRasterXSize, m_nBlockXSize * nSkipFactorX);
+    const int nTmpHeight =
+        DIV_ROUND_UP(nRasterYSize, m_nBlockYSize * nSkipFactorX);
+    const auto eDT = GetRasterBand(1)->GetRasterDataType();
+    const int nDTSize = GDALGetDataTypeSizeBytes(eDT);
+    const char *const apszOptions[] = {"INTERLEAVE=PIXEL", nullptr};
+    auto poMemDS = std::unique_ptr<GDALDataset>(
+        MEMDataset::Create("", nTmpWidth, nTmpHeight, nBandCount, eDT,
+                           const_cast<char **>(apszOptions)));
+    if (!poMemDS)
+        return CE_Failure;
+    GByte *pabyTemp =
+        static_cast<GByte *>(poMemDS->GetInternalHandle("MEMORY1"));
+    CPLAssert(pabyTemp);
+
+    // Get offsets offsets and byte count.
+    toff_t *panOffsets = nullptr;
+    toff_t *panByteCounts = nullptr;
+    if (!TIFFGetField(m_hTIFF, TIFFTAG_TILEOFFSETS, &panOffsets) ||
+        panOffsets == nullptr ||
+        !TIFFGetField(m_hTIFF, TIFFTAG_TILEBYTECOUNTS, &panByteCounts) ||
+        panByteCounts == nullptr)
+    {
+        return CE_Failure;
+    }
+
+    int bHasNoData = FALSE;
+    const double dfNoDataValue = GetRasterBand(1)->GetNoDataValue(&bHasNoData);
+
+    const int nBlockCount = nTmpWidth * nTmpHeight;
+    const bool bSwap = TIFFIsByteSwapped(m_hTIFF);
+    VSILFILE *fp = VSI_TIFFGetVSILFile(TIFFClientdata(m_hTIFF));
+    const int nBandsPerTile =
+        m_nPlanarConfig == PLANARCONFIG_CONTIG ? nBands : 1;
+    std::vector<GByte> abyTmpCompressed;
+    std::vector<GByte> abyTmpDeCompressed(nBandsPerTile * nDTSize);
+
+    const auto PRead = [&fp](void *buffer, size_t size, vsi_l_offset nOffset)
+    {
+        if (fp->HasPRead())
+            return fp->PRead(buffer, size, nOffset);
+        else
+        {
+            fp->Seek(nOffset, SEEK_SET);
+            return fp->Read(buffer, 1, size);
+        }
+    };
+
+    z_stream strm;
+    memset(&strm, 0, sizeof(strm));
+    LZWDecompressor *lzwDec = nullptr;
+    if (m_nCompression == COMPRESSION_ADOBE_DEFLATE)
+    {
+        abyTmpCompressed.resize(100 + 2 * nBandsPerTile * nDTSize);
+        int ret = inflateInit(&strm);
+        if (ret != Z_OK)
+            return CE_Failure;
+    }
+    else if (m_nCompression == COMPRESSION_LZW)
+    {
+        abyTmpCompressed.resize(1 + nBandsPerTile * nDTSize +
+                                DIV_ROUND_UP(nBandsPerTile * nDTSize, 8));
+        lzwDec = GDALGTiffLZWDecompressorAlloc();
+        if (!lzwDec)
+            return CE_Failure;
+    }
+
+    const auto nCurPos = fp->Tell();
+    CPLErr eRet = CE_Failure;
+
+    for (int iY = 0; iY < nTmpHeight; ++iY)
+    {
+        for (int iX = 0; iX < nTmpWidth; ++iX)
+        {
+            const int nTileIdBase =
+                iY * nSkipFactorY * m_nBlocksPerRow + iX * nSkipFactorX;
+            for (int iBand = 0; iBand < nBandCount; ++iBand)
+            {
+                const int nTileId =
+                    nTileIdBase + (m_nPlanarConfig == PLANARCONFIG_CONTIG
+                                       ? 0
+                                       : (panBandMap[iBand] - 1) * nBlockCount);
+                if (panOffsets[nTileId])
+                {
+                    if (iBand == 0 || m_nPlanarConfig != PLANARCONFIG_CONTIG)
+                    {
+                        if (m_nCompression == COMPRESSION_NONE)
+                        {
+                            if (PRead(abyTmpDeCompressed.data(),
+                                      abyTmpDeCompressed.size(),
+                                      panOffsets[nTileId]) !=
+                                abyTmpDeCompressed.size())
+                            {
+                                CPLError(CE_Failure, CPLE_AppDefined,
+                                         "Cannot read first bytes for tile %d. "
+                                         "panOffsets[nTileId] = %d, "
+                                         "panByteCounts[nTileId] = %d",
+                                         nTileId, int(panOffsets[nTileId]),
+                                         int(panByteCounts[nTileId]));
+                                goto end;
+                            }
+                        }
+                        else if (m_nCompression == COMPRESSION_ADOBE_DEFLATE)
+                        {
+                            const size_t nToRead =
+                                std::min<size_t>(panByteCounts[nTileId],
+                                                 abyTmpCompressed.size());
+                            vsi_l_offset nOff = panOffsets[nTileId];
+                            if (PRead(abyTmpCompressed.data(), nToRead, nOff) !=
+                                nToRead)
+                            {
+                                CPLError(CE_Failure, CPLE_AppDefined,
+                                         "Cannot read first bytes for tile %d. "
+                                         "panOffsets[nTileId] = %d, "
+                                         "panByteCounts[nTileId] = %d",
+                                         nTileId, int(panOffsets[nTileId]),
+                                         int(panByteCounts[nTileId]));
+                                goto end;
+                            }
+                            nOff += nToRead;
+
+                            strm.avail_in = static_cast<uInt>(nToRead);
+                            strm.next_in = abyTmpCompressed.data();
+                            strm.avail_out =
+                                static_cast<uInt>(abyTmpDeCompressed.size());
+                            strm.next_out = abyTmpDeCompressed.data();
+                            int ret = inflateReset(&strm);
+                            if (ret != Z_OK)
+                                goto end;
+
+                            while (true)
+                            {
+                                ret = inflate(&strm, 0);
+                                if (ret != Z_OK || strm.avail_out == 0 ||
+                                    strm.avail_in != 0)
+                                    break;
+                                // We may need to read some more compressed data
+                                // for next call to inflate()
+                                size_t nRead = PRead(abyTmpCompressed.data(),
+                                                     nToRead, nOff);
+                                if (nRead == 0)
+                                    break;
+                                nOff += nRead;
+                                // CPLDebug("GTIFF", "Read extra bytes for tile %d", nTileId);
+                                strm.avail_in = static_cast<uInt>(nRead);
+                                strm.next_in = abyTmpCompressed.data();
+                            }
+                            if (ret != Z_OK || strm.avail_out != 0)
+                            {
+                                CPLError(
+                                    CE_Failure, CPLE_AppDefined,
+                                    "Cannot decompress first %d bytes for tile "
+                                    "%d. ret = %d, strm.avail_out = %d, "
+                                    "strm.avail_in = %d. panOffsets[nTileId] = "
+                                    "%d, panByteCounts[nTileId] = %d, nToRead "
+                                    "= %d",
+                                    int(abyTmpDeCompressed.size()), nTileId,
+                                    ret, strm.avail_out, strm.avail_in,
+                                    int(panOffsets[nTileId]),
+                                    int(panByteCounts[nTileId]), int(nToRead));
+                                goto end;
+                            }
+                        }
+                        else if (m_nCompression == COMPRESSION_LZW)
+                        {
+                            const size_t nToRead = abyTmpCompressed.size();
+                            if (PRead(abyTmpCompressed.data(), nToRead,
+                                      panOffsets[nTileId]) != nToRead)
+                            {
+                                CPLError(CE_Failure, CPLE_AppDefined,
+                                         "Cannot read first bytes for tile %d. "
+                                         "panOffsets[nTileId] = %d, "
+                                         "panByteCounts[nTileId] = %d",
+                                         nTileId, int(panOffsets[nTileId]),
+                                         int(panByteCounts[nTileId]));
+                                goto end;
+                            }
+
+                            if (GDALGTiffLZWDecompressorDecompressFirstPixel(
+                                    lzwDec, abyTmpCompressed.data(),
+                                    abyTmpCompressed.size(),
+                                    abyTmpDeCompressed.data(),
+                                    abyTmpDeCompressed.size()) != 1)
+                            {
+                                goto end;
+                            }
+                        }
+                    }
+
+                    if (m_nPlanarConfig == PLANARCONFIG_CONTIG)
+                    {
+                        memcpy(pabyTemp,
+                               abyTmpDeCompressed.data() +
+                                   (panBandMap[iBand] - 1) * nDTSize,
+                               nDTSize);
+                    }
+                    else
+                    {
+                        memcpy(pabyTemp, abyTmpDeCompressed.data(), nDTSize);
+                    }
+
+                    if (bSwap && nDTSize == 2)
+                        CPL_SWAP16PTR(pabyTemp);
+                    else if (bSwap && nDTSize == 4)
+                        CPL_SWAP32PTR(pabyTemp);
+                    else if (bSwap && nDTSize == 8)
+                        CPL_SWAP64PTR(pabyTemp);
+                }
+                else if (bHasNoData && dfNoDataValue != 0)
+                {
+                    GDALCopyWords(&dfNoDataValue, GDT_Float64, 0, pabyTemp, eDT,
+                                  0, 1);
+                }
+
+                pabyTemp += nDTSize;
+            }
+        }
+    }
+
+    {
+        GDALRasterIOExtraArg sExtraArg;
+        INIT_RASTERIO_EXTRA_ARG(sExtraArg);
+        eRet = poMemDS->RasterIO(GF_Read, 0, 0, nTmpWidth, nTmpHeight, pData,
+                                 nBufXSize, nBufYSize, eBufType, nBandCount,
+                                 nullptr, nPixelSpace, nLineSpace, nBandSpace,
+                                 &sExtraArg);
+    }
+
+end:
+
+    fp->Seek(nCurPos, SEEK_SET);
+
+    if (m_nCompression == COMPRESSION_ADOBE_DEFLATE)
+        inflateEnd(&strm);
+    else if (m_nCompression == COMPRESSION_LZW)
+        GDALGTiffLZWDecompressorFree(lzwDec);
+
+    return eRet;
 }
 
 /************************************************************************/

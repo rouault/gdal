@@ -394,6 +394,12 @@ class GTiffDataset final : public GDALPamDataset
                      GSpacing nPixelSpace, GSpacing nLineSpace,
                      GSpacing nBandSpace, GDALRasterIOExtraArg *psExtraArg);
 
+    CPLErr ExtremeTiledDownsampling(void *pData, int nBufXSize, int nBufYSize,
+                                    GDALDataType eBufType, int nBandCount,
+                                    int *panBandMap, GSpacing nPixelSpace,
+                                    GSpacing nLineSpace, GSpacing nBandSpace,
+                                    GDALRasterIOExtraArg *psExtraArg);
+
     void SetStructuralMDFromParent(GTiffDataset *poParentDS);
 
     template <class FetchBuffer>
