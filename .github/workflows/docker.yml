@@ -1,0 +1,75 @@
+name: Docker
+
+on:
+  # Run this action on a schedule
+  schedule:
+    - cron: '0 3 * * *' # Everyday at 03:00 UTC
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+# adapted from https://raw.githubusercontent.com/stefanprodan/podinfo/master/.github/workflows/release.yml
+#
+jobs:
+  containers:
+    name: ${{ matrix.container }} Container
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        container: ["alpine-normal","alpine-small","ubuntu-small","ubuntu-full"]
+    env:
+      PUSH_PACKAGES: ${{ github.repository_owner == 'OSGeo' && github.event_name != 'pull_request' }}
+      CONTAINER: ${{ matrix.container }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Lint
+        id: lint
+        run: |
+          echo "are we pushing packages" ${{ env.PUSH_PACKAGES }}
+          echo "event_name" ${{ github.event_name }}
+          echo "ref" ${{ github.ref }}
+      - name: Install arm64 support
+        run: |
+          sudo apt-get install -f qemu binfmt-support qemu-user-static
+          # This step will execute the registering scripts
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          # Testing the emulation environment
+          docker run --rm -t arm64v8/ubuntu uname -m
+      - name: Setup Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          version: latest
+      - if: ${{ env.PUSH_PACKAGES == 'true' }}
+        name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
+      #- if: ${{ env.PUSH_PACKAGES == 'true' }}
+      #  name: Login to Docker Hub
+      #  uses: docker/login-action@v2
+      #  with:
+      #    username: ${{ secrets.DOCKER_USERNAME }}
+      #    password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Prepare
+        id: prep
+        run: |
+          VERSION=latest
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF/refs\/tags\//}
+          fi
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+      - name: Build image
+        run: |
+           if test "${PUSH_PACKAGES}" = "true"; then
+             ./docker/${CONTAINER}/build.sh --push;
+           else
+             ./docker/${CONTAINER}/build.sh;
+           fi
