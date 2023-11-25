@@ -2,8 +2,11 @@ name: Docker
 
 on:
   # Run this action on a schedule
-  schedule:
-    - cron: '0 3 * * *' # Everyday at 03:00 UTC
+  # schedule:
+  #  - cron: '0 3 * * *' # Everyday at 03:00 UTC
+  push:
+     paths-ignore:
+        - 'doc/**'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
