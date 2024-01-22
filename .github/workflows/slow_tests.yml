@@ -107,7 +107,7 @@ jobs:
       # different architecture.
       - name: Restore build cache
         id: restore-cache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/.ccache
           key: ${{ matrix.id }}-${{ steps.get-arch.outputs.arch }}-${{ github.ref_name }}-${{ github.run_id }}
@@ -147,7 +147,7 @@ jobs:
             ccache -s
 
       - name: Save build cache
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: ${{ github.workspace }}/.ccache
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
