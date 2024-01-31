@@ -562,7 +562,7 @@ jobs:
       # Arrow/Parquet libraries to be built with AVX2 support but the VM worker
       # doesn't support it.
       # Disable use of libkml since boost headers cannot be found
-      CMAKE_OPTIONS: -DCFITSIO_ROOT=/usr/local/opt/cfitsio  -DPoppler_ROOT=/usr/local/opt/poppler -DPROJ_ROOT=/usr/local/opt/proj -DSPATIALITE_ROOT=/usr/local/opt/libspatialite -DPostgreSQL_ROOT=/usr/local/opt/libpq -DEXPAT_ROOT=/usr/local/opt/expat -DXercesC_ROOT=/usr/local/opt/xerces-c -DSQLite3_ROOT=/usr/local/opt/sqlite -DOpenSSL_ROOT=/usr/local/opt/openssl -DPNG_ROOT=/usr/local/opt/libpng -DJPEG_ROOT=/usr/local/opt/jpeg-turbo -DEXPECTED_JPEG_LIB_VERSION=80 -DOpenJPEG_ROOT=/usr/local/opt/openjpeg -DCURL_ROOT=/usr/local/opt/curl -DGDAL_USE_ARROW=OFF -DGDAL_USE_PARQUET=OFF -DGDAL_USE_LIBKML=OFF
+      CMAKE_OPTIONS: -DCFITSIO_ROOT=/opt/homebrew/cfitsio  -DPoppler_ROOT=/opt/homebrew/poppler -DPROJ_ROOT=/opt/homebrew/proj -DSPATIALITE_ROOT=/opt/homebrew/libspatialite -DPostgreSQL_ROOT=/opt/homebrew/libpq -DEXPAT_ROOT=/opt/homebrew/expat -DXercesC_ROOT=/opt/homebrew/xerces-c -DSQLite3_ROOT=/opt/homebrew/sqlite -DOpenSSL_ROOT=/opt/homebrew/openssl -DPNG_ROOT=/opt/homebrew/libpng -DJPEG_ROOT=/opt/homebrew/jpeg-turbo -DEXPECTED_JPEG_LIB_VERSION=80 -DOpenJPEG_ROOT=/opt/homebrew/openjpeg -DCURL_ROOT=/opt/homebrew/curl -DGDAL_USE_LIBKML=OFF
       cache-name: cmake-macos
     steps:
     - name: Setup xcode
@@ -584,7 +584,7 @@ jobs:
         cmake --version
     - name: Install dependency
       run: |
-        rm -rf /usr/local/lib/node_modules # conflicts with node@18 from brew
+        rm -rf /opt/homebrew/lib/node_modules # conflicts with node@18 from brew
         brew update
         brew outdated
         brew unlink python
@@ -594,8 +594,7 @@ jobs:
         brew install ccache swig
         # gdal is automatically installed as a dependency for postgis
         brew uninstall --ignore-dependencies gdal
-        # Remove broken Arrow as it causes CMake detection issue
-        rm -rf /usr/local/lib/cmake/Arrow
+        find /opt/homebrew
     - name: Configure ccache
       run: |
           echo CCACHE_BASEDIR=$PWD >> ${GITHUB_ENV}
@@ -606,7 +605,7 @@ jobs:
     - name: Configure
       run: |
         mkdir -p $GITHUB_WORKSPACE/build
-        export PKG_CONFIG_PATH=/usr/local/opt/libxml2/lib/pkgconfig
+        export PKG_CONFIG_PATH=/opt/homebrew/libxml2/lib/pkgconfig
         # FIXME: remove -DBUILD_PYTHON_BINDINGS=OFF. Python tests fail with "ModuleNotFoundError: No module named '_gdal'" with macos-12
         cmake -Werror=dev -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/install-gdal ${CMAKE_OPTIONS} -DCMAKE_C_FLAGS=-Werror -DCMAKE_CXX_FLAGS=-Werror -DUSE_CCACHE=ON -DCMAKE_UNITY_BUILD=${CMAKE_UNITY_BUILD} -S "$GITHUB_WORKSPACE" -B "$GITHUB_WORKSPACE/build" -DWERROR_DEV_FLAG="-Werror=dev" -DBUILD_PYTHON_BINDINGS=OFF
         #$(cat $GITHUB_WORKSPACE/build/python_executable.txt) -m pip install --user -r $GITHUB_WORKSPACE/autotest/requirements.txt
