@@ -102,9 +102,10 @@ struct GCPTransformInfo
     volatile int nRefCount{};
 };
 
+static CPLXMLNode *GDALSerializeGCPTransformer(void *pTransformArg);
+
 CPL_C_START
-CPLXMLNode *GDALSerializeGCPTransformer(void *pTransformArg);
-void *GDALDeserializeGCPTransformer(CPLXMLNode *psTree);
+void *GDALDeserializeGCPTransformer(const CPLXMLNode *psTree);
 CPL_C_END
 
 /* crs.c */
@@ -501,7 +502,7 @@ CPLXMLNode *GDALSerializeGCPTransformer(void *pTransformArg)
 /*               GDALDeserializeReprojectionTransformer()               */
 /************************************************************************/
 
-void *GDALDeserializeGCPTransformer(CPLXMLNode *psTree)
+void *GDALDeserializeGCPTransformer(const CPLXMLNode *psTree)
 
 {
     std::vector<gdal::GCP> asGCPs;
@@ -515,7 +516,7 @@ void *GDALDeserializeGCPTransformer(CPLXMLNode *psTree)
     /* -------------------------------------------------------------------- */
     /*      Check for GCPs.                                                 */
     /* -------------------------------------------------------------------- */
-    CPLXMLNode *psGCPList = CPLGetXMLNode(psTree, "GCPList");
+    const CPLXMLNode *psGCPList = CPLGetXMLNode(psTree, "GCPList");
 
     if (psGCPList != nullptr)
     {
