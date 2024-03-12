@@ -216,7 +216,7 @@ static void CPL_STDCALL GMLASConfigurationErrorHandler(CPLErr /*eErr*/,
 /************************************************************************/
 
 static void ParseNamespaces(CPLXMLNode *psContainerNode,
-                            std::map<CPLString, CPLString> &oMap)
+                            cpl::map<CPLString, CPLString> &oMap)
 {
     CPLXMLNode *psNamespaces = CPLGetXMLNode(psContainerNode, "Namespaces");
     if (psNamespaces != nullptr)
@@ -232,7 +232,7 @@ static void ParseNamespaces(CPLXMLNode *psContainerNode,
                 const std::string osURI = CPLGetXMLValue(psIter, "uri", "");
                 if (!osPrefix.empty() && !osURI.empty())
                 {
-                    if (oMap.find(osPrefix) == oMap.end())
+                    if (!oMap.contains(osPrefix))
                     {
                         oMap[osPrefix] = osURI;
                     }

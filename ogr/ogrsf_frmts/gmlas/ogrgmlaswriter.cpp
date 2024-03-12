@@ -98,7 +98,7 @@ class GMLASWriter
     OGRLayer *m_poLayerRelationshipsLayer;
     std::vector<LayerDescription> m_aoLayerDesc;
     std::map<CPLString, int> m_oMapLayerNameToIdx;
-    std::map<CPLString, int> m_oMapXPathToIdx;
+    cpl::map<CPLString, int> m_oMapXPathToIdx;
     std::map<CPLString, OGRLayer *> m_oMapLayerNameToLayer;
     std::map<CPLString, XPathComponents> m_oMapXPathToComponents;
     std::map<const OGRSpatialReference *, bool> m_oMapSRSToCoordSwap;
@@ -298,7 +298,7 @@ bool GMLASWriter::Write(GDALProgressFunc pfnProgress, void *pProgressData)
     CPLString osXSDFilenames =
         CSLFetchNameValueDef(m_papszOptions, szINPUT_XSD_OPTION, "");
     std::vector<PairURIFilename> aoXSDs;
-    std::map<CPLString, CPLString> oMapURIToPrefix;
+    cpl::map<CPLString, CPLString> oMapURIToPrefix;
     CPLString osGMLVersion;
 
     if (!osXSDFilenames.empty())
@@ -388,13 +388,15 @@ bool GMLASWriter::Write(GDALProgressFunc pfnProgress, void *pProgressData)
 
     for (int i = 1; i <= static_cast<int>(oMapToUri.size()); ++i)
     {
-        if (oMapToUri.find(i) != oMapToUri.end())
+        const auto oIter = oMapToUri.find(i);
+        if (oIter != oMapToUri.end())
         {
-            const CPLString &osURI(oMapToUri[i]);
+            const CPLString &osURI(oIter->second);
             aoXSDs.push_back(PairURIFilename(osURI, oMapToLocation[i]));
-            if (oMapToPrefix.find(i) != oMapToPrefix.end())
+            const auto oIter2 = oMapToPrefix.find(i);
+            if (oIter2 != oMapToPrefix.end())
             {
-                oMapURIToPrefix[osURI] = oMapToPrefix[i];
+                oMapURIToPrefix[osURI] = oIter2->second;
             }
         }
     }
@@ -503,9 +505,9 @@ bool GMLASWriter::Write(GDALProgressFunc pfnProgress, void *pProgressData)
                               CPLSPrintf("%d", m_oConf.m_nIndentSize)))));
     m_osIndentation.assign(nIndentSize, ' ');
 
-    if (oMapURIToPrefix.find(szGML32_URI) != oMapURIToPrefix.end() ||
+    if (oMapURIToPrefix.contains(szGML32_URI) ||
         // Used by tests
-        oMapURIToPrefix.find("http://fake_gml32") != oMapURIToPrefix.end())
+        oMapURIToPrefix.contains("http://fake_gml32"))
     {
         m_osGMLVersion = "3.2.1";
     }
@@ -917,8 +919,7 @@ bool GMLASWriter::CollectLayers()
                      desc.osName.c_str());
             return false;
         }
-        if (!desc.bIsJunction &&
-            m_oMapXPathToIdx.find(desc.osXPath) != m_oMapXPathToIdx.end())
+        if (!desc.bIsJunction && m_oMapXPathToIdx.contains(desc.osXPath))
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "Several layers with same %s = %s", szLAYER_XPATH,

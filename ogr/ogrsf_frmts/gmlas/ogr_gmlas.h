@@ -31,6 +31,8 @@
 #ifndef OGR_GMLAS_INCLUDED
 #define OGR_GMLAS_INCLUDED
 
+#include "cpl_std_ext.h"
+
 #include "xercesc_headers.h"
 #include "ogr_xerces.h"
 
@@ -398,7 +400,7 @@ class GMLASConfiguration
     bool m_bExposeMetadataLayers;
 
     /** For flatening rules, map prefix namespace to its URI */
-    std::map<CPLString, CPLString> m_oMapPrefixToURIFlatteningRules;
+    cpl::map<CPLString, CPLString> m_oMapPrefixToURIFlatteningRules;
 
     std::vector<CPLString> m_osForcedFlattenedXPath;
 
@@ -421,13 +423,13 @@ class GMLASConfiguration
     bool m_bSWEProcessDataArray;
 
     /** For ignored xpaths, map prefix namespace to its URI */
-    std::map<CPLString, CPLString> m_oMapPrefixToURIIgnoredXPaths;
+    cpl::map<CPLString, CPLString> m_oMapPrefixToURIIgnoredXPaths;
 
     /** Ignored xpaths */
     std::vector<CPLString> m_aosIgnoredXPaths;
 
     /** For type constraints, map prefix namespace to its URI */
-    std::map<CPLString, CPLString> m_oMapPrefixToURITypeConstraints;
+    cpl::map<CPLString, CPLString> m_oMapPrefixToURITypeConstraints;
 
     /** Map an XPath to a list of potential types for its children */
     std::map<CPLString, std::vector<CPLString>>
@@ -1119,7 +1121,7 @@ class GMLASSchemaAnalyzer
         const CPLString &osParentXPath, XSModelGroup *poModelGroup,
         int nRecursionCounter,
         std::set<XSElementDeclaration *> &oSetVisitedEltDecl,
-        std::set<XSModelGroup *> &oSetVisitedModelGroups,
+        cpl::set<XSModelGroup *> &oSetVisitedModelGroups,
         std::vector<XSElementDeclaration *> &oVectorEltsForTopClass,
         std::set<CPLString> &aoSetXPathEltsForTopClass, XSModel *poModel,
         bool &bSimpleEnoughOut, int &nCountSubEltsOut);

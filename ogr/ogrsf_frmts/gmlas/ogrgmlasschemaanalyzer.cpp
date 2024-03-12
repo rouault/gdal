@@ -1082,14 +1082,14 @@ bool GMLASSchemaAnalyzer::Analyze(GMLASXSDCache &oCache,
     // Find which elements must be top levels (because referenced several
     // times)
     std::set<XSElementDeclaration *> oSetVisitedEltDecl;
-    std::set<XSModelGroup *> oSetVisitedModelGroups;
+    cpl::set<XSModelGroup *> oSetVisitedModelGroups;
     std::vector<XSElementDeclaration *> oVectorEltsForTopClass;
 
     // For some reason, different XSElementDeclaration* can point to the
     // same element, but we only want to instantiate a single class.
     // This is the case for base:SpatialDataSet in
     // inspire/geologicalunit/geologicalunit.gml test dataset.
-    std::set<CPLString> aoSetXPathEltsForTopClass;
+    cpl::set<CPLString> aoSetXPathEltsForTopClass;
 
     // Third and fourth passes
     for (int iPass = 0; iPass < 2; ++iPass)
@@ -1146,8 +1146,7 @@ bool GMLASSchemaAnalyzer::Analyze(GMLASXSDCache &oCache,
                                     .c_str());
 #endif
                             oSetVisitedEltDecl.insert(poEltDecl);
-                            if (aoSetXPathEltsForTopClass.find(osXPath) ==
-                                aoSetXPathEltsForTopClass.end())
+                            if (!aoSetXPathEltsForTopClass.contains(osXPath))
                             {
                                 m_oSetEltsForTopClass.insert(poEltDecl);
                                 oVectorEltsForTopClass.push_back(poEltDecl);
@@ -1831,7 +1830,7 @@ void GMLASSchemaAnalyzer::CreateNonNestedRelationship(
         apoImplEltList.insert(apoImplEltList.begin(), poElt);
     }
 
-    std::set<CPLString> aoSetSubEltXPath;
+    cpl::set<CPLString> aoSetSubEltXPath;
     if (nMaxOccurs == 1 && !bForceJunctionTable)
     {
         // If the field isn't repeated, then we can link to each
@@ -1845,7 +1844,7 @@ void GMLASSchemaAnalyzer::CreateNonNestedRelationship(
                 MakeXPath(transcode(poSubElt->getNamespace()), osSubEltName));
 
             // For AbstractFeature_SpatialDataSet_pkid in SpatialDataSet_member
-            if (aoSetSubEltXPath.find(osSubEltXPath) != aoSetSubEltXPath.end())
+            if (aoSetSubEltXPath.contains(osSubEltXPath))
             {
                 continue;
             }
@@ -1911,7 +1910,7 @@ void GMLASSchemaAnalyzer::CreateNonNestedRelationship(
                 MakeXPath(transcode(poSubElt->getNamespace()), osSubEltName));
 
             // For AbstractFeature_SpatialDataSet_pkid in SpatialDataSet_member
-            if (aoSetSubEltXPath.find(osSubEltXPath) != aoSetSubEltXPath.end())
+            if (aoSetSubEltXPath.contains(osSubEltXPath))
             {
                 continue;
             }
@@ -2031,13 +2030,13 @@ bool GMLASSchemaAnalyzer::IsIgnoredXPath(const CPLString &osXPath)
 bool GMLASSchemaAnalyzer::FindElementsWithMustBeToLevel(
     const CPLString &osParentXPath, XSModelGroup *poModelGroup,
     int nRecursionCounter, std::set<XSElementDeclaration *> &oSetVisitedEltDecl,
-    std::set<XSModelGroup *> &oSetVisitedModelGroups,
+    cpl::set<XSModelGroup *> &oSetVisitedModelGroups,
     std::vector<XSElementDeclaration *> &oVectorEltsForTopClass,
     std::set<CPLString> &aoSetXPathEltsForTopClass, XSModel *poModel,
     bool &bSimpleEnoughOut, int &nCountSubEltsOut)
 {
-    const bool bAlreadyVisitedMG = (oSetVisitedModelGroups.find(poModelGroup) !=
-                                    oSetVisitedModelGroups.end());
+    const bool bAlreadyVisitedMG =
+        oSetVisitedModelGroups.contains(poModelGroup);
 
     oSetVisitedModelGroups.insert(poModelGroup);
 

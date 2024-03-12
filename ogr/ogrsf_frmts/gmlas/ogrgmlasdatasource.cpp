@@ -566,7 +566,7 @@ void OGRGMLASDataSource::FillOtherMetadataLayer(
     }
 
     int nNSIdx = 1;
-    std::set<CPLString> oSetVisitedURI;
+    cpl::set<CPLString> oSetVisitedURI;
     for (int i = 0; i < static_cast<int>(aoXSDs.size()); i++)
     {
         const CPLString osURI(aoXSDs[i].first);
@@ -599,12 +599,13 @@ void OGRGMLASDataSource::FillOtherMetadataLayer(
         CPL_IGNORE_RET_VAL(m_poOtherMetadataLayer->CreateFeature(poFeature));
         delete poFeature;
 
-        if (m_oMapURIToPrefix.find(osURI) != m_oMapURIToPrefix.end())
+        const auto oIter = m_oMapURIToPrefix.find(osURI);
+        if (oIter != m_oMapURIToPrefix.end())
         {
             poFeature = new OGRFeature(poFDefn);
             poFeature->SetField(szKEY,
                                 CPLSPrintf(szNAMESPACE_PREFIX_FMT, nNSIdx));
-            poFeature->SetField(szVALUE, m_oMapURIToPrefix[osURI].c_str());
+            poFeature->SetField(szVALUE, oIter->second.c_str());
             CPL_IGNORE_RET_VAL(
                 m_poOtherMetadataLayer->CreateFeature(poFeature));
             delete poFeature;
@@ -618,9 +619,9 @@ void OGRGMLASDataSource::FillOtherMetadataLayer(
         const CPLString &osURI(oIter.first);
         const CPLString &osPrefix(oIter.second);
 
-        if (oSetVisitedURI.find(osURI) == oSetVisitedURI.end() &&
-            osURI != szXML_URI && osURI != szXS_URI && osURI != szXSI_URI &&
-            osURI != szXMLNS_URI && osURI != szOGRGMLAS_URI)
+        if (!oSetVisitedURI.contains(osURI) && osURI != szXML_URI &&
+            osURI != szXS_URI && osURI != szXSI_URI && osURI != szXMLNS_URI &&
+            osURI != szOGRGMLAS_URI)
         {
             OGRFeature *poFeature = new OGRFeature(poFDefn);
             poFeature->SetField(szKEY, CPLSPrintf(szNAMESPACE_URI_FMT, nNSIdx));
@@ -1319,7 +1320,7 @@ bool OGRGMLASDataSource::RunFirstPassIfNeeded(GMLASReader *poReader,
         // No need to warn afterwards
         m_oConf.m_oMapIgnoredXPathToWarn.clear();
 
-        std::set<CPLString> aoSetRemovedLayerNames;
+        cpl::set<CPLString> aoSetRemovedLayerNames;
         bSuccess = poReaderFirstPass->RunFirstPass(
             pfnProgress, pProgressData, m_bRemoveUnusedLayers,
             m_bRemoveUnusedFields,
@@ -1349,8 +1350,7 @@ bool OGRGMLASDataSource::RunFirstPassIfNeeded(GMLASReader *poReader,
             {
                 const char *pszLayerName =
                     poFeature->GetFieldAsString(szLAYER_NAME);
-                if (aoSetRemovedLayerNames.find(pszLayerName) !=
-                    aoSetRemovedLayerNames.end())
+                if (aoSetRemovedLayerNames.contains(pszLayerName))
                 {
                     CPL_IGNORE_RET_VAL(m_poLayersMetadataLayer->DeleteFeature(
                         poFeature->GetFID()));
@@ -1367,10 +1367,8 @@ bool OGRGMLASDataSource::RunFirstPassIfNeeded(GMLASReader *poReader,
                     poFeature->GetFieldAsString(szLAYER_NAME);
                 const char *pszRelatedLayerName =
                     poFeature->GetFieldAsString(szFIELD_RELATED_LAYER);
-                if (aoSetRemovedLayerNames.find(pszLayerName) !=
-                        aoSetRemovedLayerNames.end() ||
-                    aoSetRemovedLayerNames.find(pszRelatedLayerName) !=
-                        aoSetRemovedLayerNames.end())
+                if (aoSetRemovedLayerNames.contains(pszLayerName) ||
+                    aoSetRemovedLayerNames.contains(pszRelatedLayerName))
                 {
                     CPL_IGNORE_RET_VAL(m_poFieldsMetadataLayer->DeleteFeature(
                         poFeature->GetFID()));
@@ -1387,10 +1385,8 @@ bool OGRGMLASDataSource::RunFirstPassIfNeeded(GMLASReader *poReader,
                     poFeature->GetFieldAsString(szPARENT_LAYER);
                 const char *pszChildLayerName =
                     poFeature->GetFieldAsString(szCHILD_LAYER);
-                if (aoSetRemovedLayerNames.find(pszParentLayerName) !=
-                        aoSetRemovedLayerNames.end() ||
-                    aoSetRemovedLayerNames.find(pszChildLayerName) !=
-                        aoSetRemovedLayerNames.end())
+                if (aoSetRemovedLayerNames.contains(pszParentLayerName) ||
+                    aoSetRemovedLayerNames.contains(pszChildLayerName))
                 {
                     CPL_IGNORE_RET_VAL(m_poRelationshipsLayer->DeleteFeature(
                         poFeature->GetFID()));
