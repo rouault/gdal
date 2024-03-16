@@ -57,6 +57,18 @@
 #include "memdataset.h"
 #include "vrtdataset.h"
 
+#if defined(__x86_64) || defined(_M_X64)
+#include <emmintrin.h>
+#define HAVE_SSE2
+#elif defined(USE_NEON_OPTIMIZATIONS)
+#include "include_sse2neon.h"
+#define HAVE_SSE2
+#endif
+
+#ifdef HAVE_SSSE3_AT_COMPILE_TIME
+#include "rasterio_ssse3.h"
+#endif
+
 static void GDALFastCopyByte(const GByte *CPL_RESTRICT pSrcData,
                              int nSrcPixelStride, GByte *CPL_RESTRICT pDstData,
                              int nDstPixelStride, GPtrDiff_t nWordCount);
@@ -2192,9 +2204,7 @@ static void inline GDALCopyWordsT_8atatime(
     }
 }
 
-#if defined(__x86_64) || defined(_M_X64)
-
-#include <emmintrin.h>
+#ifdef HAVE_SSE2
 
 template <class Tout>
 void GDALCopyWordsByteTo16Bit(const GByte *const CPL_RESTRICT pSrcData,
@@ -2605,7 +2615,7 @@ void GDALCopyWordsT(const double *const CPL_RESTRICT pSrcData,
                             nDstPixelStride, nWordCount);
 }
 
-#endif  // defined(__x86_64) || defined(_M_X64)
+#endif  // HAVE_SSE2
 
 template <>
 void GDALCopyWordsT(const float *const CPL_RESTRICT pSrcData,
@@ -3043,13 +3053,7 @@ static inline void GDALUnrolledCopy(T *CPL_RESTRICT pDest,
     GDALUnrolledCopyGeneric<T, srcStride, dstStride>(pDest, pSrc, nIters);
 }
 
-#if (defined(__x86_64) || defined(_M_X64))
-
-#ifdef HAVE_SSSE3_AT_COMPILE_TIME
-
-#include "rasterio_ssse3.h"
-
-#endif
+#ifdef HAVE_SSE2
 
 template <>
 void GDALUnrolledCopy<GByte, 2, 1>(GByte *CPL_RESTRICT pDest,
@@ -3150,7 +3154,7 @@ void GDALUnrolledCopy<GByte, 4, 1>(GByte *CPL_RESTRICT pDest,
         pSrc += 4;
     }
 }
-#endif  // defined(__x86_64) || defined(_M_X64)
+#endif  // HAVE_SSE2
 
 /************************************************************************/
 /*                         GDALFastCopy()                               */
@@ -5256,13 +5260,7 @@ bool GDALBufferHasOnlyNoData(const void *pBuffer, double dfNoDataValue,
     return false;
 }
 
-#if defined(__x86_64) || defined(_M_X64)
-
-#include <emmintrin.h>
-
-#ifdef HAVE_SSSE3_AT_COMPILE_TIME
-#include "rasterio_ssse3.h"
-#endif
+#ifdef HAVE_SSE2
 
 /************************************************************************/
 /*                    GDALDeinterleave3Byte()                           */
@@ -5276,6 +5274,12 @@ GDALDeinterleave3Byte(const GByte *CPL_RESTRICT pabySrc,
                       GByte *CPL_RESTRICT pabyDest0,
                       GByte *CPL_RESTRICT pabyDest1,
                       GByte *CPL_RESTRICT pabyDest2, size_t nIters)
+#ifdef USE_NEON_OPTIMIZATIONS
+{
+    return GDALDeinterleave3Byte_SSSE3(pabySrc, pabyDest0, pabyDest1, pabyDest2,
+                                       nIters);
+}
+#else
 {
 #ifdef HAVE_SSSE3_AT_COMPILE_TIME
     if (CPLHaveRuntimeSSSE3())
@@ -5323,6 +5327,7 @@ GDALDeinterleave3Byte(const GByte *CPL_RESTRICT pabySrc,
         pabyDest2[i] = pabySrc[3 * i + 2];
     }
 }
+#endif
 
 /************************************************************************/
 /*                    GDALDeinterleave4Byte()                           */
@@ -5378,6 +5383,12 @@ static void GDALDeinterleave4Byte(const GByte *CPL_RESTRICT pabySrc,
                                   GByte *CPL_RESTRICT pabyDest1,
                                   GByte *CPL_RESTRICT pabyDest2,
                                   GByte *CPL_RESTRICT pabyDest3, size_t nIters)
+#ifdef USE_NEON_OPTIMIZATIONS
+{
+    return GDALDeinterleave4Byte_SSSE3(pabySrc, pabyDest0, pabyDest1, pabyDest2,
+                                       pabyDest3, nIters);
+}
+#else
 {
 #ifdef HAVE_SSSE3_AT_COMPILE_TIME
     if (CPLHaveRuntimeSSSE3())
@@ -5426,6 +5437,7 @@ static void GDALDeinterleave4Byte(const GByte *CPL_RESTRICT pabySrc,
         pabyDest3[i] = pabySrc[4 * i + 3];
     }
 }
+#endif
 #else
 // GCC autovectorizer does an excellent job
 __attribute__((optimize("tree-vectorize"))) static void GDALDeinterleave4Byte(
@@ -5553,8 +5565,7 @@ void GDALDeinterleave(const void *pSourceBuffer, GDALDataType eSourceDT,
         }
 #if ((defined(__GNUC__) && !defined(__clang__)) ||                             \
      defined(__INTEL_CLANG_COMPILER)) &&                                       \
-    (defined(__x86_64) || defined(_M_X64)) &&                                  \
-    defined(HAVE_SSSE3_AT_COMPILE_TIME)
+    defined(HAVE_SSE2) && defined(HAVE_SSSE3_AT_COMPILE_TIME)
         else if ((eSourceDT == GDT_Int16 || eSourceDT == GDT_UInt16) &&
                  CPLHaveRuntimeSSSE3())
         {
