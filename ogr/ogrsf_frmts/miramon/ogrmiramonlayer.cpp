@@ -35,15 +35,14 @@
 /****************************************************************************/
 OGRMiraMonLayer::OGRMiraMonLayer(const char *pszFilename, VSILFILE *fp,
                                  const OGRSpatialReference *poSRS,
-                                 int bUpdateIn, char **papszOpenOptions,
+                                 int bUpdateIn, CSLConstList papszOpenOptions,
                                  struct MiraMonVectMapInfo *MMMap)
     : poFeatureDefn(nullptr), iNextFID(0), phMiraMonLayer(nullptr),
       hMiraMonLayerPNT(), hMiraMonLayerARC(), hMiraMonLayerPOL(),
       hMiraMonLayerReadOrNonGeom(), hMMFeature(),
       bUpdate(CPL_TO_BOOL(bUpdateIn)), nMMMemoryRatio(1.0),
       m_fp(fp ? fp : VSIFOpenL(pszFilename, (bUpdateIn ? "r+" : "r"))),
-      papszKeyedValues(nullptr), papszValues(nullptr), padfValues(nullptr),
-      bValidFile(false)
+      papszValues(nullptr), padfValues(nullptr), bValidFile(false)
 {
 
     CPLDebug("MiraMon", "Creating/Opening MiraMon layer...");
@@ -228,8 +227,8 @@ OGRMiraMonLayer::OGRMiraMonLayer(const char *pszFilename, VSILFILE *fp,
             nMMLayerVersion = MMGetVectorVersion(&phMiraMonLayer->TopHeader);
             if (nMMLayerVersion == MM_UNKNOWN_VERSION)
             {
-                MMCPLError(CE_Failure, CPLE_NotSupported,
-                           "MiraMon version file unknown.");
+                CPLError(CE_Failure, CPLE_NotSupported,
+                         "MiraMon version file unknown.");
                 bValidFile = false;
                 return;
             }
@@ -267,8 +266,8 @@ OGRMiraMonLayer::OGRMiraMonLayer(const char *pszFilename, VSILFILE *fp,
             }
             else
             {
-                MMCPLError(CE_Failure, CPLE_NotSupported,
-                           "MiraMon file type not supported.");
+                CPLError(CE_Failure, CPLE_NotSupported,
+                         "MiraMon file type not supported.");
                 bValidFile = false;
                 return;
             }
@@ -341,7 +340,8 @@ OGRMiraMonLayer::OGRMiraMonLayer(const char *pszFilename, VSILFILE *fp,
                 }
             }
 
-            if (phMiraMonLayer->pMMBDXP)
+            // If there is associated information
+            if (phMiraMonLayer->pMMBDXP && phMiraMonLayer->pMMBDXP->nRecords)
             {
                 if (!phMiraMonLayer->pMMBDXP->pfDataBase)
                 {
@@ -359,7 +359,6 @@ OGRMiraMonLayer::OGRMiraMonLayer(const char *pszFilename, VSILFILE *fp,
                     // to fastly find all non geometrical features.
                     phMiraMonLayer->pMultRecordIndex = MMCreateExtendedDBFIndex(
                         phMiraMonLayer->pMMBDXP->pfDataBase,
-                        phMiraMonLayer->pMMBDXP->nRecords,
                         phMiraMonLayer->pMMBDXP->nRecords,
                         phMiraMonLayer->pMMBDXP->FirstRecordOffset,
                         phMiraMonLayer->pMMBDXP->BytesPerRecord,
@@ -507,10 +506,6 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
                  static_cast<int>(m_nFeaturesRead), poFeatureDefn->GetName());
     }
 
-    /* -------------------------------------------------------------------- */
-    /*      Write out the region bounds if we know where they go, and we    */
-    /*      are in update mode.                                             */
-    /* -------------------------------------------------------------------- */
     if (hMiraMonLayerPOL.bIsPolygon)
     {
         CPLDebug("MiraMon", "Closing MiraMon polygons layer...");
@@ -563,44 +558,70 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
     else if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
         CPLDebug("MiraMon", "No MiraMon points layer created.");
 
-    if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
-        CPLDebug("MiraMon", "Closing MiraMon DBF table layer...");
-    MMCloseLayer(&hMiraMonLayerReadOrNonGeom);
-    if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
-        CPLDebug("MiraMon", "MiraMon DBF table layer closed");
+    if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
+    {
+        if (hMiraMonLayerReadOrNonGeom.bIsDBF)
+        {
+            if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+                CPLDebug("MiraMon", "Closing MiraMon DBF table ...");
+            MMCloseLayer(&hMiraMonLayerReadOrNonGeom);
+            if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+                CPLDebug("MiraMon", "MiraMon DBF table closed");
+        }
+        else if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+            CPLDebug("MiraMon", "No MiraMon DBF table created.");
+    }
+    else
+    {
+        if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+            CPLDebug("MiraMon", "Closing MiraMon layer ...");
+        MMCloseLayer(&hMiraMonLayerReadOrNonGeom);
+        if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+            CPLDebug("MiraMon", "MiraMon layer closed");
+    }
 
     if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITTING_MODE)
         MMCPLDebug("MiraMon", "Destroying MiraMon polygons layer memory");
     MMDestroyLayer(&hMiraMonLayerPOL);
     if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITTING_MODE)
         MMCPLDebug("MiraMon", "MiraMon polygons layer memory destroyed");
+
     if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
         MMCPLDebug("MiraMon", "Destroying MiraMon arcs layer memory");
     MMDestroyLayer(&hMiraMonLayerARC);
     if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
         MMCPLDebug("MiraMon", "MiraMon arcs layer memory destroyed");
+
     if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
         MMCPLDebug("MiraMon", "Destroying MiraMon points layer memory");
     MMDestroyLayer(&hMiraMonLayerPNT);
     if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
         MMCPLDebug("MiraMon", "MiraMon points layer memory destroyed");
+
     if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
         MMCPLDebug("MiraMon", "Destroying MiraMon DBF table layer memory");
     else
         MMCPLDebug("MiraMon", "Destroying MiraMon layer memory");
+
     MMDestroyLayer(&hMiraMonLayerReadOrNonGeom);
     if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
         MMCPLDebug("MiraMon", "MiraMon DBF table layer memory destroyed");
     else
         MMCPLDebug("MiraMon", "MiraMon layer memory destroyed");
+
+    memset(&hMiraMonLayerReadOrNonGeom, 0, sizeof(hMiraMonLayerReadOrNonGeom));
+    memset(&hMiraMonLayerPNT, 0, sizeof(hMiraMonLayerPNT));
+    memset(&hMiraMonLayerARC, 0, sizeof(hMiraMonLayerARC));
+    memset(&hMiraMonLayerPOL, 0, sizeof(hMiraMonLayerPOL));
+
     MMCPLDebug("MiraMon", "Destroying MiraMon temporary feature memory");
     MMDestroyFeature(&hMMFeature);
     MMCPLDebug("MiraMon", "MiraMon temporary feature memory");
+    memset(&hMMFeature, 0, sizeof(hMMFeature));
 
     /* -------------------------------------------------------------------- */
     /*      Clean up.                                                       */
     /* -------------------------------------------------------------------- */
-    CSLDestroy(papszKeyedValues);
 
     if (poFeatureDefn)
         poFeatureDefn->Release();
@@ -733,10 +754,10 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                 return nullptr;
             }
 
-            poPoint->setX(phMiraMonLayer->ReadedFeature.pCoord[0].dfX);
-            poPoint->setY(phMiraMonLayer->ReadedFeature.pCoord[0].dfY);
+            poPoint->setX(phMiraMonLayer->ReadFeature.pCoord[0].dfX);
+            poPoint->setY(phMiraMonLayer->ReadFeature.pCoord[0].dfY);
             if (phMiraMonLayer->TopHeader.bIs3d)
-                poPoint->setZ(phMiraMonLayer->ReadedFeature.pZCoord[0]);
+                poPoint->setZ(phMiraMonLayer->ReadFeature.pZCoord[0]);
             break;
 
         case MM_LayerType_Arc:
@@ -752,17 +773,17 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
             }
 
             for (MM_N_VERTICES_TYPE nIVrt = 0;
-                 nIVrt < phMiraMonLayer->ReadedFeature.pNCoordRing[0]; nIVrt++)
+                 nIVrt < phMiraMonLayer->ReadFeature.pNCoordRing[0]; nIVrt++)
             {
                 if (phMiraMonLayer->TopHeader.bIs3d)
                     poLS->addPoint(
-                        phMiraMonLayer->ReadedFeature.pCoord[nIVrt].dfX,
-                        phMiraMonLayer->ReadedFeature.pCoord[nIVrt].dfY,
-                        phMiraMonLayer->ReadedFeature.pZCoord[nIVrt]);
+                        phMiraMonLayer->ReadFeature.pCoord[nIVrt].dfX,
+                        phMiraMonLayer->ReadFeature.pCoord[nIVrt].dfY,
+                        phMiraMonLayer->ReadFeature.pZCoord[nIVrt]);
                 else
                     poLS->addPoint(
-                        phMiraMonLayer->ReadedFeature.pCoord[nIVrt].dfX,
-                        phMiraMonLayer->ReadedFeature.pCoord[nIVrt].dfY);
+                        phMiraMonLayer->ReadFeature.pCoord[nIVrt].dfX,
+                        phMiraMonLayer->ReadFeature.pCoord[nIVrt].dfY);
             }
             break;
 
@@ -788,7 +809,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                 }
 
                 nIVrtAcum = 0;
-                if (!(phMiraMonLayer->ReadedFeature.flag_VFG[0] |
+                if (!(phMiraMonLayer->ReadFeature.flag_VFG[0] |
                       MM_EXTERIOR_ARC_SIDE))
                 {
                     CPLError(CE_Failure, CPLE_NoWriteAccess,
@@ -798,36 +819,35 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                 }
                 MM_BOOLEAN IAmExternal;
 
-                for (nIRing = 0; nIRing < phMiraMonLayer->ReadedFeature.nNRings;
+                for (nIRing = 0; nIRing < phMiraMonLayer->ReadFeature.nNRings;
                      nIRing++)
                 {
                     OGRLinearRing poRing;
 
-                    IAmExternal = (MM_BOOLEAN)(phMiraMonLayer->ReadedFeature
+                    IAmExternal = (MM_BOOLEAN)(phMiraMonLayer->ReadFeature
                                                    .flag_VFG[nIRing] |
                                                MM_EXTERIOR_ARC_SIDE);
 
                     for (MM_N_VERTICES_TYPE nIVrt = 0;
                          nIVrt <
-                         phMiraMonLayer->ReadedFeature.pNCoordRing[nIRing];
+                         phMiraMonLayer->ReadFeature.pNCoordRing[nIRing];
                          nIVrt++)
                     {
                         if (phMiraMonLayer->TopHeader.bIs3d)
                         {
                             poRing.addPoint(
-                                phMiraMonLayer->ReadedFeature.pCoord[nIVrtAcum]
+                                phMiraMonLayer->ReadFeature.pCoord[nIVrtAcum]
                                     .dfX,
-                                phMiraMonLayer->ReadedFeature.pCoord[nIVrtAcum]
+                                phMiraMonLayer->ReadFeature.pCoord[nIVrtAcum]
                                     .dfY,
-                                phMiraMonLayer->ReadedFeature
-                                    .pZCoord[nIVrtAcum]);
+                                phMiraMonLayer->ReadFeature.pZCoord[nIVrtAcum]);
                         }
                         else
                         {
                             poRing.addPoint(
-                                phMiraMonLayer->ReadedFeature.pCoord[nIVrtAcum]
+                                phMiraMonLayer->ReadFeature.pCoord[nIVrtAcum]
                                     .dfX,
-                                phMiraMonLayer->ReadedFeature.pCoord[nIVrtAcum]
+                                phMiraMonLayer->ReadFeature.pCoord[nIVrtAcum]
                                     .dfY);
                         }
 
@@ -836,10 +856,10 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
 
                     // If I'm going to start a new polygon...
                     if ((IAmExternal &&
-                         nIRing + 1 < phMiraMonLayer->ReadedFeature.nNRings &&
-                         ((phMiraMonLayer->ReadedFeature.flag_VFG[nIRing + 1]) &
+                         nIRing + 1 < phMiraMonLayer->ReadFeature.nNRings &&
+                         ((phMiraMonLayer->ReadFeature.flag_VFG[nIRing + 1]) &
                           MM_EXTERIOR_ARC_SIDE)) ||
-                        nIRing + 1 >= phMiraMonLayer->ReadedFeature.nNRings)
+                        nIRing + 1 >= phMiraMonLayer->ReadFeature.nNRings)
                     {
                         poPoly.addRing(&poRing);
                         poMP->addGeometry(&poPoly);
@@ -864,7 +884,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                 }
 
                 nIVrtAcum = 0;
-                if (!(phMiraMonLayer->ReadedFeature.flag_VFG[0] |
+                if (!(phMiraMonLayer->ReadFeature.flag_VFG[0] |
                       MM_EXTERIOR_ARC_SIDE))
                 {
                     CPLError(CE_Failure, CPLE_AssertionFailed,
@@ -873,32 +893,31 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                     return nullptr;
                 }
 
-                for (nIRing = 0; nIRing < phMiraMonLayer->ReadedFeature.nNRings;
+                for (nIRing = 0; nIRing < phMiraMonLayer->ReadFeature.nNRings;
                      nIRing++)
                 {
                     OGRLinearRing poRing;
 
                     for (MM_N_VERTICES_TYPE nIVrt = 0;
                          nIVrt <
-                         phMiraMonLayer->ReadedFeature.pNCoordRing[nIRing];
+                         phMiraMonLayer->ReadFeature.pNCoordRing[nIRing];
                          nIVrt++)
                     {
                         if (phMiraMonLayer->TopHeader.bIs3d)
                         {
                             poRing.addPoint(
-                                phMiraMonLayer->ReadedFeature.pCoord[nIVrtAcum]
+                                phMiraMonLayer->ReadFeature.pCoord[nIVrtAcum]
                                     .dfX,
-                                phMiraMonLayer->ReadedFeature.pCoord[nIVrtAcum]
+                                phMiraMonLayer->ReadFeature.pCoord[nIVrtAcum]
                                     .dfY,
-                                phMiraMonLayer->ReadedFeature
-                                    .pZCoord[nIVrtAcum]);
+                                phMiraMonLayer->ReadFeature.pZCoord[nIVrtAcum]);
                         }
                         else
                         {
                             poRing.addPoint(
-                                phMiraMonLayer->ReadedFeature.pCoord[nIVrtAcum]
+                                phMiraMonLayer->ReadFeature.pCoord[nIVrtAcum]
                                     .dfX,
-                                phMiraMonLayer->ReadedFeature.pCoord[nIVrtAcum]
+                                phMiraMonLayer->ReadFeature.pCoord[nIVrtAcum]
                                     .dfY);
                         }
 
@@ -1438,10 +1457,10 @@ OGRErr OGRMiraMonLayer::MMProcessGeometry(OGRGeometryH hGeom,
             case wkbUnknown:
             default:
             {
-                MMCPLWarning(CE_Warning, CPLE_NotSupported,
-                             "MiraMon "
-                             "does not support %d geometry type",
-                             eLT);
+                CPLError(CE_Warning, CPLE_NotSupported,
+                         "MiraMon "
+                         "does not support geometry type '%d'",
+                         eLT);
                 return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
             }
         }
@@ -1489,6 +1508,7 @@ OGRErr OGRMiraMonLayer::MMProcessGeometry(OGRGeometryH hGeom,
     {
         if (!phMiraMonLayer->bIsBeenInit)
         {
+            phMiraMonLayer->bIsDBF = TRUE;
             MMInitLayerByType(phMiraMonLayer);
             phMiraMonLayer->bIsBeenInit = 1;
         }
@@ -1524,7 +1544,12 @@ OGRErr OGRMiraMonLayer::ICreateFeature(OGRFeature *poFeature)
 
     // Processing a feature without geometry.
     if (poGeom == nullptr)
-        return LOG_ACTION(MMProcessGeometry(nullptr, poFeature, TRUE));
+    {
+        eErr = LOG_ACTION(MMProcessGeometry(nullptr, poFeature, TRUE));
+        if (phMiraMonLayer->bIsDBF)
+            poFeature->SetFID(phMiraMonLayer->TopHeader.nElemCount - 1);
+        return eErr;
+    }
 
     // At this point MiraMon does not support unkwnon type geometry
     if (poGeom->getGeometryType() == wkbUnknown)
@@ -1577,7 +1602,8 @@ OGRErr OGRMiraMonLayer::MMDumpVertices(OGRGeometryH hGeom,
     // here is the moment to do that.
     if (!phMiraMonLayer->bIsBeenInit)
     {
-        MMInitLayerByType(phMiraMonLayer);
+        if (MMInitLayerByType(phMiraMonLayer))
+            return OGRERR_FAILURE;
         phMiraMonLayer->bIsBeenInit = 1;
     }
     if (MMResize_MM_N_VERTICES_TYPE_Pointer(
@@ -1697,7 +1723,7 @@ OGRErr OGRMiraMonLayer::MMLoadGeometry(OGRGeometryH hGeom)
     }
     else if (eLT == wkbGeometryCollection)
     {
-        MMCPLError(
+        CPLError(
             CE_Failure, CPLE_NotSupported,
             "MiraMon: wkbGeometryCollection inside a wkbGeometryCollection?");
         return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
@@ -1820,12 +1846,6 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
 
                 case OFTTime:
                 case OFTDateTime:
-                    MMCPLWarning(
-                        CE_Warning, CPLE_NotSupported,
-                        "MiraMon "
-                        "does not support %d field type. It will be kept "
-                        "as string field type",
-                        poFeatureDefn->GetFieldDefn(iField)->GetType());
                     phMiraMonLayer->pLayerDB->pFields[iField].eFieldType =
                         MM_Character;
                     break;
@@ -2269,9 +2289,9 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
         }
         else
         {
-            MMCPLError(CE_Failure, CPLE_NotSupported,
-                       "MiraMon: Field type %d not processed by MiraMon\n",
-                       eFType);
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "MiraMon: Field type %d not processed by MiraMon\n",
+                     eFType);
             return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
         }
     }

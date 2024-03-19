@@ -56,51 +56,6 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define KEY_characterSet "characterSet"
 #define KEY_Value_characterSet "006"
 
-// MiraMon feature table descriptors
-#define szInternalGraphicIdentifierEng "Internal Graphic identifier"
-#define szInternalGraphicIdentifierCat "Identificador Gràfic intern"
-#define szInternalGraphicIdentifierEsp "Identificador Gráfico interno"
-
-#define szNumberOfVerticesEng "Number of vertices"
-#define szNumberOfVerticesCat "Nombre de vèrtexs"
-#define szNumberOfVerticesEsp "Número de vértices"
-
-#define szLenghtOfAarcEng "Lenght of arc"
-#define szLenghtOfAarcCat "Longitud de l'arc"
-#define szLenghtOfAarcEsp "Longitud del arco"
-
-#define szInitialNodeEng "Initial node"
-#define szInitialNodeCat "Node inicial"
-#define szInitialNodeEsp "Nodo inicial"
-
-#define szFinalNodeEng "Final node"
-#define szFinalNodeCat "Node final"
-#define szFinalNodeEsp "Nodo final"
-
-#define szNumberOfArcsToNodeEng "Number of arcs to node"
-#define szNumberOfArcsToNodeCat "Nombre d'arcs al node"
-#define szNumberOfArcsToNodeEsp "Número de arcos al nodo"
-
-#define szNodeTypeEng "Node type"
-#define szNodeTypeCat "Tipus de node"
-#define szNodeTypeEsp "Tipo de nodo"
-
-#define szPerimeterOfThePolygonEng "Perimeter of the polygon"
-#define szPerimeterOfThePolygonCat "Perímetre del polígon"
-#define szPerimeterOfThePolygonEsp "Perímetro del polígono"
-
-#define szAreaOfThePolygonEng "Area of the polygon"
-#define szAreaOfThePolygonCat "Àrea del polígon"
-#define szAreaOfThePolygonEsp "Área del polígono"
-
-#define szNumberOfArcsEng "Number of arcs"
-#define szNumberOfArcsCat "Nombre d'arcs"
-#define szNumberOfArcsEsp "Número de arcos"
-
-#define szNumberOfElementaryPolygonsEng "Number of elementary polygons"
-#define szNumberOfElementaryPolygonsCat "Nombre de polígons elementals"
-#define szNumberOfElementaryPolygonsEsp "Número de polígonos elementales"
-
 // MiraMon feature field names
 #define szMMNomCampIdGraficDefecte "ID_GRAFIC"
 #define szMMNomCampPerimetreDefecte "PERIMETRE"
@@ -734,6 +689,7 @@ struct MiraMonVectLayerInfo
     unsigned short int bIsArc;   // Also 1 in a polygon layer
     unsigned short int bIsNode;  // Not used in GDAL
     unsigned short int bIsPoint;
+    unsigned short int bIsDBF;  // When there is no geometry
 
     // In writing mode when one of the features is 3D, the MM layer will be 3D,
     // but if none of the features are 3D, then the layer will not be 3D.
@@ -820,7 +776,7 @@ struct MiraMonVectLayerInfo
     char *szStringToOperate;
 
     // Temporary elements when reading features from MiraMon files
-    struct MiraMonFeature ReadedFeature;
+    struct MiraMonFeature ReadFeature;
 
     MM_SELEC_COORDZ_TYPE nSelectCoordz;  // MM_SELECT_FIRST_COORDZ
                                          // MM_SELECT_HIGHEST_COORDZ

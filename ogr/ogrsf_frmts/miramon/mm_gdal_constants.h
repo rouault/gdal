@@ -13,7 +13,8 @@ CPL_C_START  // Necessary for compiling C in GDAL project
 #define strcasecmp stricmp
 #endif
 
-// Common types
+#define MAX_LOCAL_MESSAGE 5000
+
 #define sprintf_UINT64 "%llu"
 
     // Type of the Feature ID: determines the maximum number of features in a layer.
