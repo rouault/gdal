@@ -5543,7 +5543,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
 
     MMWrite_ANSI_MetadataKeyDescriptor(
         hMMMD, pF, szInternalGraphicIdentifierEng,
-        szInternalGraphicIdentifierCat, szInternalGraphicIdentifierEsp);
+        szInternalGraphicIdentifierCat, szInternalGraphicIdentifierSpa);
 
     if (hMMMD->ePlainLT == MM_LayerType_Arc)
     {
@@ -5555,7 +5555,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(hMMMD, pF, szNumberOfVerticesEng,
                                            szNumberOfVerticesCat,
-                                           szNumberOfVerticesEsp);
+                                           szNumberOfVerticesSpa);
 
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
@@ -5564,7 +5564,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "simbolitzable=0" LineReturn);
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(
-            hMMMD, pF, szLenghtOfAarcEng, szLenghtOfAarcCat, szLenghtOfAarcEsp);
+            hMMMD, pF, szLenghtOfAarcEng, szLenghtOfAarcCat, szLenghtOfAarcSpa);
 
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
@@ -5573,7 +5573,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "simbolitzable=0" LineReturn);
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(hMMMD, pF, szInitialNodeEng,
-                                           szInitialNodeCat, szInitialNodeEsp);
+                                           szInitialNodeCat, szInitialNodeSpa);
 
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
@@ -5582,7 +5582,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "simbolitzable=0" LineReturn);
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(hMMMD, pF, szFinalNodeEng,
-                                           szFinalNodeCat, szFinalNodeEsp);
+                                           szFinalNodeCat, szFinalNodeSpa);
 
         fprintf_function(pF, "[GEOMETRIA_I_TOPOLOGIA]" LineReturn);
         fprintf_function(pF, "NomCampNVertexs=%s" LineReturn,
@@ -5604,7 +5604,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(hMMMD, pF, szNumberOfArcsToNodeEng,
                                            szNumberOfArcsToNodeCat,
-                                           szNumberOfArcsToNodeEsp);
+                                           szNumberOfArcsToNodeSpa);
 
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
@@ -5613,7 +5613,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "simbolitzable=0" LineReturn);
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(hMMMD, pF, szNodeTypeEng,
-                                           szNodeTypeCat, szNodeTypeEsp);
+                                           szNodeTypeCat, szNodeTypeSpa);
     }
     else if (hMMMD->ePlainLT == MM_LayerType_Pol)
     {
@@ -5625,7 +5625,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(hMMMD, pF, szNumberOfVerticesEng,
                                            szNumberOfVerticesCat,
-                                           szNumberOfVerticesEsp);
+                                           szNumberOfVerticesSpa);
 
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
@@ -5635,7 +5635,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(
             hMMMD, pF, szPerimeterOfThePolygonEng, szPerimeterOfThePolygonCat,
-            szPerimeterOfThePolygonEsp);
+            szPerimeterOfThePolygonSpa);
 
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
@@ -5645,7 +5645,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(hMMMD, pF, szAreaOfThePolygonEng,
                                            szAreaOfThePolygonCat,
-                                           szAreaOfThePolygonEsp);
+                                           szAreaOfThePolygonSpa);
 
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
@@ -5654,7 +5654,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "simbolitzable=0" LineReturn);
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(
-            hMMMD, pF, szNumberOfArcsEng, szNumberOfArcsCat, szNumberOfArcsEsp);
+            hMMMD, pF, szNumberOfArcsEng, szNumberOfArcsCat, szNumberOfArcsSpa);
 
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
@@ -5664,7 +5664,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(
             hMMMD, pF, szNumberOfElementaryPolygonsEng,
-            szNumberOfElementaryPolygonsCat, szNumberOfElementaryPolygonsEsp);
+            szNumberOfElementaryPolygonsCat, szNumberOfElementaryPolygonsSpa);
 
         fprintf_function(pF, "[GEOMETRIA_I_TOPOLOGIA]" LineReturn);
         fprintf_function(pF, "NomCampNVertexs=%s" LineReturn,

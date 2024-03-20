@@ -190,9 +190,10 @@ CPL_C_START  // Necessary for compiling in GDAL project
 // It is the language of the MiraMon generated descriptors.
 // Metadata will not be translated but these descriptors are
 // generated from scratch and it is good to use a custom language.
-#define MM_ENG_LANGUAGE 0
-#define MM_CAT_LANGUAGE 1
-#define MM_SPA_LANGUAGE 2
+#define MM_DEF_LANGUAGE 0
+#define MM_ENG_LANGUAGE 1
+#define MM_CAT_LANGUAGE 2
+#define MM_SPA_LANGUAGE 3
 
 /* -------------------------------------------------------------------- */
 /*      Structures                                                      */

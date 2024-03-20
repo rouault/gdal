@@ -54,47 +54,47 @@ void MM_FillFieldDescriptorByLanguage(void);
 
 extern char szInternalGraphicIdentifierEng[];
 extern char szInternalGraphicIdentifierCat[];
-extern char szInternalGraphicIdentifierEsp[];
+extern char szInternalGraphicIdentifierSpa[];
 
 extern char szNumberOfVerticesEng[];
 extern char szNumberOfVerticesCat[];
-extern char szNumberOfVerticesEsp[];
+extern char szNumberOfVerticesSpa[];
 
 extern char szLenghtOfAarcEng[];
 extern char szLenghtOfAarcCat[];
-extern char szLenghtOfAarcEsp[];
+extern char szLenghtOfAarcSpa[];
 
 extern char szInitialNodeEng[];
 extern char szInitialNodeCat[];
-extern char szInitialNodeEsp[];
+extern char szInitialNodeSpa[];
 
 extern char szFinalNodeEng[];
 extern char szFinalNodeCat[];
-extern char szFinalNodeEsp[];
+extern char szFinalNodeSpa[];
 
 extern char szNumberOfArcsToNodeEng[];
 extern char szNumberOfArcsToNodeCat[];
-extern char szNumberOfArcsToNodeEsp[];
+extern char szNumberOfArcsToNodeSpa[];
 
 extern char szNodeTypeEng[];
 extern char szNodeTypeCat[];
-extern char szNodeTypeEsp[];
+extern char szNodeTypeSpa[];
 
 extern char szPerimeterOfThePolygonEng[];
 extern char szPerimeterOfThePolygonCat[];
-extern char szPerimeterOfThePolygonEsp[];
+extern char szPerimeterOfThePolygonSpa[];
 
 extern char szAreaOfThePolygonEng[];
 extern char szAreaOfThePolygonCat[];
-extern char szAreaOfThePolygonEsp[];
+extern char szAreaOfThePolygonSpa[];
 
 extern char szNumberOfArcsEng[];
 extern char szNumberOfArcsCat[];
-extern char szNumberOfArcsEsp[];
+extern char szNumberOfArcsSpa[];
 
 extern char szNumberOfElementaryPolygonsEng[];
 extern char szNumberOfElementaryPolygonsCat[];
-extern char szNumberOfElementaryPolygonsEsp[];
+extern char szNumberOfElementaryPolygonsSpa[];
 
 char *MM_strnzcpy(char *dest, const char *src, size_t maxlen);
 char *MM_oemansi(char *szcadena);

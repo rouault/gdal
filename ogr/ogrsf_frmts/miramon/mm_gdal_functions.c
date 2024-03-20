@@ -48,7 +48,7 @@ CPL_C_START              // Necessary for compiling in GDAL project
 #ifdef _WIN64
 #include "gdal\release-1911-x64\cpl_string.h"  // For CPL_ENC_UTF8
 #else
-#include "gdal\release-1911-32\cpl_string.h"  // For CPL_ENC_UTF8
+#include "gdal\release-1911-32\cpl_string.h"  // For CPL_ENC_UTF8szNumberOfVerticesEsp
 #endif
 #endif
 
@@ -56,47 +56,47 @@ CPL_C_START              // Necessary for compiling in GDAL project
 
 char szInternalGraphicIdentifierEng[MM_MAX_IDENTIFIER_SIZE];
 char szInternalGraphicIdentifierCat[MM_MAX_IDENTIFIER_SIZE];
-char szInternalGraphicIdentifierEsp[MM_MAX_IDENTIFIER_SIZE];
+char szInternalGraphicIdentifierSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szNumberOfVerticesEng[MM_MAX_IDENTIFIER_SIZE];
 char szNumberOfVerticesCat[MM_MAX_IDENTIFIER_SIZE];
-char szNumberOfVerticesEsp[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfVerticesSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szLenghtOfAarcEng[MM_MAX_IDENTIFIER_SIZE];
 char szLenghtOfAarcCat[MM_MAX_IDENTIFIER_SIZE];
-char szLenghtOfAarcEsp[MM_MAX_IDENTIFIER_SIZE];
+char szLenghtOfAarcSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szInitialNodeEng[MM_MAX_IDENTIFIER_SIZE];
 char szInitialNodeCat[MM_MAX_IDENTIFIER_SIZE];
-char szInitialNodeEsp[MM_MAX_IDENTIFIER_SIZE];
+char szInitialNodeSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szFinalNodeEng[MM_MAX_IDENTIFIER_SIZE];
 char szFinalNodeCat[MM_MAX_IDENTIFIER_SIZE];
-char szFinalNodeEsp[MM_MAX_IDENTIFIER_SIZE];
+char szFinalNodeSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szNumberOfArcsToNodeEng[MM_MAX_IDENTIFIER_SIZE];
 char szNumberOfArcsToNodeCat[MM_MAX_IDENTIFIER_SIZE];
-char szNumberOfArcsToNodeEsp[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfArcsToNodeSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szNodeTypeEng[MM_MAX_IDENTIFIER_SIZE];
 char szNodeTypeCat[MM_MAX_IDENTIFIER_SIZE];
-char szNodeTypeEsp[MM_MAX_IDENTIFIER_SIZE];
+char szNodeTypeSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szPerimeterOfThePolygonEng[MM_MAX_IDENTIFIER_SIZE];
 char szPerimeterOfThePolygonCat[MM_MAX_IDENTIFIER_SIZE];
-char szPerimeterOfThePolygonEsp[MM_MAX_IDENTIFIER_SIZE];
+char szPerimeterOfThePolygonSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szAreaOfThePolygonEng[MM_MAX_IDENTIFIER_SIZE];
 char szAreaOfThePolygonCat[MM_MAX_IDENTIFIER_SIZE];
-char szAreaOfThePolygonEsp[MM_MAX_IDENTIFIER_SIZE];
+char szAreaOfThePolygonSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szNumberOfArcsEng[MM_MAX_IDENTIFIER_SIZE];
 char szNumberOfArcsCat[MM_MAX_IDENTIFIER_SIZE];
-char szNumberOfArcsEsp[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfArcsSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szNumberOfElementaryPolygonsEng[MM_MAX_IDENTIFIER_SIZE];
 char szNumberOfElementaryPolygonsCat[MM_MAX_IDENTIFIER_SIZE];
-char szNumberOfElementaryPolygonsEsp[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfElementaryPolygonsSpa[MM_MAX_IDENTIFIER_SIZE];
 
 void MM_FillFieldDescriptorByLanguage(void)
 {
@@ -105,80 +105,80 @@ void MM_FillFieldDescriptorByLanguage(void)
     MM_strnzcpy(szInternalGraphicIdentifierCat, "Identificador Grafic intern",
                 MM_MAX_IDENTIFIER_SIZE);
     szInternalGraphicIdentifierCat[16] = MM_a_WITH_GRAVE;
-    MM_strnzcpy(szInternalGraphicIdentifierEsp, "Identificador Grafico interno",
+    MM_strnzcpy(szInternalGraphicIdentifierSpa, "Identificador Grafico interno",
                 MM_MAX_IDENTIFIER_SIZE);
-    szInternalGraphicIdentifierEsp[16] = MM_a_WITH_ACUTE;
+    szInternalGraphicIdentifierSpa[16] = MM_a_WITH_ACUTE;
 
     MM_strnzcpy(szNumberOfVerticesEng, "Number of vertices",
                 MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNumberOfVerticesCat, "Nombre de vertexs",
                 MM_MAX_IDENTIFIER_SIZE);
     szNumberOfVerticesCat[11] = MM_e_WITH_GRAVE;
-    MM_strnzcpy(szNumberOfVerticesEsp, "Numero de vertices",
+    MM_strnzcpy(szNumberOfVerticesSpa, "Numero de vertices",
                 MM_MAX_IDENTIFIER_SIZE);
-    szNumberOfVerticesEsp[1] = MM_u_WITH_ACUTE;
-    szNumberOfVerticesEsp[11] = MM_e_WITH_ACUTE;
+    szNumberOfVerticesSpa[1] = MM_u_WITH_ACUTE;
+    szNumberOfVerticesSpa[11] = MM_e_WITH_ACUTE;
 
     MM_strnzcpy(szLenghtOfAarcEng, "Lenght of arc", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szLenghtOfAarcCat, "Longitud de l'arc", MM_MAX_IDENTIFIER_SIZE);
-    MM_strnzcpy(szLenghtOfAarcEsp, "Longitud del arco", MM_MAX_IDENTIFIER_SIZE);
+    MM_strnzcpy(szLenghtOfAarcSpa, "Longitud del arco", MM_MAX_IDENTIFIER_SIZE);
 
     MM_strnzcpy(szInitialNodeEng, "Initial node", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szInitialNodeCat, "Node inicial", MM_MAX_IDENTIFIER_SIZE);
-    MM_strnzcpy(szInitialNodeEsp, "Nodo inicial", MM_MAX_IDENTIFIER_SIZE);
+    MM_strnzcpy(szInitialNodeSpa, "Nodo inicial", MM_MAX_IDENTIFIER_SIZE);
 
     MM_strnzcpy(szFinalNodeEng, "Final node", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szFinalNodeCat, "Node final", MM_MAX_IDENTIFIER_SIZE);
-    MM_strnzcpy(szFinalNodeEsp, "Nodo final", MM_MAX_IDENTIFIER_SIZE);
+    MM_strnzcpy(szFinalNodeSpa, "Nodo final", MM_MAX_IDENTIFIER_SIZE);
 
     MM_strnzcpy(szNumberOfArcsToNodeEng, "Number of arcs to node",
                 MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNumberOfArcsToNodeCat, "Nombre d'arcs al node",
                 MM_MAX_IDENTIFIER_SIZE);
-    MM_strnzcpy(szNumberOfArcsToNodeEsp, "Numero de arcos al nodo",
+    MM_strnzcpy(szNumberOfArcsToNodeSpa, "Numero de arcos al nodo",
                 MM_MAX_IDENTIFIER_SIZE);
-    szNumberOfArcsToNodeEsp[1] = MM_u_WITH_ACUTE;
+    szNumberOfArcsToNodeSpa[1] = MM_u_WITH_ACUTE;
 
     MM_strnzcpy(szNodeTypeEng, "Node type", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNodeTypeCat, "Tipus de node", MM_MAX_IDENTIFIER_SIZE);
-    MM_strnzcpy(szNodeTypeEsp, "Tipo de nodo", MM_MAX_IDENTIFIER_SIZE);
+    MM_strnzcpy(szNodeTypeSpa, "Tipo de nodo", MM_MAX_IDENTIFIER_SIZE);
 
     MM_strnzcpy(szPerimeterOfThePolygonEng, "Perimeter of the polygon",
                 MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szPerimeterOfThePolygonCat, "Perimetre del poligon",
                 MM_MAX_IDENTIFIER_SIZE);
-    MM_strnzcpy(szPerimeterOfThePolygonEsp, "Perimetro del poligono",
+    MM_strnzcpy(szPerimeterOfThePolygonSpa, "Perimetro del poligono",
                 MM_MAX_IDENTIFIER_SIZE);
     szPerimeterOfThePolygonCat[3] = MM_i_WITH_ACUTE;
-    szPerimeterOfThePolygonEsp[3] = MM_i_WITH_ACUTE;
+    szPerimeterOfThePolygonSpa[3] = MM_i_WITH_ACUTE;
     szPerimeterOfThePolygonCat[17] = MM_i_WITH_ACUTE;
-    szPerimeterOfThePolygonEsp[17] = MM_i_WITH_ACUTE;
+    szPerimeterOfThePolygonSpa[17] = MM_i_WITH_ACUTE;
 
     MM_strnzcpy(szAreaOfThePolygonEng, "Area of the polygon",
                 MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szAreaOfThePolygonCat, "Area del poligon",
                 MM_MAX_IDENTIFIER_SIZE);
-    MM_strnzcpy(szAreaOfThePolygonEsp, "Area del poligono",
+    MM_strnzcpy(szAreaOfThePolygonSpa, "Area del poligono",
                 MM_MAX_IDENTIFIER_SIZE);
     szAreaOfThePolygonCat[0] = MM_A_WITH_GRAVE;
-    szAreaOfThePolygonEsp[0] = MM_A_WITH_ACUTE;
+    szAreaOfThePolygonSpa[0] = MM_A_WITH_ACUTE;
     szAreaOfThePolygonCat[12] = MM_i_WITH_ACUTE;
-    szAreaOfThePolygonEsp[12] = MM_i_WITH_ACUTE;
+    szAreaOfThePolygonSpa[12] = MM_i_WITH_ACUTE;
 
     MM_strnzcpy(szNumberOfArcsEng, "Number of arcs", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNumberOfArcsCat, "Nombre d'arcs", MM_MAX_IDENTIFIER_SIZE);
-    MM_strnzcpy(szNumberOfArcsEsp, "Numero de arcos", MM_MAX_IDENTIFIER_SIZE);
-    szNumberOfArcsEsp[1] = MM_u_WITH_ACUTE;
+    MM_strnzcpy(szNumberOfArcsSpa, "Numero de arcos", MM_MAX_IDENTIFIER_SIZE);
+    szNumberOfArcsSpa[1] = MM_u_WITH_ACUTE;
 
     MM_strnzcpy(szNumberOfElementaryPolygonsEng,
                 "Number of elementary polygons", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNumberOfElementaryPolygonsCat,
                 "Nombre de poligons elementals", MM_MAX_IDENTIFIER_SIZE);
-    MM_strnzcpy(szNumberOfElementaryPolygonsEsp,
+    MM_strnzcpy(szNumberOfElementaryPolygonsSpa,
                 "Numero de poligonos elementales", MM_MAX_IDENTIFIER_SIZE);
-    szNumberOfElementaryPolygonsEsp[1] = MM_u_WITH_ACUTE;
+    szNumberOfElementaryPolygonsSpa[1] = MM_u_WITH_ACUTE;
     szNumberOfElementaryPolygonsCat[13] = MM_i_WITH_ACUTE;
-    szNumberOfElementaryPolygonsEsp[13] = MM_i_WITH_ACUTE;
+    szNumberOfElementaryPolygonsSpa[13] = MM_i_WITH_ACUTE;
 }
 
 const char *MM_pszLogFilename = nullptr;
@@ -1111,7 +1111,7 @@ int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
     MM_BYTE variable_byte;
     FILE_TYPE *pf;
     unsigned short int ushort;
-    MM_EXT_DBF_N_FIELDS nIField, j;
+    MM_EXT_DBF_N_FIELDS nIField;
     MM_FIRST_RECORD_OFFSET_TYPE offset_primera_fitxa;
     MM_FIRST_RECORD_OFFSET_TYPE offset_fals = 0;
     MM_BOOLEAN incoherent_record_size = FALSE;
@@ -1368,36 +1368,107 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         else
             pMMBDXP->pField[nIField].AcumulatedBytes = 1;
 
-        for (j = 0; j < MM_NUM_IDIOMES_MD_MULTIDIOMA; j++)
+        if (pszRelFile)
         {
-            pMMBDXP->pField[nIField].Separator[j] = nullptr;
+            sprintf(section, "TAULA_PRINCIPAL:%s",
+                    pMMBDXP->pField[nIField].FieldName);
 
-            if (pszRelFile)
+            // MM_DEF_LANGUAGE
+            pszDesc = MMReturnValueFromSectionINIFile(pszRelFile, section,
+                                                      "descriptor");
+            if (pszDesc)
             {
-                sprintf(section, "TAULA_PRINCIPAL:%s",
-                        pMMBDXP->pField[nIField].FieldName);
-                pszDesc = MMReturnValueFromSectionINIFile(pszRelFile, section,
-                                                          "descriptor_eng");
-                if (pszDesc)
-                {
-                    MM_strnzcpy(pMMBDXP->pField[nIField].FieldDescription[j],
-                                pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
-                    free_function(pszDesc);
-                }
-                else
-                {
-                    sprintf(section, "TAULA_PRINCIPAL:%s",
-                            pMMBDXP->pField[nIField].FieldName);
-                    pszDesc = MMReturnValueFromSectionINIFile(
-                        pszRelFile, section, "descriptor");
-                    if (pszDesc)
-                        MM_strnzcpy(
-                            pMMBDXP->pField[nIField].FieldDescription[j],
-                            pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
-                    pMMBDXP->pField[nIField].FieldDescription[j][0] = 0;
-                    free_function(pszDesc);
-                }
+                pszString = CPLRecode_function(pszDesc, CPL_ENC_ISO8859_1,
+                                               CPL_ENC_UTF8);
+                free_function(pszDesc);
+                MM_strnzcpy(
+                    pMMBDXP->pField[nIField].FieldDescription[MM_DEF_LANGUAGE],
+                    pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+
+                free_function(pszString);
             }
+            else
+                *pMMBDXP->pField[nIField].FieldDescription[MM_DEF_LANGUAGE] =
+                    '\0';
+
+            // MM_ENG_LANGUAGE
+            pszDesc = MMReturnValueFromSectionINIFile(pszRelFile, section,
+                                                      "descriptor_eng");
+            if (pszDesc)
+            {
+                pszString = CPLRecode_function(pszDesc, CPL_ENC_ISO8859_1,
+                                               CPL_ENC_UTF8);
+                free_function(pszDesc);
+                MM_strnzcpy(
+                    pMMBDXP->pField[nIField].FieldDescription[MM_ENG_LANGUAGE],
+                    pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+
+                if (*pMMBDXP->pField[nIField]
+                         .FieldDescription[MM_DEF_LANGUAGE] != '\0')
+                {
+                    MM_strnzcpy(pMMBDXP->pField[nIField]
+                                    .FieldDescription[MM_DEF_LANGUAGE],
+                                pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                }
+                free_function(pszString);
+            }
+            else
+                *pMMBDXP->pField[nIField].FieldDescription[MM_ENG_LANGUAGE] =
+                    '\0';
+
+            // MM_CAT_LANGUAGE
+            pszDesc = MMReturnValueFromSectionINIFile(pszRelFile, section,
+                                                      "descriptor_cat");
+            if (pszDesc)
+            {
+                pszString = CPLRecode_function(pszDesc, CPL_ENC_ISO8859_1,
+                                               CPL_ENC_UTF8);
+                free_function(pszDesc);
+
+                MM_strnzcpy(
+                    pMMBDXP->pField[nIField].FieldDescription[MM_CAT_LANGUAGE],
+                    pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+
+                if (*pMMBDXP->pField[nIField]
+                         .FieldDescription[MM_DEF_LANGUAGE] != '\0')
+                {
+                    MM_strnzcpy(pMMBDXP->pField[nIField]
+                                    .FieldDescription[MM_DEF_LANGUAGE],
+                                pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                }
+
+                free_function(pszString);
+            }
+            else
+                *pMMBDXP->pField[nIField].FieldDescription[MM_CAT_LANGUAGE] =
+                    '\0';
+
+            // MM_SPA_LANGUAGE
+            pszDesc = MMReturnValueFromSectionINIFile(pszRelFile, section,
+                                                      "descriptor_cat");
+            if (pszDesc)
+            {
+                pszString = CPLRecode_function(pszDesc, CPL_ENC_ISO8859_1,
+                                               CPL_ENC_UTF8);
+                free_function(pszDesc);
+
+                MM_strnzcpy(
+                    pMMBDXP->pField[nIField].FieldDescription[MM_SPA_LANGUAGE],
+                    pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+
+                if (*pMMBDXP->pField[nIField]
+                         .FieldDescription[MM_DEF_LANGUAGE] != '\0')
+                {
+                    MM_strnzcpy(pMMBDXP->pField[nIField]
+                                    .FieldDescription[MM_DEF_LANGUAGE],
+                                pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                }
+
+                free_function(pszString);
+            }
+            else
+                *pMMBDXP->pField[nIField].FieldDescription[MM_SPA_LANGUAGE] =
+                    '\0';
         }
     }
 
@@ -1757,12 +1828,11 @@ char *MM_oemansi(char *szcadena)
     return MM_oemansi_n(szcadena, USHRT_MAX);
 }
 
-static MM_BOOLEAN MM_FillFieldDB_XP(struct MM_FIELD *camp,
-                                    const char *FieldName,
-                                    const char *FieldDescription,
-                                    char FieldType,
-                                    MM_BYTES_PER_FIELD_TYPE_DBF BytesPerField,
-                                    MM_BYTE DecimalsIfFloat)
+static MM_BOOLEAN MM_FillFieldDB_XP(
+    struct MM_FIELD *camp, const char *FieldName,
+    const char *FieldDescriptionEng, const char *FieldDescriptionCat,
+    const char *FieldDescriptionSpa, char FieldType,
+    MM_BYTES_PER_FIELD_TYPE_DBF BytesPerField, MM_BYTE DecimalsIfFloat)
 {
     char nom_temp[MM_MAX_LON_FIELD_NAME_DBF];
     int retorn_valida_nom_camp;
@@ -1785,10 +1855,26 @@ static MM_BOOLEAN MM_FillFieldDB_XP(struct MM_FIELD *camp,
         }
     }
 
-    if (FieldDescription)
-        strcpy(camp->FieldDescription[0], FieldDescription);
+    if (FieldDescriptionEng)
+        strcpy(camp->FieldDescription[MM_DEF_LANGUAGE], FieldDescriptionEng);
     else
-        strcpy(camp->FieldDescription[0], "\0");
+        strcpy(camp->FieldDescription[MM_DEF_LANGUAGE], "\0");
+
+    if (FieldDescriptionEng)
+        strcpy(camp->FieldDescription[MM_ENG_LANGUAGE], FieldDescriptionEng);
+    else
+        strcpy(camp->FieldDescription[MM_ENG_LANGUAGE], "\0");
+
+    if (FieldDescriptionCat)
+        strcpy(camp->FieldDescription[MM_CAT_LANGUAGE], FieldDescriptionCat);
+    else
+        strcpy(camp->FieldDescription[MM_CAT_LANGUAGE], "\0");
+
+    if (FieldDescriptionSpa)
+        strcpy(camp->FieldDescription[MM_SPA_LANGUAGE], FieldDescriptionSpa);
+    else
+        strcpy(camp->FieldDescription[MM_SPA_LANGUAGE], "\0");
+
     camp->FieldType = FieldType;
     camp->DecimalsIfFloat = DecimalsIfFloat;
     camp->BytesPerField = BytesPerField;
@@ -1800,38 +1886,44 @@ size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
 {
     MM_EXT_DBF_N_FIELDS i_camp = 0;
 
-    MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampIdGraficDefecte,
-                      szInternalGraphicIdentifierEng, 'N',
-                      MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+    MM_FillFieldDB_XP(
+        bd_xp->pField + i_camp, szMMNomCampIdGraficDefecte,
+        szInternalGraphicIdentifierEng, szInternalGraphicIdentifierCat,
+        szInternalGraphicIdentifierSpa, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     bd_xp->IdGraficField = 0;
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_ID_GRAFIC;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampNVertexsDefecte,
-                      szNumberOfVerticesEng, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+                      szNumberOfVerticesEng, szNumberOfVerticesCat,
+                      szNumberOfVerticesSpa, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_N_VERTEXS;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampPerimetreDefecte,
-                      szPerimeterOfThePolygonEng, 'N',
+                      szPerimeterOfThePolygonEng, szPerimeterOfThePolygonCat,
+                      szPerimeterOfThePolygonSpa, 'N',
                       MM_MAX_AMPLADA_CAMP_N_DBF, n_decimals);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_PERIMETRE;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampAreaDefecte,
-                      szAreaOfThePolygonEng, 'N', MM_MAX_AMPLADA_CAMP_N_DBF,
+                      szAreaOfThePolygonEng, szAreaOfThePolygonCat,
+                      szAreaOfThePolygonSpa, 'N', MM_MAX_AMPLADA_CAMP_N_DBF,
                       n_decimals);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_AREA;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampNArcsDefecte,
-                      szNumberOfArcsEng, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+                      szNumberOfArcsEng, szNumberOfArcsCat, szNumberOfArcsSpa,
+                      'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_N_ARCS;
     i_camp++;
 
-    MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampNPoligonsDefecte,
-                      szNumberOfElementaryPolygonsEng, 'N',
-                      MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+    MM_FillFieldDB_XP(
+        bd_xp->pField + i_camp, szMMNomCampNPoligonsDefecte,
+        szNumberOfElementaryPolygonsEng, szNumberOfElementaryPolygonsCat,
+        szNumberOfElementaryPolygonsSpa, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_N_POLIG;
     i_camp++;
 
@@ -1844,31 +1936,35 @@ size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
     MM_EXT_DBF_N_FIELDS i_camp;
 
     i_camp = 0;
-    MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampIdGraficDefecte,
-                      szInternalGraphicIdentifierEng, 'N',
-                      MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+    MM_FillFieldDB_XP(
+        bd_xp->pField + i_camp, szMMNomCampIdGraficDefecte,
+        szInternalGraphicIdentifierEng, szInternalGraphicIdentifierCat,
+        szInternalGraphicIdentifierSpa, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     bd_xp->IdGraficField = 0;
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_ID_GRAFIC;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampNVertexsDefecte,
-                      szNumberOfVerticesEng, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+                      szNumberOfVerticesEng, szNumberOfVerticesCat,
+                      szNumberOfVerticesSpa, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_N_VERTEXS;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampLongitudArcDefecte,
-                      szLenghtOfAarcEng, 'N', MM_MAX_AMPLADA_CAMP_N_DBF,
-                      n_decimals);
+                      szLenghtOfAarcEng, szLenghtOfAarcCat, szLenghtOfAarcSpa,
+                      'N', MM_MAX_AMPLADA_CAMP_N_DBF, n_decimals);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_LONG_ARC;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampNodeIniDefecte,
-                      szInitialNodeEng, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+                      szInitialNodeEng, szInitialNodeCat, szInitialNodeSpa, 'N',
+                      MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_NODE_INI;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampNodeFiDefecte,
-                      szFinalNodeEng, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+                      szFinalNodeEng, szFinalNodeCat, szFinalNodeSpa, 'N',
+                      MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_NODE_FI;
     i_camp++;
 
@@ -1881,21 +1977,23 @@ size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
 
     i_camp = 0;
 
-    MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampIdGraficDefecte,
-                      szInternalGraphicIdentifierEng, 'N',
-                      MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+    MM_FillFieldDB_XP(
+        bd_xp->pField + i_camp, szMMNomCampIdGraficDefecte,
+        szInternalGraphicIdentifierEng, szInternalGraphicIdentifierCat,
+        szInternalGraphicIdentifierSpa, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     bd_xp->IdGraficField = 0;
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_ID_GRAFIC;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampArcsANodeDefecte,
-                      szNumberOfArcsToNodeEng, 'N', MM_MAX_AMPLADA_CAMP_N_DBF,
+                      szNumberOfArcsToNodeEng, szNumberOfArcsToNodeCat,
+                      szNumberOfArcsToNodeSpa, 'N', MM_MAX_AMPLADA_CAMP_N_DBF,
                       0);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_ARCS_A_NOD;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampTipusNodeDefecte,
-                      szNodeTypeEng, 'N', 1, 0);
+                      szNodeTypeEng, szNodeTypeCat, szNodeTypeSpa, 'N', 1, 0);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_TIPUS_NODE;
     i_camp++;
 
@@ -1906,9 +2004,10 @@ size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
 {
     size_t i_camp = 0;
 
-    MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampIdGraficDefecte,
-                      szInternalGraphicIdentifierEng, 'N',
-                      MM_MAX_AMPLADA_CAMP_N_DBF, 0);
+    MM_FillFieldDB_XP(
+        bd_xp->pField + i_camp, szMMNomCampIdGraficDefecte,
+        szInternalGraphicIdentifierEng, szInternalGraphicIdentifierCat,
+        szInternalGraphicIdentifierSpa, 'N', MM_MAX_AMPLADA_CAMP_N_DBF, 0);
     bd_xp->IdGraficField = 0;
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_ID_GRAFIC;
     i_camp++;
