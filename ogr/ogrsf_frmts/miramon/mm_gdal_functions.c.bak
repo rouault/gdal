@@ -42,15 +42,10 @@
 #endif                                  // GDAL_COMPILATION
 
 #ifdef GDAL_COMPILATION
-CPL_C_START              // Necessary for compiling in GDAL project
+CPL_C_START  // Necessary for compiling in GDAL project
+#endif       // GDAL_COMPILATION
+
 #include "cpl_string.h"  // For CPL_ENC_UTF8
-#else
-#ifdef _WIN64
-#include "gdal\release-1911-x64\cpl_string.h"  // For CPL_ENC_UTF8
-#else
-#include "gdal\release-1911-32\cpl_string.h"  // For CPL_ENC_UTF8
-#endif
-#endif
 
     static char local_message[MAX_LOCAL_MESSAGE];
 
@@ -481,7 +476,6 @@ MM_InitializeOffsetExtendedFieldNameFields(struct MM_DATA_BASE_XP *bd_xp,
                MM_OFFSET_RESERVAT2_OFFSET_NOM_ESTES,
            0, 4);
 }
-
 static void
 MM_InitializeBytesExtendedFieldNameFields(struct MM_DATA_BASE_XP *bd_xp,
                                           MM_EXT_DBF_N_FIELDS i_camp)
@@ -1696,7 +1690,6 @@ char *MM_strnzcpy(char *dest, const char *src, size_t maxlen)
 
     return dest;
 }
-
 /*
 char *MM_strnzcpy(char *dest, const char *src, size_t maxlen)
 {
