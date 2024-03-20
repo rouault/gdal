@@ -407,7 +407,9 @@ OGRMiraMonLayer::OGRMiraMonLayer(const char *pszFilename, VSILFILE *fp,
 
                     oField.SetAlternativeName(
                         phMiraMonLayer->pMMBDXP->pField[nIField]
-                            .FieldDescription[phMiraMonLayer->nMMLanguage]);
+                            .FieldDescription[phMiraMonLayer->nMMLanguage < 4
+                                                  ? phMiraMonLayer->nMMLanguage
+                                                  : 0]);
 
                     if (phMiraMonLayer->pMMBDXP->pField[nIField].FieldType ==
                         'C')
