@@ -736,8 +736,10 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
     if (nFeatureId < 0)
         return nullptr;
 
-    //if (nIElem >= phMiraMonLayer->TopHeader.nElemCount)
-    //    return nullptr;
+    // In case of nIElem == 0 and there are no elements we give the chance
+    // to get the field name, ...
+    if (nIElem != 0 && nIElem >= phMiraMonLayer->TopHeader.nElemCount)
+        return nullptr;
 
     /* -------------------------------------------------------------------- */
     /*      Read nFeatureId feature directly from the file.                 */
@@ -2442,7 +2444,7 @@ void OGRMiraMonLayer::AddToFileList(CPLStringList &oFileList)
 
     char szAuxFile[MM_CPL_PATH_BUF_SIZE];
 
-    oFileList.AddString(
+    oFileList.AddStringDirectly(
         VSIGetCanonicalFilename(phMiraMonLayer->pszSrcLayerName));
     char *pszMMExt =
         CPLStrdup(CPLGetExtension(phMiraMonLayer->pszSrcLayerName));
