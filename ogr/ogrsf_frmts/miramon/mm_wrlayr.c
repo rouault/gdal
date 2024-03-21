@@ -2692,7 +2692,7 @@ int MMAppendBlockToBuffer(struct MM_FLUSH_INFO *FlushInfo)
             }
             else  // Add zero caracters
             {
-                char zero_caracters[8] = "\0\0\0\0\0\0\0";
+                char zero_caracters[8] = {0, 0, 0, 0, 0, 0, 0, 0};
                 memcpy((char *)FlushInfo->pBlockWhereToSaveOrRead +
                            FlushInfo->nNumBytes,
                        zero_caracters, FlushInfo->SizeOfBlockToBeSaved);
