@@ -437,3 +437,59 @@ def test_ogr_miramon_test_ogrsf():
         )
 
         assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+
+        ret = gdaltest.runexternal(
+            test_cli_utilities.get_test_ogrsf_path()
+            + " data/miramon/Points/SimplePoints/SimplePointsFile.pnt"
+        )
+
+        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+
+        ret = gdaltest.runexternal(
+            test_cli_utilities.get_test_ogrsf_path()
+            + " data/miramon/Points/EmptyPoints/Empty_PNT.pnt"
+        )
+
+        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+
+        ret = gdaltest.runexternal(
+            test_cli_utilities.get_test_ogrsf_path()
+            + " data/miramon/Arcs/SimpleArcs/SimpleArcFile.arc"
+        )
+
+        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+
+        ret = gdaltest.runexternal(
+            test_cli_utilities.get_test_ogrsf_path()
+            + " data/miramon/Arcs/EmptyArcs/Empty_ARC.arc"
+        )
+
+        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+
+        ret = gdaltest.runexternal(
+            test_cli_utilities.get_test_ogrsf_path()
+            + " data/miramon/Arcs/3dArcs/linies_3d_WGS84.arc"
+        )
+
+        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+
+        ret = gdaltest.runexternal(
+            test_cli_utilities.get_test_ogrsf_path()
+            + " data/miramon/Polygons/SimplePolygons/SimplePolFile.pol"
+        )
+
+        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+
+        ret = gdaltest.runexternal(
+            test_cli_utilities.get_test_ogrsf_path()
+            + " data/miramon/Polygons/EmptyPolygons/Empty_POL.pol"
+        )
+
+        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+
+        ret = gdaltest.runexternal(
+            test_cli_utilities.get_test_ogrsf_path()
+            + " data/miramon/Polygons/3dPolygons/tin_3d.pol"
+        )
+
+        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
