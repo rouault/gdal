@@ -273,7 +273,7 @@ The following open options are available.
       user can select which one wants to keep: *iMultiRecord=1* for first, *iMultiRecord=2* for second, etc
       and *iMultiRecord=last* for the last element of the list.
       *iMultiRecord=JSON* option converts the list in a single value in JSON format.
-      If not specified, all elements of the list will be translated by default.
+      If not specified, all elements of the list will be translated by default as a OGR list field type.
 
 -  .. oo:: OpenMemoryRatio
       :choices: 0.5, 1, 2, ...

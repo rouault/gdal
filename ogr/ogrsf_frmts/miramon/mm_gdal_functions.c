@@ -386,9 +386,9 @@ MM_Is_character_valid_for_extended_DBF_field_name(int valor,
 
 static int MM_ISExtendedNameBD_XP(const char *nom_camp)
 {
-    GInt32 mida, j;
+    size_t mida, j;
 
-    mida = (GInt32)strlen(nom_camp);
+    mida = strlen(nom_camp);
     if (mida >= MM_MAX_LON_FIELD_NAME_DBF)
         return MM_DBF_NAME_NO_VALID;
 
@@ -573,24 +573,28 @@ static char *MM_GiveNewStringWithCharacterInFront(const char *text,
     return ptr;
 }
 
-static char *MM_SetSubIndexFieldNam(char *nom_camp, MM_EXT_DBF_N_FIELDS index,
+static char *MM_SetSubIndexFieldNam(const char *nom_camp,
+                                    MM_EXT_DBF_N_FIELDS index,
                                     size_t ampladamax)
 {
     char *NomCamp_SubIndex;
     char *_subindex;
-    char subindex[15];
+    char subindex[19 + 1];
     size_t sizet_subindex;
     size_t sizet_nomcamp;
 
-    NomCamp_SubIndex = calloc_function(ampladamax * sizeof(char));
+    NomCamp_SubIndex = calloc_function(ampladamax);
     if (!NomCamp_SubIndex)
         return nullptr;
 
-    strcpy(NomCamp_SubIndex, nom_camp);
+    strncpy(NomCamp_SubIndex, nom_camp, ampladamax);
 
     snprintf(subindex, sizeof(subindex), sprintf_UINT64, (GUInt64)index);
 
     _subindex = MM_GiveNewStringWithCharacterInFront(subindex, '_');
+    if (!_subindex)
+        return nullptr;
+
     sizet_subindex = strlen(_subindex);
     sizet_nomcamp = strlen(NomCamp_SubIndex);
 
