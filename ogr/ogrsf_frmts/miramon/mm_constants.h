@@ -50,7 +50,9 @@ CPL_C_START  // Necessary for compiling C in GDAL project
 #define MM_MAX_LON_UNITATS 66
 #define MM_MAX_LON_UNITATS_CAMP MM_MAX_LON_UNITATS
 
-// Vora fi gir in MiraMon
+// Determines if an arc is external, the last one in a ring or
+// if it has to be inverted to be consistent with other arcs
+// in the ring.
 #define MM_POL_EXTERIOR_SIDE 0x01
 #define MM_POL_END_RING 0x02
 #define MM_POL_REVERSE_ARC 0x04
@@ -77,8 +79,8 @@ CPL_C_START  // Necessary for compiling C in GDAL project
 #define MM_MAX_ID_SNY 41
 
 #ifndef GDAL_COMPILATION
-    typedef unsigned long int uint32_t;
-typedef long int int32_t;
+    typedef unsigned int uint32_t;
+typedef int int32_t;
 #endif
 
 // Extended DBF

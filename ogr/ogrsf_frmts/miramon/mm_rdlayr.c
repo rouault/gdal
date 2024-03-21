@@ -66,7 +66,8 @@ int MMInitLayerToRead(struct MiraMonVectLayerInfo *hMiraMonLayer,
     memset(hMiraMonLayer, 0, sizeof(*hMiraMonLayer));
     if (MMReadHeader(m_fp, &hMiraMonLayer->TopHeader))
     {
-        sprintf(local_message, "Error reading header of file %s", pszFilename);
+        snprintf(local_message, sizeof(local_message),
+                 "Error reading header of file %s", pszFilename);
         MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
         return 1;
     }
@@ -657,8 +658,8 @@ int MM_ReadExtendedDBFHeader(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     if (MM_ReadExtendedDBFHeaderFromFile(szDBFFileName, pMMBDXP, pszRelFile))
     {
-        sprintf(local_message, "Error reading the format in the DBF file %s.",
-                szDBFFileName);
+        snprintf(local_message, sizeof(local_message),
+                 "Error reading the format in the DBF file %s.", szDBFFileName);
         MMCPLError(CE_Failure, CPLE_NotSupported, local_message);
         return 1;
     }

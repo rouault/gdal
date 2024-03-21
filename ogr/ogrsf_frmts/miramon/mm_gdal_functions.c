@@ -184,7 +184,7 @@ void MM_FillFieldDescriptorByLanguage(void)
 const char *MM_pszLogFilename = nullptr;
 
 // Loging
-const char *Log(const char *pszMsg, int nLineNumber)
+const char *MMLog(const char *pszMsg, int nLineNumber)
 {
     FILE *f;
 
@@ -272,9 +272,11 @@ struct MM_DATA_BASE_XP *MM_CreateDBFHeader(MM_EXT_DBF_N_FIELDS n_camps,
     {
         MM_InitializeField(camp);
         if (i < 99999)
-            sprintf(camp->FieldName, "CAMP%05u", (unsigned)(i + 1));
+            snprintf(camp->FieldName, sizeof(camp->FieldName), "CAMP%05u",
+                     (unsigned)(i + 1));
         else
-            sprintf(camp->FieldName, "CM%u", (unsigned)(i + 1));
+            snprintf(camp->FieldName, sizeof(camp->FieldName), "CM%u",
+                     (unsigned)(i + 1));
         camp->FieldType = 'C';
         camp->DecimalsIfFloat = 0;
         camp->BytesPerField = 50;
@@ -501,7 +503,7 @@ static short int MM_return_common_valid_DBF_field_name_string(char *cadena)
     //strupr(cadena);
     for (p = cadena; *p; p++)
     {
-        (*p) = (char)toupper(*p);
+        (*p) = (char)toupper((unsigned char)*p);
         if ((*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || *p == '_')
             ;
         else
@@ -512,6 +514,8 @@ static short int MM_return_common_valid_DBF_field_name_string(char *cadena)
     }
     if (cadena[0] == '_')
     {
+        // To avoid having field names starting by '_' this case is
+        // substitued by a 0 (not a '\0').
         cadena[0] = '0';
         error_retornat |= MM_FIELD_NAME_FIRST_CHARACTER_;
     }
@@ -584,7 +588,7 @@ static char *MM_SetSubIndexFieldNam(char *nom_camp, MM_EXT_DBF_N_FIELDS index,
 
     strcpy(NomCamp_SubIndex, nom_camp);
 
-    sprintf(subindex, sprintf_UINT64, (GUInt64)index);
+    snprintf(subindex, sizeof(subindex), sprintf_UINT64, (GUInt64)index);
 
     _subindex = MM_GiveNewStringWithCharacterInFront(subindex, '_');
     sizet_subindex = strlen(_subindex);
@@ -1370,8 +1374,8 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
 
         if (pszRelFile)
         {
-            sprintf(section, "TAULA_PRINCIPAL:%s",
-                    pMMBDXP->pField[nIField].FieldName);
+            snprintf(section, sizeof(section), "TAULA_PRINCIPAL:%s",
+                     pMMBDXP->pField[nIField].FieldName);
 
             // MM_DEF_LANGUAGE
             pszDesc = MMReturnValueFromSectionINIFile(pszRelFile, section,
@@ -1586,7 +1590,9 @@ int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
         strcat(camp->FieldName, "0");
         for (i = 2; i < (size_t)10; i++)
         {
-            sprintf(camp->FieldName + strlen(camp->FieldName) - 1, "%u", i);
+            snprintf(camp->FieldName + strlen(camp->FieldName) - 1,
+                     sizeof(camp->FieldName) - strlen(camp->FieldName) + 1,
+                     "%u", i);
             for (i_camp = 0; i_camp < bd_xp->nFields; i_camp++)
             {
                 if (bd_xp->pField + i_camp == camp)
@@ -1609,7 +1615,9 @@ int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
             strcat(camp->FieldName, "00");
             for (i = 10; i < (size_t)100; i++)
             {
-                sprintf(camp->FieldName + strlen(camp->FieldName) - 2, "%u", i);
+                snprintf(camp->FieldName + strlen(camp->FieldName) - 2,
+                         sizeof(camp->FieldName) - strlen(camp->FieldName) + 2,
+                         "%u", i);
                 for (i_camp = 0; i_camp < bd_xp->nFields; i_camp++)
                 {
                     if (bd_xp->pField + i_camp == camp)
@@ -1632,8 +1640,10 @@ int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
                 strcat(camp->FieldName, "000");
                 for (i = 100; i < (size_t)256 + 2; i++)
                 {
-                    sprintf(camp->FieldName + strlen(camp->FieldName) - 3, "%u",
-                            i);
+                    snprintf(camp->FieldName + strlen(camp->FieldName) - 3,
+                             sizeof(camp->FieldName) - strlen(camp->FieldName) +
+                                 3,
+                             "%u", i);
                     for (i_camp = 0; i_camp < bd_xp->nFields; i_camp++)
                     {
                         if (bd_xp->pField + i_camp == camp)
@@ -1677,9 +1687,11 @@ int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
         if (strlen(camp->FieldDescription[0]) >
             MM_MAX_LON_DESCRIPCIO_CAMP_DBF - 4 - n_digits_i)
             camp->FieldDescription[0][mida_nom - 4 - n_digits_i] = '\0';
-        //if (camp->FieldDescription[0] + strlen(camp->FieldDescription[0]))
-        sprintf(camp->FieldDescription[0] + strlen(camp->FieldDescription[0]),
-                " (%u)", i);
+
+        snprintf(camp->FieldDescription[0] + strlen(camp->FieldDescription[0]),
+                 sizeof(camp->FieldDescription[0]) -
+                     strlen(camp->FieldDescription[0]),
+                 " (%u)", i);
         for (i_camp = 0; i_camp < bd_xp->nFields; i_camp++)
         {
             if (bd_xp->pField + i_camp == camp)
@@ -1703,8 +1715,10 @@ int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
     for (i++; i < (size_t)256; i++)
     {
         //if (camp->FieldDescription[0] + strlen(camp->FieldDescription[0]))
-        sprintf(camp->FieldDescription[0] + strlen(camp->FieldDescription[0]),
-                " (%u)", i);
+        snprintf(camp->FieldDescription[0] + strlen(camp->FieldDescription[0]),
+                 sizeof(camp->FieldDescription[0]) -
+                     strlen(camp->FieldDescription[0]),
+                 " (%u)", i);
         for (i_camp = 0; i_camp < bd_xp->nFields; i_camp++)
         {
             if (bd_xp->pField + i_camp == camp)
@@ -2015,8 +2029,8 @@ size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
     return i_camp;
 }
 
-static int MM_SprintfDoubleWidth(char *cadena, int amplada, int n_decimals,
-                                 double valor_double,
+static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
+                                 int n_decimals, double valor_double,
                                  MM_BOOLEAN *Error_sprintf_n_decimals)
 {
 #define VALOR_LIMIT_IMPRIMIR_EN_FORMAT_E 1E+17
@@ -2031,7 +2045,7 @@ static int MM_SprintfDoubleWidth(char *cadena, int amplada, int n_decimals,
             *cadena = *MM_EmptyString;
             return EOF;
         }
-        return sprintf(cadena, "NAN");
+        return snprintf(cadena, cadena_size, "NAN");
     }
     if (MM_IsDoubleInfinit(valor_double))
     {
@@ -2040,14 +2054,14 @@ static int MM_SprintfDoubleWidth(char *cadena, int amplada, int n_decimals,
             *cadena = *MM_EmptyString;
             return EOF;
         }
-        return sprintf(cadena, "INF");
+        return snprintf(cadena, cadena_size, "INF");
     }
 
     *Error_sprintf_n_decimals = FALSE;
     if (valor_double == 0)
     {
-        retorn_printf =
-            sprintf(cadena_treball, "%*.*f", amplada, n_decimals, valor_double);
+        retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball),
+                                 "%*.*f", amplada, n_decimals, valor_double);
         if (retorn_printf == EOF)
         {
             *cadena = *MM_EmptyString;
@@ -2064,11 +2078,11 @@ static int MM_SprintfDoubleWidth(char *cadena, int amplada, int n_decimals,
             }
             *Error_sprintf_n_decimals = TRUE;
             n_decimals = n_decimals - escurcament;
-            retorn_printf =
-                sprintf(cadena, "%*.*f", amplada, n_decimals, valor_double);
+            retorn_printf = snprintf(cadena, cadena_size, "%*.*f", amplada,
+                                     n_decimals, valor_double);
         }
         else
-            strcpy(cadena, cadena_treball);
+            strncpy(cadena, cadena_treball, cadena_size);
 
         return retorn_printf;
     }
@@ -2078,8 +2092,8 @@ static int MM_SprintfDoubleWidth(char *cadena, int amplada, int n_decimals,
         (valor_double < VALOR_MASSA_PETIT_PER_IMPRIMIR_f &&
          valor_double > -VALOR_MASSA_PETIT_PER_IMPRIMIR_f))
     {
-        retorn_printf =
-            sprintf(cadena_treball, "%*.*E", amplada, n_decimals, valor_double);
+        retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball),
+                                 "%*.*E", amplada, n_decimals, valor_double);
         if (retorn_printf == EOF)
         {
             *cadena = *MM_EmptyString;
@@ -2095,17 +2109,17 @@ static int MM_SprintfDoubleWidth(char *cadena, int amplada, int n_decimals,
             }
             *Error_sprintf_n_decimals = TRUE;
             n_decimals = n_decimals - escurcament;
-            retorn_printf =
-                sprintf(cadena, "%*.*E", amplada, n_decimals, valor_double);
+            retorn_printf = snprintf(cadena, cadena_size, "%*.*E", amplada,
+                                     n_decimals, valor_double);
         }
         else
-            strcpy(cadena, cadena_treball);
+            strncpy(cadena, cadena_treball, cadena_size);
 
         return retorn_printf;
     }
 
-    retorn_printf =
-        sprintf(cadena_treball, "%*.*f", amplada, n_decimals, valor_double);
+    retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball), "%*.*f",
+                             amplada, n_decimals, valor_double);
     if (retorn_printf == EOF)
     {
         *cadena = *MM_EmptyString;
@@ -2122,11 +2136,11 @@ static int MM_SprintfDoubleWidth(char *cadena, int amplada, int n_decimals,
         }
         *Error_sprintf_n_decimals = TRUE;
         n_decimals = n_decimals - escurcament;
-        retorn_printf =
-            sprintf(cadena, "%*.*f", amplada, n_decimals, valor_double);
+        retorn_printf = snprintf(cadena, cadena_size, "%*.*f", amplada,
+                                 n_decimals, valor_double);
     }
     else
-        strcpy(cadena, cadena_treball);
+        strncpy(cadena, cadena_treball, cadena_size);
 
     return retorn_printf;
 
@@ -2366,12 +2380,13 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                     {
                         double valor;
                         char *sz_valor;
+                        size_t sz_valor_size =
+                            max_function(
+                                nNewWidth,
+                                data_base_XP->pField[nIField].BytesPerField) +
+                            1;
 
-                        if ((sz_valor = calloc_function(
-                                 max_function(nNewWidth,
-                                              data_base_XP->pField[nIField]
-                                                  .BytesPerField) +
-                                 1)) ==
+                        if ((sz_valor = calloc_function(sz_valor_size)) ==
                             nullptr)  // Sumo 1 per poder posar-hi el \0
                         {
                             if (whites)
@@ -2395,7 +2410,8 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                             else
                             {
                                 MM_SprintfDoubleWidth(
-                                    sz_valor, nNewWidth, nNewPrecision, valor,
+                                    sz_valor, sz_valor_size, nNewWidth,
+                                    nNewPrecision, valor,
                                     &error_sprintf_n_decimals);
                             }
 

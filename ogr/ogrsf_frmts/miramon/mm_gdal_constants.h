@@ -48,10 +48,11 @@ typedef GUInt32
     MM_EXT_DBF_N_FIELDS;  //(TIPUS_NUMERADOR_CAMP in MiraMon internal code)
 #define MM_MAX_EXT_DBF_N_FIELDS_TYPE UINT32_MAX
 
-#define MM_BYTES_PER_FIELD_TYPE_DBF                                            \
-    GUInt32  // In MiraMon code: MM_TIPUS_BYTES_PER_CAMP_DBF
-#define MM_ACUMULATED_BYTES_TYPE_DBF                                           \
-    GUInt32  // In MiraMon code: MM_TIPUS_BYTES_ACUMULATS_DBF
+// In MiraMon code: MM_TIPUS_BYTES_PER_CAMP_DBF
+typedef GUInt32 MM_BYTES_PER_FIELD_TYPE_DBF;
+
+// In MiraMon code: MM_TIPUS_BYTES_ACUMULATS_DBF
+typedef GUInt32 MM_ACUMULATED_BYTES_TYPE_DBF;
 
 // Type of the number of records of an extended DBF
 typedef GUInt32 MM_EXT_DBF_N_MULTIPLE_RECORDS;

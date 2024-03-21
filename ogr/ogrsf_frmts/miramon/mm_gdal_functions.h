@@ -20,10 +20,10 @@ CPL_C_START                          // Necessary for compiling in GDAL project
     // Log. It should be temporal
     extern const char *MM_pszLogFilename;
 
-#define LOG_STR(str) (Log((str), __LINE__))
-#define LOG_ACTION(action) ((void)Log(#action, __LINE__), (action))
+#define LOG_STR(str) (MMLog((str), __LINE__))
+#define LOG_ACTION(action) ((void)MMLog(#action, __LINE__), (action))
 
-const char *Log(const char *pszMsg, int nLineNumber);
+const char *MMLog(const char *pszMsg, int nLineNumber);
 
 // MiraMon feature table descriptors
 #define MM_MAX_IDENTIFIER_SIZE 50
