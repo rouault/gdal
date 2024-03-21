@@ -40,6 +40,8 @@ import pytest
 # from osgeo import gdal, ogr, osr
 from osgeo import gdal, ogr
 
+pytestmark = pytest.mark.require_driver("MiraMonVector")
+
 ###############################################################################
 # basic point test
 
