@@ -34,12 +34,11 @@
 
 import gdaltest
 
+# import ogrtest
+import pytest
+
 # from osgeo import gdal, ogr, osr
 from osgeo import gdal, ogr
-
-# import ogrtest
-# import pytest
-
 
 ###############################################################################
 # basic point test
@@ -426,70 +425,30 @@ def test_ogr_miramon_3d_pol():
 ###############################################################################
 
 
-def test_ogr_miramon_test_ogrsf():
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "Points/3dpoints/Some3dPoints.pnt",
+        "Points/SimplePoints/SimplePointsFile.pnt",
+        "Points/EmptyPoints/Empty_PNT.pnt",
+        "Arcs/SimpleArcs/SimpleArcFile.arc",
+        "Arcs/EmptyArcs/Empty_ARC.arc",
+        "Arcs/3dArcs/linies_3d_WGS84.arc",
+        "Polygons/SimplePolygons/SimplePolFile.pol",
+        "Polygons/EmptyPolygons/Empty_POL.pol",
+        "Polygons/3dPolygons/tin_3d.pol",
+    ],
+)
+def test_ogr_miramon_test_ogrsf(filename):
 
     import test_cli_utilities
 
-    if test_cli_utilities.get_test_ogrsf_path() is not None:
-        ret = gdaltest.runexternal(
-            test_cli_utilities.get_test_ogrsf_path()
-            + " data/miramon/Points/3dpoints/Some3dPoints.pnt"
-        )
+    if test_cli_utilities.get_test_ogrsf_path() is None:
+        pytest.skip("test_ogrsf not available")
 
-        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+    ret = gdaltest.runexternal(
+        test_cli_utilities.get_test_ogrsf_path() + " data/miramon/" + filename
+    )
 
-        ret = gdaltest.runexternal(
-            test_cli_utilities.get_test_ogrsf_path()
-            + " data/miramon/Points/SimplePoints/SimplePointsFile.pnt"
-        )
-
-        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
-
-        ret = gdaltest.runexternal(
-            test_cli_utilities.get_test_ogrsf_path()
-            + " data/miramon/Points/EmptyPoints/Empty_PNT.pnt"
-        )
-
-        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
-
-        ret = gdaltest.runexternal(
-            test_cli_utilities.get_test_ogrsf_path()
-            + " data/miramon/Arcs/SimpleArcs/SimpleArcFile.arc"
-        )
-
-        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
-
-        ret = gdaltest.runexternal(
-            test_cli_utilities.get_test_ogrsf_path()
-            + " data/miramon/Arcs/EmptyArcs/Empty_ARC.arc"
-        )
-
-        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
-
-        ret = gdaltest.runexternal(
-            test_cli_utilities.get_test_ogrsf_path()
-            + " data/miramon/Arcs/3dArcs/linies_3d_WGS84.arc"
-        )
-
-        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
-
-        ret = gdaltest.runexternal(
-            test_cli_utilities.get_test_ogrsf_path()
-            + " data/miramon/Polygons/SimplePolygons/SimplePolFile.pol"
-        )
-
-        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
-
-        ret = gdaltest.runexternal(
-            test_cli_utilities.get_test_ogrsf_path()
-            + " data/miramon/Polygons/EmptyPolygons/Empty_POL.pol"
-        )
-
-        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
-
-        ret = gdaltest.runexternal(
-            test_cli_utilities.get_test_ogrsf_path()
-            + " data/miramon/Polygons/3dPolygons/tin_3d.pol"
-        )
-
-        assert ret.find("INFO") != -1 and ret.find("ERROR") == -1
+    assert "INFO" in ret
+    assert "ERROR" not in ret
