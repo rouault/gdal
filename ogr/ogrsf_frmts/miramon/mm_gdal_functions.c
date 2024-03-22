@@ -1233,20 +1233,23 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
     }
     if (MM_ES_DBF_ESTESA(pMMBDXP->dbf_version))
     {
-        unsigned short FirstRecordOffsetPart1;
-        unsigned short FirstRecordOffsetPart2;
+        unsigned short UShort16LowBits;
+        unsigned short UShort16HighBits;
 
-        memcpy(&FirstRecordOffsetPart1, &offset_primera_fitxa, 2);
-        memcpy(&FirstRecordOffsetPart2, &pMMBDXP->reserved_2, 2);
+        memcpy(&UShort16LowBits, &offset_primera_fitxa, 2);
+        memcpy(&UShort16HighBits, &pMMBDXP->reserved_2, 2);
 
         pMMBDXP->FirstRecordOffset =
-            ((GUInt32)FirstRecordOffsetPart2 << 16) | FirstRecordOffsetPart1;
+            ((GUInt32)UShort16HighBits << 16) | UShort16LowBits;
 
         if (n_queixes_estructura_incorrecta > 0)
             offset_fals = pMMBDXP->FirstRecordOffset;
 
-        memcpy(&pMMBDXP->BytesPerRecord, &two_bytes, 2);
-        memcpy(((char *)&pMMBDXP->BytesPerRecord) + 2, &pMMBDXP->reserved_1, 2);
+        memcpy(&UShort16LowBits, &two_bytes, 2);
+        memcpy(&UShort16HighBits, &pMMBDXP->reserved_1, 2);
+
+        pMMBDXP->BytesPerRecord =
+            ((GUInt32)UShort16HighBits << 16) | UShort16LowBits;
     }
     else
     {
