@@ -1183,13 +1183,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
     {
         if (!MM_ES_DBF_ESTESA(pMMBDXP->dbf_version))
         {
-            offset_fals = offset_primera_fitxa;
-            if ((offset_primera_fitxa - 1) % 32)
-            {
-                for (offset_fals = (offset_primera_fitxa - 1);
-                     !((offset_fals - 1) % 32); offset_fals--)
-                    ;
-            }
+            offset_fals = offset_primera_fitxa & (MM_FIRST_RECORD_OFFSET_TYPE)(~31);
         }
     }
     else
