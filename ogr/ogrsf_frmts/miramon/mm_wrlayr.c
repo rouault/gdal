@@ -28,7 +28,7 @@
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE. 
+ * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
 #ifdef GDAL_COMPILATION
@@ -150,6 +150,8 @@ void MMCPLWarning(int level, int code, const char *message)
 void MMCPLDebug(const char *c, const char *message)
 {
 #ifdef GDAL_COMPILATION
+    (void)c;
+    (void)message;
     CPLDebugOnly(c, "%s", message);
 #else
     snprintf(local_message, sizeof(local_message), "Code(%s)\n", c);
@@ -929,7 +931,7 @@ static int MMInitZSectionLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
 /* Find the last ocurrence of pszFinalPart in pszName
     and changes it by pszNewPart.
- 
+
     Examples of desired behaviour
     AA.pnt -> AAT.rel
     AA.nod -> N.~idx
