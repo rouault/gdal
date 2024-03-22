@@ -6391,21 +6391,21 @@ int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
             if (!is_64)
             {
                 snprintf(hMiraMonLayer->szStringToOperate,
-                         hMiraMonLayer->nNumStringToOperate, "%*.*f",
+                         (size_t)hMiraMonLayer->nNumStringToOperate, "%*.*f",
                          camp->BytesPerField, camp->DecimalsIfFloat,
                          *(const double *)valor);
             }
             else
             {
                 snprintf(hMiraMonLayer->szStringToOperate,
-                         hMiraMonLayer->nNumStringToOperate, "%*lld",
+                         (size_t)hMiraMonLayer->nNumStringToOperate, "%*lld",
                          camp->BytesPerField, *(const GInt64 *)valor);
             }
         }
         else
         {
             snprintf(hMiraMonLayer->szStringToOperate,
-                     hMiraMonLayer->nNumStringToOperate, "%-*s",
+                     (size_t)hMiraMonLayer->nNumStringToOperate, "%-*s",
                      camp->BytesPerField, (const char *)valor);
         }
     }
