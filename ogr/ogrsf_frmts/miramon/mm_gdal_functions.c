@@ -1108,7 +1108,7 @@ int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
     MM_BYTES_PER_FIELD_TYPE_DBF bytes_per_camp;
     MM_BYTE tretze_bytes[13];
     MM_FIRST_RECORD_OFFSET_TYPE offset_possible;
-    MM_BYTE n_queixes_estructura_incorrecta = 0;
+    MM_BYTE some_problems_when_reading = 0;
     MM_FILE_OFFSET offset_reintent = 0;  // For retrying
     char cpg_file[MM_CPL_PATH_BUF_SIZE];
     char *pszDesc;
@@ -1156,7 +1156,7 @@ int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
     pMMBDXP->year = (short)(1900 + variable_byte);
 reintenta_lectura_per_si_error_CreaCampBD_XP:
 
-    if (n_queixes_estructura_incorrecta > 0)
+    if (some_problems_when_reading > 0)
     {
         if (!MM_ES_DBF_ESTESA(pMMBDXP->dbf_version))
         {
@@ -1242,7 +1242,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         pMMBDXP->FirstRecordOffset =
             ((GUInt32)UShort16HighBits << 16) | UShort16LowBits;
 
-        if (n_queixes_estructura_incorrecta > 0)
+        if (some_problems_when_reading > 0)
             offset_fals = pMMBDXP->FirstRecordOffset;
 
         memcpy(&UShort16LowBits, &two_bytes, 2);
@@ -1259,8 +1259,14 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
 
     /* ====== Record structure ========================= */
 
-    if (n_queixes_estructura_incorrecta > 0)
-        pMMBDXP->nFields = (MM_EXT_DBF_N_FIELDS)(((offset_fals - 1) - 32) / 32);
+    if (some_problems_when_reading > 0)
+    {
+        if ((offset_fals - 1) - 32 < 0)
+            pMMBDXP->nFields = 0;
+        else
+            pMMBDXP->nFields =
+                (MM_EXT_DBF_N_FIELDS)(((offset_fals - 1) - 32) / 32);
+    }
     else
     {
         MM_ACUMULATED_BYTES_TYPE_DBF bytes_acumulats = 1;
@@ -1484,11 +1490,11 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         incoherent_record_size = TRUE;
     if (incoherent_record_size)
     {
-        if (n_queixes_estructura_incorrecta == 0)
+        if (some_problems_when_reading == 0)
         {
             incoherent_record_size = FALSE;
             fseek_function(pf, offset_reintent, SEEK_SET);
-            n_queixes_estructura_incorrecta++;
+            some_problems_when_reading++;
             goto reintenta_lectura_per_si_error_CreaCampBD_XP;
         }
     }
