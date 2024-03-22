@@ -528,7 +528,9 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
         CPLDebugOnly("MiraMon", "MiraMon polygons layer closed");
     }
     else if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITTING_MODE)
+    {
         CPLDebugOnly("MiraMon", "No MiraMon polygons layer created.");
+    }
 
     if (hMiraMonLayerARC.bIsArc)
     {
