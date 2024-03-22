@@ -515,7 +515,9 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
     {
         CPLDebugOnly("MiraMon", "Closing MiraMon polygons layer...");
         if (MMCloseLayer(&hMiraMonLayerPOL))
+        {
             CPLDebugOnly("MiraMon", "Error closing polygons layer");
+        }
         if (hMiraMonLayerPOL.TopHeader.nElemCount)
         {
             CPLDebugOnly("MiraMon",
@@ -532,7 +534,9 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
     {
         CPLDebugOnly("MiraMon", "Closing MiraMon arcs layer...");
         if (MMCloseLayer(&hMiraMonLayerARC))
+        {
             CPLDebugOnly("MiraMon", "Error closing arcs layer");
+        }
         if (hMiraMonLayerARC.TopHeader.nElemCount)
         {
             CPLDebugOnly("MiraMon",
@@ -544,13 +548,17 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
         CPLDebugOnly("MiraMon", "MiraMon arcs layer closed");
     }
     else if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
+    {
         CPLDebugOnly("MiraMon", "No MiraMon arcs layer created.");
+    }
 
     if (hMiraMonLayerPNT.bIsPoint)
     {
         CPLDebugOnly("MiraMon", "Closing MiraMon points layer...");
         if (MMCloseLayer(&hMiraMonLayerPNT))
+        {
             CPLDebugOnly("MiraMon", "Error closing points layer");
+        }
         if (hMiraMonLayerPNT.TopHeader.nElemCount)
         {
             CPLDebugOnly("MiraMon",
@@ -561,28 +569,40 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
         CPLDebugOnly("MiraMon", "MiraMon points layer closed");
     }
     else if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
+    {
         CPLDebugOnly("MiraMon", "No MiraMon points layer created.");
+    }
 
     if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
     {
         if (hMiraMonLayerReadOrNonGeom.bIsDBF)
         {
             if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+            {
                 CPLDebugOnly("MiraMon", "Closing MiraMon DBF table ...");
+            }
             MMCloseLayer(&hMiraMonLayerReadOrNonGeom);
             if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+            {
                 CPLDebugOnly("MiraMon", "MiraMon DBF table closed");
+            }
         }
         else if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+        {
             CPLDebugOnly("MiraMon", "No MiraMon DBF table created.");
+        }
     }
     else
     {
         if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+        {
             CPLDebugOnly("MiraMon", "Closing MiraMon layer ...");
+        }
         MMCloseLayer(&hMiraMonLayerReadOrNonGeom);
         if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+        {
             CPLDebugOnly("MiraMon", "MiraMon layer closed");
+        }
     }
 
     if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITTING_MODE)

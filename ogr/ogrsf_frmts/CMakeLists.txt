@@ -49,6 +49,7 @@ ogr_optional_driver(mapml MapML)
 ogr_optional_driver(jsonfg JSONFG)
 if( NOT WORDS_BIGENDIAN )
     ogr_optional_driver(miramon "MiraMonVector")
+endif()
 
 # ######################################################################################################################
 #

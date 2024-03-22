@@ -28,7 +28,7 @@
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE. 
+ * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
 #ifdef GDAL_COMPILATION
@@ -631,18 +631,15 @@ int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB)
     if (MMAdmDB->pMMBDXP->nRecords > UINT32_MAX)
     {
         MMAdmDB->pMMBDXP->dbf_version = MM_MARCA_VERSIO_1_DBF_ESTESA;
-
-        if (fwrite_function(&MMAdmDB->pMMBDXP->nRecords, 4, 1,
-                            MMAdmDB->pFExtDBF) != 1)
-            return 1;
     }
     else
     {
-        GUInt32 nRecords32LowBits;
-
         MMAdmDB->pMMBDXP->dbf_version = MM_MARCA_DBASE4;
+    }
 
-        nRecords32LowBits = (GUInt32)(MMAdmDB->pMMBDXP->nRecords & UINT32_MAX);
+    {
+        GUInt32 nRecords32LowBits =
+            (GUInt32)(MMAdmDB->pMMBDXP->nRecords & UINT32_MAX);
         if (fwrite_function(&nRecords32LowBits, 4, 1, MMAdmDB->pFExtDBF) != 1)
             return 1;
     }
@@ -653,7 +650,7 @@ int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB)
         /* from 16 to 19, position MM_SECOND_OFFSET_to_N_RECORDS */
         GUInt32 nRecords32HightBits =
             (GUInt32)(MMAdmDB->pMMBDXP->nRecords >> 32);
-        if (fwrite_function(nRecords32HightBits, 4, 1, MMAdmDB->pFExtDBF) != 1)
+        if (fwrite_function(&nRecords32HightBits, 4, 1, MMAdmDB->pFExtDBF) != 1)
             return 1;
 
         /* from 20 to 27 */
@@ -754,14 +751,6 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
         return FALSE;
 
     /* from 4 a 7, position MM_FIRST_OFFSET_to_N_RECORDS */
-    if (data_base_XP->nRecords > UINT32_MAX)
-    {
-        GUInt32 nRecords32HightBits = (GUInt32)(data_base_XP->nRecords >> 32);
-        if (fwrite_function(&nRecords32HightBits, 4, 1,
-                            data_base_XP->pfDataBase) != 1)
-            return FALSE;
-    }
-    else
     {
         GUInt32 nRecords32LowBits =
             (GUInt32)(data_base_XP->nRecords & UINT32_MAX);
@@ -806,7 +795,8 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
     if (data_base_XP->nRecords > UINT32_MAX)
     {
         /* from 16 to 19, position MM_SECOND_OFFSET_to_N_RECORDS */
-        if (fwrite_function(((char *)(&data_base_XP->nRecords)) + 4, 4, 1,
+        GUInt32 nRecords32HighBits = (GUInt32)(data_base_XP->nRecords >> 32);
+        if (fwrite_function(&nRecords32HighBits, 4, 1,
                             data_base_XP->pfDataBase) != 1)
             return FALSE;
 
