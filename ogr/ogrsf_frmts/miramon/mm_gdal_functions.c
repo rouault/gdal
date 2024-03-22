@@ -52,9 +52,7 @@ CPL_C_START              // Necessary for compiling in GDAL project
 #endif
 #endif
 
-    static char local_message[MAX_LOCAL_MESSAGE];
-
-char szInternalGraphicIdentifierEng[MM_MAX_IDENTIFIER_SIZE];
+    char szInternalGraphicIdentifierEng[MM_MAX_IDENTIFIER_SIZE];
 char szInternalGraphicIdentifierCat[MM_MAX_IDENTIFIER_SIZE];
 char szInternalGraphicIdentifierSpa[MM_MAX_IDENTIFIER_SIZE];
 
@@ -215,7 +213,7 @@ struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS nFields)
     struct MM_FIELD *camp;
     MM_EXT_DBF_N_FIELDS i;
 
-    if (nFields >= SIZE_MAX / sizeof(*camp))
+    if (nFields >= UINT32_MAX / sizeof(*camp))
         return nullptr;
 
     if ((camp = calloc_function(nFields * sizeof(*camp))) == nullptr)
@@ -2079,7 +2077,7 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
     {
         retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball),
                                  "%*.*f", amplada, n_decimals, valor_double);
-        if (retorn_printf >= sizeof(cadena_treball))
+        if (retorn_printf >= (int)sizeof(cadena_treball))
         {
             *cadena = *MM_EmptyString;
             return retorn_printf;
@@ -2112,7 +2110,7 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
         retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball),
                                  "%*.*E", amplada, n_decimals, valor_double);
 
-        if (retorn_printf >= sizeof(cadena_treball))
+        if (retorn_printf >= (int)sizeof(cadena_treball))
         {
             *cadena = *MM_EmptyString;
             return retorn_printf;
@@ -2139,7 +2137,7 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
     retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball), "%*.*f",
                              amplada, n_decimals, valor_double);
 
-    if (retorn_printf >= sizeof(cadena_treball))
+    if (retorn_printf >= (int)sizeof(cadena_treball))
     {
         *cadena = *MM_EmptyString;
         return retorn_printf;
