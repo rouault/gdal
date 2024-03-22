@@ -1205,6 +1205,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
     if (pMMBDXP->CharSet == 0)
     {
         FILE_TYPE *f_cpg;
+        char charset_cpg[11];
 
         strcpy(cpg_file, pMMBDXP->szFileName);
         strcpy(cpg_file, reset_extension(cpg_file, "cpg"));
@@ -1214,16 +1215,16 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
             char *p;
             size_t read_bytes;
             fseek_function(f_cpg, 0L, SEEK_SET);
-            if (11 > (read_bytes = fread_function(local_message, 1, 10, f_cpg)))
+            if (11 > (read_bytes = fread_function(charset_cpg, 1, 10, f_cpg)))
             {
-                local_message[read_bytes] = '\0';
-                p = strstr(local_message, "UTF-8");
+                charset_cpg[read_bytes] = '\0';
+                p = strstr(charset_cpg, "UTF-8");
                 if (p)
                     pMMBDXP->CharSet = MM_JOC_CARAC_UTF8_DBF;
-                p = strstr(local_message, "UTF8");
+                p = strstr(charset_cpg, "UTF8");
                 if (p)
                     pMMBDXP->CharSet = MM_JOC_CARAC_UTF8_DBF;
-                p = strstr(local_message, "ISO-8859-1");
+                p = strstr(charset_cpg, "ISO-8859-1");
                 if (p)
                     pMMBDXP->CharSet = MM_JOC_CARAC_ANSI_DBASE;
             }
