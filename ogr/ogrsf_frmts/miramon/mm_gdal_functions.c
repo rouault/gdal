@@ -1461,7 +1461,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
 
             // MM_SPA_LANGUAGE
             pszDesc = MMReturnValueFromSectionINIFile(pszRelFile, section,
-                                                      "descriptor_cat");
+                                                      "descriptor_spa");
             if (pszDesc)
             {
                 pszString = CPLRecode_function(pszDesc, CPL_ENC_ISO8859_1,
@@ -1780,7 +1780,11 @@ int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
 char *MM_strnzcpy(char *dest, const char *src, size_t maxlen)
 {
     size_t i = 0;
-    if (!src || maxlen == 0)
+
+    if (maxlen == 0)
+        return dest;
+
+    if (!src)
     {
         *dest = '\0';
         return dest;
@@ -2075,7 +2079,7 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
     {
         retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball),
                                  "%*.*f", amplada, n_decimals, valor_double);
-        if (retorn_printf == EOF)
+        if (retorn_printf >= sizeof(cadena_treball))
         {
             *cadena = *MM_EmptyString;
             return retorn_printf;
@@ -2107,7 +2111,8 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
     {
         retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball),
                                  "%*.*E", amplada, n_decimals, valor_double);
-        if (retorn_printf == EOF)
+
+        if (retorn_printf >= sizeof(cadena_treball))
         {
             *cadena = *MM_EmptyString;
             return retorn_printf;
@@ -2133,7 +2138,8 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
 
     retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball), "%*.*f",
                              amplada, n_decimals, valor_double);
-    if (retorn_printf == EOF)
+
+    if (retorn_printf >= sizeof(cadena_treball))
     {
         *cadena = *MM_EmptyString;
         return retorn_printf;
