@@ -101,13 +101,13 @@ struct MM_DATA_BASE_XP  // MiraMon table Structure
 
     MM_BYTE dbf_version;  // In MiraMon code: versio_dbf
 
-    MM_BYTE reserved_1
+    MM_BYTE reserved_1  // Used in extended DBF format to recompose BytesPerRecord
         [MM_MAX_LON_RESERVAT_1_BASE_DADES_XP];  // In MiraMon code: reservat_1
     MM_BYTE transaction_flag;
     MM_BYTE encryption_flag;
     MM_BYTE dbf_on_a_LAN[MM_MAX_LON_DBF_ON_A_LAN_BASE_DADES_XP];
     MM_BYTE MDX_flag;
-    MM_BYTE reserved_2
+    MM_BYTE reserved_2  // Used in extended DBF format to recompose BytesPerRecord
         [MM_MAX_LON_RESERVAT_2_BASE_DADES_XP];  // In MiraMon code: reservat_2
 };
 #ifdef GDAL_COMPILATION

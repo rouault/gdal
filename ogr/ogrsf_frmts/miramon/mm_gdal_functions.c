@@ -1233,9 +1233,14 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
     }
     if (MM_ES_DBF_ESTESA(pMMBDXP->dbf_version))
     {
-        memcpy(&pMMBDXP->FirstRecordOffset, &offset_primera_fitxa, 2);
-        memcpy(((char *)&pMMBDXP->FirstRecordOffset) + 2, &pMMBDXP->reserved_2,
-               2);
+        unsigned short FirstRecordOffsetPart1;
+        unsigned short FirstRecordOffsetPart2;
+
+        memcpy(&FirstRecordOffsetPart1, &offset_primera_fitxa, 2);
+        memcpy(&FirstRecordOffsetPart2, &pMMBDXP->reserved_2, 2);
+
+        pMMBDXP->FirstRecordOffset =
+            ((GUInt32)FirstRecordOffsetPart2 << 16) | FirstRecordOffsetPart1;
 
         if (n_queixes_estructura_incorrecta > 0)
             offset_fals = pMMBDXP->FirstRecordOffset;
