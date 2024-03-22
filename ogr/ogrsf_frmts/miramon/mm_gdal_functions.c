@@ -897,6 +897,9 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
                     strcpy(data_base_XP->pField[i].ClassicalDBFFieldName,
                            nom_temp);
             }
+
+            // This is a 11-byte fixed size field consisting of the filename
+            // and it's been padding calculated some next lines.
             j = (short)strlen(data_base_XP->pField[i].ClassicalDBFFieldName);
 
             retorn_fwrite =
@@ -1376,11 +1379,25 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         }
 
         if (nIField)
+        {
+            // To avoid overflow
+            if (pMMBDXP->pField[nIField - 1].AcumulatedBytes >
+                UINT32_MAX - pMMBDXP->pField[nIField - 1].BytesPerField)
+            {
+                free_function(pMMBDXP->pField);
+                pMMBDXP->pField = nullptr;
+                fclose_function(pf);
+                return 1;
+            }
+
             pMMBDXP->pField[nIField].AcumulatedBytes =
                 (pMMBDXP->pField[nIField - 1].AcumulatedBytes +
                  pMMBDXP->pField[nIField - 1].BytesPerField);
+        }
         else
+        {
             pMMBDXP->pField[nIField].AcumulatedBytes = 1;
+        }
 
         if (pszRelFile)
         {
@@ -1491,10 +1508,22 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         if (pMMBDXP->BytesPerRecord)
             incoherent_record_size = TRUE;
     }
-    else if (pMMBDXP->pField[pMMBDXP->nFields - 1].BytesPerField +
-                 pMMBDXP->pField[pMMBDXP->nFields - 1].AcumulatedBytes >
-             pMMBDXP->BytesPerRecord)
-        incoherent_record_size = TRUE;
+    else
+    {
+        // To avoid overflow
+        if (pMMBDXP->pField[pMMBDXP->nFields - 1].AcumulatedBytes >
+            UINT32_MAX - pMMBDXP->pField[pMMBDXP->nFields - 1].BytesPerField)
+        {
+            free_function(pMMBDXP->pField);
+            pMMBDXP->pField = nullptr;
+            fclose_function(pf);
+            return 1;
+        }
+        if (pMMBDXP->pField[pMMBDXP->nFields - 1].BytesPerField +
+                pMMBDXP->pField[pMMBDXP->nFields - 1].AcumulatedBytes >
+            pMMBDXP->BytesPerRecord)
+            incoherent_record_size = TRUE;
+    }
     if (incoherent_record_size)
     {
         if (some_problems_when_reading == 0)
@@ -1816,6 +1845,8 @@ char *MM_strnzcpy(char *dest, const char *src, size_t maxlen)
     return dest;
 }*/
 
+// If n_bytes==SIZE_MAX, the parameter is ignored ant, then,
+// it's assumed that szcadena is NUL terminated
 char *MM_oemansi_n(char *szcadena, size_t n_bytes)
 {
     size_t u_i;
@@ -1831,7 +1862,7 @@ char *MM_oemansi_n(char *szcadena, size_t n_bytes)
         164, 164, 166, 204, 164, 211, 223, 212, 210, 245, 213, 181, 254,
         222, 218, 219, 217, 253, 221, 175, 180, 173, 177, 164, 190, 182,
         167, 247, 184, 176, 168, 183, 185, 179, 178, 164, 183};
-    if (n_bytes == USHRT_MAX)
+    if (n_bytes == SIZE_MAX)
     {
         for (punter_bait = (unsigned char *)szcadena; *punter_bait;
              punter_bait++)
@@ -1854,7 +1885,7 @@ char *MM_oemansi_n(char *szcadena, size_t n_bytes)
 
 char *MM_oemansi(char *szcadena)
 {
-    return MM_oemansi_n(szcadena, USHRT_MAX);
+    return MM_oemansi_n(szcadena, SIZE_MAX);
 }
 
 static MM_BOOLEAN MM_FillFieldDB_XP(
