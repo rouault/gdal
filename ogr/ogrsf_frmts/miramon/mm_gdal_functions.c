@@ -1099,7 +1099,7 @@ int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
 {
     MM_BYTE variable_byte;
     FILE_TYPE *pf;
-    unsigned short int ushort;
+    unsigned short int two_bytes;
     MM_EXT_DBF_N_FIELDS nIField;
     MM_FIRST_RECORD_OFFSET_TYPE offset_primera_fitxa;
     MM_FIRST_RECORD_OFFSET_TYPE offset_fals = 0;
@@ -1167,7 +1167,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
     else
         offset_reintent = ftell_function(pf);
 
-    if (1 != fread_function(&ushort, 2, 1, pf) ||
+    if (1 != fread_function(&two_bytes, 2, 1, pf) ||
         1 != fread_function(&(pMMBDXP->reserved_1), 2, 1, pf) ||
         1 != fread_function(&(pMMBDXP->transaction_flag), 1, 1, pf) ||
         1 != fread_function(&(pMMBDXP->encryption_flag), 1, 1, pf) ||
@@ -1240,13 +1240,13 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         if (n_queixes_estructura_incorrecta > 0)
             offset_fals = pMMBDXP->FirstRecordOffset;
 
-        memcpy(&pMMBDXP->BytesPerRecord, &ushort, 2);
+        memcpy(&pMMBDXP->BytesPerRecord, &two_bytes, 2);
         memcpy(((char *)&pMMBDXP->BytesPerRecord) + 2, &pMMBDXP->reserved_1, 2);
     }
     else
     {
         pMMBDXP->FirstRecordOffset = offset_primera_fitxa;
-        pMMBDXP->BytesPerRecord = ushort;
+        pMMBDXP->BytesPerRecord = two_bytes;
     }
 
     /* ====== Record structure ========================= */
