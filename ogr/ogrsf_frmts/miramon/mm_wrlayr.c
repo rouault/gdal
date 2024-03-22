@@ -150,7 +150,7 @@ void MMCPLWarning(int level, int code, const char *message)
 void MMCPLDebug(const char *c, const char *message)
 {
 #ifdef GDAL_COMPILATION
-    CPLDebug(c, "%s", message);
+    CPLDebugOnly(c, "%s", message);
 #else
     snprintf(local_message, sizeof(local_message), "Code(%s)\n", c);
     printf(local_message); /*ok*/
@@ -3004,9 +3004,9 @@ int MMReadAHArcSection(struct MiraMonVectLayerInfo *hMiraMonLayer)
         }
         // Lenght of the arc
         FlushTMP.pBlockToBeSaved =
-            (void *)&pMMArcLayer->pArcHeader[iElem].dfLenght;
+            (void *)&pMMArcLayer->pArcHeader[iElem].dfLength;
         FlushTMP.SizeOfBlockToBeSaved =
-            sizeof(pMMArcLayer->pArcHeader[iElem].dfLenght);
+            sizeof(pMMArcLayer->pArcHeader[iElem].dfLength);
         if (MMReadBlockFromBuffer(&FlushTMP))
         {
             if (pBuffer)
@@ -3135,10 +3135,10 @@ int MMWriteAHArcSection(struct MiraMonVectLayerInfo *hMiraMonLayer,
         }
         // Lenght of the arc
         FlushTMP.SizeOfBlockToBeSaved =
-            sizeof(pMMArcLayer->pArcHeader[iElem].dfLenght);
+            sizeof(pMMArcLayer->pArcHeader[iElem].dfLength);
         hMiraMonLayer->OffsetCheck += FlushTMP.SizeOfBlockToBeSaved;
         FlushTMP.pBlockToBeSaved =
-            (void *)&pMMArcLayer->pArcHeader[iElem].dfLenght;
+            (void *)&pMMArcLayer->pArcHeader[iElem].dfLength;
         if (MMAppendBlockToBuffer(&FlushTMP))
         {
             if (pBuffer)
@@ -4072,7 +4072,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
         // Initialiting feature information (section AH/PH)
         pCurrentArcHeader->nElemCount = hMMFeature->pNCoordRing[nIPart];
-        pCurrentArcHeader->dfLenght = 0.0;
+        pCurrentArcHeader->dfLength = 0.0;
         pCurrentArcHeader->nOffset =
             pFlushAL->TotalSavedBytes + pFlushAL->nNumBytes;
 
@@ -4124,7 +4124,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
             {
                 dtempx = pCoordReal->dfX - (pCoordReal + prevCoord)->dfX;
                 dtempy = pCoordReal->dfY - (pCoordReal + prevCoord)->dfY;
-                pCurrentArcHeader->dfLenght +=
+                pCurrentArcHeader->dfLength +=
                     sqrt(dtempx * dtempx + dtempy * dtempy);
                 if (hMiraMonLayer->bIsPolygon && pCurrentPolHeader)
                 {
@@ -4367,7 +4367,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
             MMUpdateBoundingBox(&pCurrentPolHeader->dfBB,
                                 &pCurrentArcHeader->dfBB);
-            pCurrentPolHeader->dfPerimeter += pCurrentArcHeader->dfLenght;
+            pCurrentPolHeader->dfPerimeter += pCurrentArcHeader->dfLength;
         }
     }
 
@@ -6742,7 +6742,7 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              pBD_XP->pField + 1, &pArcHeader->nElemCount, TRUE);
 
     MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse,
-                             pBD_XP->pField + 2, &pArcHeader->dfLenght, FALSE);
+                             pBD_XP->pField + 2, &pArcHeader->dfLength, FALSE);
 
     MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse,
                              pBD_XP->pField + 3, &pArcHeader->nFirstIdNode,

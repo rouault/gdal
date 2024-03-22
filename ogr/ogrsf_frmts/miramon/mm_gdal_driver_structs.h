@@ -425,7 +425,7 @@ struct MM_AH
     MM_FILE_OFFSET nOffset;         // 4/8 bytes depending on the version
     MM_INTERNAL_FID nFirstIdNode;   // 4/8 bytes depending on the version
     MM_INTERNAL_FID nLastIdNode;    // 4/8 bytes depending on the version
-    double dfLenght;
+    double dfLength;
 };
 
 // Header of Nodes

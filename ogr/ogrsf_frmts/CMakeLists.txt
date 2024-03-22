@@ -47,7 +47,8 @@ ogr_optional_driver(vdv "VDV-451/VDV-452/INTREST Data Format")
 ogr_optional_driver(flatgeobuf FlatGeobuf)
 ogr_optional_driver(mapml MapML)
 ogr_optional_driver(jsonfg JSONFG)
-ogr_optional_driver(miramon "MiraMonVector")
+if( NOT WORDS_BIGENDIAN )
+    ogr_optional_driver(miramon "MiraMonVector")
 
 # ######################################################################################################################
 #

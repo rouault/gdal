@@ -622,7 +622,6 @@ MM_GiveOffsetExtendedFieldName(const struct MM_FIELD *camp)
 
 int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB)
 {
-    GUInt32 nRecords;
     if (!MMAdmDB->pMMBDXP || !MMAdmDB->pFExtDBF)
         return 0;
 
@@ -639,10 +638,12 @@ int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB)
     }
     else
     {
+        GUInt32 nRecords32LowBits;
+
         MMAdmDB->pMMBDXP->dbf_version = MM_MARCA_DBASE4;
 
-        nRecords = (GUInt32)MMAdmDB->pMMBDXP->nRecords;
-        if (fwrite_function(&nRecords, 4, 1, MMAdmDB->pFExtDBF) != 1)
+        nRecords32LowBits = (GUInt32)(MMAdmDB->pMMBDXP->nRecords & UINT32_MAX);
+        if (fwrite_function(&nRecords32LowBits, 4, 1, MMAdmDB->pFExtDBF) != 1)
             return 1;
     }
 
@@ -650,8 +651,9 @@ int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB)
     if (MMAdmDB->pMMBDXP->dbf_version == MM_MARCA_VERSIO_1_DBF_ESTESA)
     {
         /* from 16 to 19, position MM_SECOND_OFFSET_to_N_RECORDS */
-        if (fwrite_function(((char *)(&MMAdmDB->pMMBDXP->nRecords)) + 4, 4, 1,
-                            MMAdmDB->pFExtDBF) != 1)
+        GUInt32 nRecords32HightBits =
+            (GUInt32)(MMAdmDB->pMMBDXP->nRecords >> 32);
+        if (fwrite_function(nRecords32HightBits, 4, 1, MMAdmDB->pFExtDBF) != 1)
             return 1;
 
         /* from 20 to 27 */
@@ -683,7 +685,6 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
     char nom_camp[MM_MAX_LON_FIELD_NAME_DBF];
     size_t retorn_fwrite;
     MM_BOOLEAN table_should_be_closed = FALSE;
-    GUInt32 nRecords;
 
     if ((zero = calloc_function(max_n_zeros)) == nullptr)
         return FALSE;
@@ -755,14 +756,17 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
     /* from 4 a 7, position MM_FIRST_OFFSET_to_N_RECORDS */
     if (data_base_XP->nRecords > UINT32_MAX)
     {
-        if (fwrite_function(&data_base_XP->nRecords, 4, 1,
+        GUInt32 nRecords32HightBits = (GUInt32)(data_base_XP->nRecords >> 32);
+        if (fwrite_function(&nRecords32HightBits, 4, 1,
                             data_base_XP->pfDataBase) != 1)
             return FALSE;
     }
     else
     {
-        nRecords = (GUInt32)data_base_XP->nRecords;
-        if (fwrite_function(&nRecords, 4, 1, data_base_XP->pfDataBase) != 1)
+        GUInt32 nRecords32LowBits =
+            (GUInt32)(data_base_XP->nRecords & UINT32_MAX);
+        if (fwrite_function(&nRecords32LowBits, 4, 1,
+                            data_base_XP->pfDataBase) != 1)
             return FALSE;
     }
 
@@ -1132,7 +1136,7 @@ int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
     char cpg_file[MM_CPL_PATH_BUF_SIZE];
     char *pszDesc;
     char section[MM_MAX_LON_FIELD_NAME_DBF + 25];  // TAULA_PRINCIPAL:field_name
-    GUInt32 nRecords;
+    GUInt32 nRecords32LowBits;
     char *pszString;
 
     if (!szFileName)
@@ -1160,7 +1164,7 @@ int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
         return 1;
     }
 
-    if (1 != fread_function(&nRecords, 4, 1, pf))
+    if (1 != fread_function(&nRecords32LowBits, 4, 1, pf))
     {
         fclose_function(pf);
         return 1;
@@ -1203,11 +1207,11 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
 
     if (MM_ES_DBF_ESTESA(pMMBDXP->dbf_version))
     {
-        memcpy(&pMMBDXP->nRecords, &nRecords, 4);
+        memcpy(&pMMBDXP->nRecords, &nRecords32LowBits, 4);
         memcpy(((char *)&pMMBDXP->nRecords) + 4, &pMMBDXP->dbf_on_a_LAN, 4);
     }
     else
-        pMMBDXP->nRecords = nRecords;
+        pMMBDXP->nRecords = nRecords32LowBits;
 
     if (1 != fread_function(&(pMMBDXP->MDX_flag), 1, 1, pf) ||
         1 != fread_function(&(pMMBDXP->CharSet), 1, 1, pf) ||
