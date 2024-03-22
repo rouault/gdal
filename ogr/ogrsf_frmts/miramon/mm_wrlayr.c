@@ -3930,21 +3930,24 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
             if (MMCheckVersionForFID(hMiraMonLayer,
                                      hMiraMonLayer->TopHeader.nElemCount))
             {
-                MMCPLDebug("MiraMon", "Error in MMCheckVersionForFID() (1)");
+                MMCPLError(CE_Failure, CPLE_NotSupported,
+                           "Error in MMCheckVersionForFID() (1)");
                 return MM_STOP_WRITING_FEATURES;
             }
 
             // Arc if there is no polygon
             if (MMCheckVersionForFID(hMiraMonLayer, nArcElemCount))
             {
-                MMCPLDebug("MiraMon", "Error in MMCheckVersionForFID() (2)");
+                MMCPLError(CE_Failure, CPLE_NotSupported,
+                           "Error in MMCheckVersionForFID() (2)");
                 return MM_STOP_WRITING_FEATURES;
             }
 
             // Nodes
             if (MMCheckVersionForFID(hMiraMonLayer, nNodeElemCount))
             {
-                MMCPLDebug("MiraMon", "Error in MMCheckVersionForFID() (3)");
+                MMCPLError(CE_Failure, CPLE_NotSupported,
+                           "Error in MMCheckVersionForFID() (3)");
                 return MM_STOP_WRITING_FEATURES;
             }
 
@@ -3953,7 +3956,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
             {
                 if (MMCheckVersionForFID(hMiraMonLayer, nNodeElemCount + 1))
                 {
-                    MMCPLDebug("MiraMon",
+                    MMCPLError(CE_Failure, CPLE_NotSupported,
                                "Error in MMCheckVersionForFID() (4)");
                     return MM_STOP_WRITING_FEATURES;
                 }
@@ -4448,7 +4451,11 @@ static int MMCreateFeaturePoint(struct MiraMonVectLayerInfo *hMiraMonLayer,
         // to version limitations.
         if (MMCheckVersionForFID(hMiraMonLayer,
                                  hMiraMonLayer->TopHeader.nElemCount + nCoord))
+        {
+            MMCPLError(CE_Failure, CPLE_NotSupported,
+                       "Error in MMCheckVersionForFID() (5)");
             return MM_STOP_WRITING_FEATURES;
+        }
 
         if (hMiraMonLayer->TopHeader.bIs3d)
         {
@@ -4744,13 +4751,14 @@ int MMResizeMiraMonFieldValue(struct MiraMonFieldValue **pFieldValue,
                               MM_EXT_DBF_N_MULTIPLE_RECORDS nProposedMax)
 {
     MM_EXT_DBF_N_MULTIPLE_RECORDS nPrevMax;
+    void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
     nPrevMax = *nMax;
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pFieldValue) = realloc_function(
+    if ((pTmp = realloc_function(
              *pFieldValue, (size_t)*nMax * sizeof(**pFieldValue))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4758,6 +4766,7 @@ int MMResizeMiraMonFieldValue(struct MiraMonFieldValue **pFieldValue,
                    "driver (MMResizeMiraMonFieldValue())");
         return 1;
     }
+    *pFieldValue = pTmp;
 
     memset((*pFieldValue) + nPrevMax, 0,
            (size_t)(*nMax - nPrevMax) * sizeof(**pFieldValue));
@@ -4771,13 +4780,14 @@ int MMResizeMiraMonPolygonArcs(struct MM_PAL_MEM **pFID,
                                MM_POLYGON_ARCS_COUNT nProposedMax)
 {
     MM_POLYGON_ARCS_COUNT nPrevMax;
+    void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
     nPrevMax = *nMax;
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pFID) = realloc_function(*pFID, (size_t)*nMax * sizeof(**pFID))) ==
+    if ((pTmp = realloc_function(*pFID, (size_t)*nMax * sizeof(**pFID))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4785,6 +4795,7 @@ int MMResizeMiraMonPolygonArcs(struct MM_PAL_MEM **pFID,
                    "driver (MMResizeMiraMonPolygonArcs())");
         return 1;
     }
+    *pFID = pTmp;
 
     memset((*pFID) + nPrevMax, 0, (size_t)(*nMax - nPrevMax) * sizeof(**pFID));
     return 0;
@@ -4797,14 +4808,15 @@ int MMResizeMiraMonRecord(struct MiraMonRecord **pMiraMonRecord,
                           MM_EXT_DBF_N_MULTIPLE_RECORDS nProposedMax)
 {
     MM_EXT_DBF_N_MULTIPLE_RECORDS nPrevMax;
+    void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
     nPrevMax = *nMax;
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pMiraMonRecord) = realloc_function(
-             *pMiraMonRecord, (size_t)*nMax * sizeof(**pMiraMonRecord))) ==
+    if ((pTmp = realloc_function(*pMiraMonRecord,
+                                 (size_t)*nMax * sizeof(**pMiraMonRecord))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4812,6 +4824,7 @@ int MMResizeMiraMonRecord(struct MiraMonRecord **pMiraMonRecord,
                    "driver (MMResizeMiraMonRecord())");
         return 1;
     }
+    *pMiraMonRecord = pTmp;
 
     memset((*pMiraMonRecord) + nPrevMax, 0,
            (size_t)(*nMax - nPrevMax) * sizeof(**pMiraMonRecord));
@@ -4822,12 +4835,14 @@ int MMResizeZSectionDescrPointer(struct MM_ZD **pZDescription, GUInt64 *nMax,
                                  GUInt64 nNum, GUInt64 nIncr,
                                  GUInt64 nProposedMax)
 {
+    void *pTmp;
+
     if (nNum < *nMax)
         return 0;
 
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pZDescription) = realloc_function(
-             *pZDescription, (size_t)*nMax * sizeof(**pZDescription))) ==
+    if ((pTmp = realloc_function(*pZDescription,
+                                 (size_t)*nMax * sizeof(**pZDescription))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4835,17 +4850,20 @@ int MMResizeZSectionDescrPointer(struct MM_ZD **pZDescription, GUInt64 *nMax,
                    "driver (MMResizeZSectionDescrPointer())");
         return 1;
     }
+    *pZDescription = pTmp;
     return 0;
 }
 
 int MMResizeNodeHeaderPointer(struct MM_NH **pNodeHeader, GUInt64 *nMax,
                               GUInt64 nNum, GUInt64 nIncr, GUInt64 nProposedMax)
 {
+    void *pTmp;
+
     if (nNum < *nMax)
         return 0;
 
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pNodeHeader) = realloc_function(
+    if ((pTmp = realloc_function(
              *pNodeHeader, (size_t)*nMax * sizeof(**pNodeHeader))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4853,17 +4871,20 @@ int MMResizeNodeHeaderPointer(struct MM_NH **pNodeHeader, GUInt64 *nMax,
                    "driver (MMResizeNodeHeaderPointer())");
         return 1;
     }
+    *pNodeHeader = pTmp;
     return 0;
 }
 
 int MMResizeArcHeaderPointer(struct MM_AH **pArcHeader, GUInt64 *nMax,
                              GUInt64 nNum, GUInt64 nIncr, GUInt64 nProposedMax)
 {
+    void *pTmp;
+
     if (nNum < *nMax)
         return 0;
 
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pArcHeader) = realloc_function(
+    if ((pTmp = realloc_function(
              *pArcHeader, (size_t)*nMax * sizeof(**pArcHeader))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4871,17 +4892,20 @@ int MMResizeArcHeaderPointer(struct MM_AH **pArcHeader, GUInt64 *nMax,
                    "driver (MMResizeArcHeaderPointer())");
         return 1;
     }
+    *pArcHeader = pTmp;
     return 0;
 }
 
 int MMResizePolHeaderPointer(struct MM_PH **pPolHeader, GUInt64 *nMax,
                              GUInt64 nNum, GUInt64 nIncr, GUInt64 nProposedMax)
 {
+    void *pTmp;
+
     if (nNum < *nMax)
         return 0;
 
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pPolHeader) = realloc_function(
+    if ((pTmp = realloc_function(
              *pPolHeader, (size_t)*nMax * sizeof(**pPolHeader))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4889,6 +4913,7 @@ int MMResizePolHeaderPointer(struct MM_PH **pPolHeader, GUInt64 *nMax,
                    "driver (MMResizePolHeaderPointer())");
         return 1;
     }
+    *pPolHeader = pTmp;
     return 0;
 }
 
@@ -4898,11 +4923,13 @@ int MMResize_MM_N_VERTICES_TYPE_Pointer(MM_N_VERTICES_TYPE **pVrt,
                                         MM_N_VERTICES_TYPE nIncr,
                                         MM_N_VERTICES_TYPE nProposedMax)
 {
+    void *pTmp;
+
     if (nNum < *nMax)
         return 0;
 
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pVrt) = realloc_function(*pVrt, (size_t)*nMax * sizeof(**pVrt))) ==
+    if ((pTmp = realloc_function(*pVrt, (size_t)*nMax * sizeof(**pVrt))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4910,17 +4937,21 @@ int MMResize_MM_N_VERTICES_TYPE_Pointer(MM_N_VERTICES_TYPE **pVrt,
                    "driver (MMResize_MM_N_VERTICES_TYPE_Pointer())");
         return 1;
     }
+    *pVrt = pTmp;
+
     return 0;
 }
 
 int MMResizeVFGPointer(char **pInt, MM_INTERNAL_FID *nMax, MM_INTERNAL_FID nNum,
                        MM_INTERNAL_FID nIncr, MM_INTERNAL_FID nProposedMax)
 {
+    void *pTmp;
+
     if (nNum < *nMax)
         return 0;
 
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pInt) = realloc_function(*pInt, (size_t)*nMax * sizeof(**pInt))) ==
+    if ((pTmp = realloc_function(*pInt, (size_t)*nMax * sizeof(**pInt))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4928,6 +4959,7 @@ int MMResizeVFGPointer(char **pInt, MM_INTERNAL_FID *nMax, MM_INTERNAL_FID nNum,
                    "driver (MMResizeVFGPointer())");
         return 1;
     }
+    *pInt = pTmp;
     return 0;
 }
 
@@ -4936,18 +4968,21 @@ int MMResizeMM_POINT2DPointer(struct MM_POINT_2D **pPoint2D,
                               MM_N_VERTICES_TYPE nIncr,
                               MM_N_VERTICES_TYPE nProposedMax)
 {
+    void *pTmp;
+
     if (nNum < *nMax)
         return 0;
 
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pPoint2D) = realloc_function(
-             *pPoint2D, (size_t)*nMax * sizeof(**pPoint2D))) == nullptr)
+    if ((pTmp = realloc_function(*pPoint2D, (size_t)*nMax *
+                                                sizeof(**pPoint2D))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                    "Memory error in MiraMon "
                    "driver (MMResizeMM_POINT2DPointer())");
         return 1;
     }
+    *pPoint2D = pTmp;
     return 0;
 }
 
@@ -4955,18 +4990,21 @@ int MMResizeDoublePointer(MM_COORD_TYPE **pDouble, MM_N_VERTICES_TYPE *nMax,
                           MM_N_VERTICES_TYPE nNum, MM_N_VERTICES_TYPE nIncr,
                           MM_N_VERTICES_TYPE nProposedMax)
 {
+    void *pTmp;
+
     if (nNum < *nMax)
         return 0;
 
     *nMax = max_function(nNum + nIncr, nProposedMax);
-    if (((*pDouble) = realloc_function(
-             *pDouble, (size_t)*nMax * sizeof(**pDouble))) == nullptr)
+    if ((pTmp = realloc_function(*pDouble,
+                                 (size_t)*nMax * sizeof(**pDouble))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                    "Memory error in MiraMon "
                    "driver (MMResizeDoublePointer())");
         return 1;
     }
+    *pDouble = pTmp;
     return 0;
 }
 
@@ -6638,7 +6676,11 @@ int MMAddPointRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (MMCheckVersionForFID(hMiraMonLayer,
                              hMiraMonLayer->MMPoint.MMAdmDB.pMMBDXP->nRecords +
                                  hMMFeature->nNumMRecords))
+    {
+        MMCPLError(CE_Failure, CPLE_NotSupported,
+                   "Error in MMCheckVersionForFID() (6)");
         return MM_STOP_WRITING_FEATURES;
+    }
 
     // Adding record to the MiraMon table (extended DBF)
     // Flush settings
@@ -6700,14 +6742,22 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     {
         if (MMCheckVersionForFID(hMiraMonLayer,
                                  pMMArcLayer->MMAdmDB.pMMBDXP->nRecords + 1))
+        {
+            MMCPLError(CE_Failure, CPLE_NotSupported,
+                       "Error in MMCheckVersionForFID() (7)");
             return MM_STOP_WRITING_FEATURES;
+        }
     }
     else
     {
         if (MMCheckVersionForFID(hMiraMonLayer,
                                  pMMArcLayer->MMAdmDB.pMMBDXP->nRecords +
                                      hMMFeature->nNumMRecords))
+        {
+            MMCPLError(CE_Failure, CPLE_NotSupported,
+                       "Error in MMCheckVersionForFID() (8)");
             return MM_STOP_WRITING_FEATURES;
+        }
     }
 
     // Adding record to the MiraMon table (extended DBF)
@@ -6791,7 +6841,11 @@ int MMAddNodeRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     // In V1.1 only _UI32_MAX records number is allowed
     if (MMCheckVersionForFID(hMiraMonLayer,
                              pMMNodeLayer->MMAdmDB.pMMBDXP->nRecords + 1))
+    {
+        MMCPLError(CE_Failure, CPLE_NotSupported,
+                   "Error in MMCheckVersionForFID() (9)");
         return MM_STOP_WRITING_FEATURES;
+    }
 
     // Adding record to the MiraMon table (extended DBF)
     // Flush settings
