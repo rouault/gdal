@@ -215,6 +215,9 @@ struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS nFields)
     struct MM_FIELD *camp;
     MM_EXT_DBF_N_FIELDS i;
 
+    if (nFields >= SIZE_MAX / sizeof(*camp))
+        return nullptr;
+
     if ((camp = calloc_function(nFields * sizeof(*camp))) == nullptr)
         return nullptr;
 
@@ -1269,12 +1272,14 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
     }
     else
     {
-        MM_ACUMULATED_BYTES_TYPE_DBF bytes_acumulats = 1;
+        // There's a chance that bytes_acumulats could overflow if it's GUInt32.
+        // For that reason it's better to promote to GUInt64.
+        GUInt64 bytes_acumulats = 1;
 
         pMMBDXP->nFields = 0;
 
         fseek_function(pf, 0, SEEK_END);
-        if (32 < (ftell_function(pf) - 1))
+        if (32 - 1 < ftell_function(pf))
         {
             fseek_function(pf, 32, SEEK_SET);
             do
@@ -1290,7 +1295,8 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                     1 != fread_function(&tretze_bytes,
                                         3 + sizeof(bytes_per_camp), 1, pf))
                 {
-                    free(pMMBDXP->pField);
+                    free_function(pMMBDXP->pField);
+                    pMMBDXP->pField = nullptr;
                     fclose_function(pf);
                     return 1;
                 }
@@ -1334,7 +1340,8 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
             1 != fread_function(&(pMMBDXP->pField[nIField].MDX_field_flag), 1,
                                 1, pf))
         {
-            free(pMMBDXP->pField);
+            free_function(pMMBDXP->pField);
+            pMMBDXP->pField = nullptr;
             fclose_function(pf);
             return 1;
         }
@@ -1352,13 +1359,15 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         {
             if (!MM_ES_DBF_ESTESA(pMMBDXP->dbf_version))
             {
-                free(pMMBDXP->pField);
+                free_function(pMMBDXP->pField);
+                pMMBDXP->pField = nullptr;
                 fclose_function(pf);
                 return 1;
             }
             if (pMMBDXP->pField[nIField].FieldType != 'C')
             {
-                free(pMMBDXP->pField);
+                free_function(pMMBDXP->pField);
+                pMMBDXP->pField = nullptr;
                 fclose_function(pf);
                 return 1;
             }
@@ -1523,7 +1532,8 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                 if (1 != fread_function(pMMBDXP->pField[nIField].FieldName,
                                         mida_nom, 1, pf))
                 {
-                    free(pMMBDXP->pField);
+                    free_function(pMMBDXP->pField);
+                    pMMBDXP->pField = nullptr;
                     fclose_function(pf);
                     return 1;
                 }
