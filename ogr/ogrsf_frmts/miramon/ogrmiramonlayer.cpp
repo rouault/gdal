@@ -33,13 +33,13 @@
 /****************************************************************************/
 /*                            OGRMiraMonLayer()                             */
 /****************************************************************************/
-OGRMiraMonLayer::OGRMiraMonLayer(const char *pszFilename, VSILFILE *fp,
-                                 const OGRSpatialReference *poSRS,
+OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
+                                 VSILFILE *fp, const OGRSpatialReference *poSRS,
                                  int bUpdateIn, CSLConstList papszOpenOptions,
                                  struct MiraMonVectMapInfo *MMMap)
-    : poFeatureDefn(nullptr), iNextFID(0), phMiraMonLayer(nullptr),
-      hMiraMonLayerPNT(), hMiraMonLayerARC(), hMiraMonLayerPOL(),
-      hMiraMonLayerReadOrNonGeom(), hMMFeature(),
+    : m_poDS(poDS), poFeatureDefn(nullptr), iNextFID(0),
+      phMiraMonLayer(nullptr), hMiraMonLayerPNT(), hMiraMonLayerARC(),
+      hMiraMonLayerPOL(), hMiraMonLayerReadOrNonGeom(), hMMFeature(),
       bUpdate(CPL_TO_BOOL(bUpdateIn)), nMMMemoryRatio(1.0),
       m_fp(fp ? fp : VSIFOpenL(pszFilename, (bUpdateIn ? "r+" : "r"))),
       papszValues(nullptr), padfValues(nullptr), bValidFile(false)

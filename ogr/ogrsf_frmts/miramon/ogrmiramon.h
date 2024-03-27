@@ -23,7 +23,7 @@
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE. 
+ * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
 #ifndef OGRMIRAMON_H_INCLUDED
@@ -42,6 +42,7 @@ class OGRMiraMonLayer final
     : public OGRLayer,
       public OGRGetNextFeatureThroughRaw<OGRMiraMonLayer>
 {
+    GDALDataset *m_poDS = nullptr;
     OGRSpatialReference *m_poSRS = nullptr;
     OGRFeatureDefn *poFeatureDefn;
 
@@ -98,7 +99,7 @@ class OGRMiraMonLayer final
   public:
     bool bValidFile;
 
-    OGRMiraMonLayer(const char *pszFilename, VSILFILE *fp,
+    OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename, VSILFILE *fp,
                     const OGRSpatialReference *poSRS, int bUpdate,
                     CSLConstList papszOpenOptions,
                     struct MiraMonVectMapInfo *MMMap);
@@ -126,6 +127,11 @@ class OGRMiraMonLayer final
 
     int TestCapability(const char *) override;
     void AddToFileList(CPLStringList &oFileList);
+
+    GDALDataset *GetDataset() override
+    {
+        return m_poDS;
+    }
 };
 
 /************************************************************************/
