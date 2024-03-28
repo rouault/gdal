@@ -356,6 +356,17 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                         return;
                     }
 
+                    if (phMiraMonLayer->pMMBDXP->nFields == 0)
+                    {
+                        // TODO: is this correct? At least this prevents a
+                        // nullptr dereference of phMiraMonLayer->pMMBDXP->pField
+                        // below
+                        CPLDebug("MiraMon",
+                                 "phMiraMonLayer->pMMBDXP->nFields == 0");
+                        bValidFile = false;
+                        return;
+                    }
+
                     // First time we open the extended DBF we create an index
                     // to fastly find all non geometrical features.
                     phMiraMonLayer->pMultRecordIndex = MMCreateExtendedDBFIndex(
