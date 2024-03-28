@@ -63,9 +63,9 @@ CPL_C_START // Necessary for compiling in GDAL project
 #define MM_IsNANDouble(x) EsNANDouble((x))
 #define MM_IsDoubleInfinit(x) EsDoubleInfinit((x))
 #else
-#define calloc_function(a) CPLCalloc(1, (a))
-#define realloc_function CPLRealloc
-#define free_function(a) CPLFree((a))
+#define calloc_function(a) VSICalloc(1, (a))
+#define realloc_function VSIRealloc
+#define free_function(a) VSIFree((a))
 #define fopen_function(f, a) VSIFOpenL((f), (a))
 #define fflush_function VSIFFlushL
 #define fclose_function(f) VSIFCloseL((f))
