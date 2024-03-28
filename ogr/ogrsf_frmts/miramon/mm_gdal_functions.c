@@ -2614,7 +2614,14 @@ int MM_GetArcHeights(double *coord_z, FILE_TYPE *pF, MM_N_VERTICES_TYPE n_vrt,
         return 0;
 
     if (tipus == MM_ARC_HEIGHT_FOR_EACH_VERTEX)
+    {
+        if (n_vrt > (unsigned)(INT_MAX / n_alcada))
+        {
+            MMCPLError(CE_Failure, CPLE_OutOfMemory, "Integer overflow");
+            return 1;
+        }
         n_h_total = (MM_N_HEIGHT_TYPE)n_vrt * n_alcada;
+    }
     else
         n_h_total = n_alcada;
 
@@ -2622,10 +2629,10 @@ int MM_GetArcHeights(double *coord_z, FILE_TYPE *pF, MM_N_VERTICES_TYPE n_vrt,
         palcada = local_CinquantaAlcades;
     else
     {
-        if (MMCheckSize_t(n_vrt * sizeof(double) * n_alcada, 1))
+        if (MMCheckSize_t(n_h_total, sizeof(double)))
             return 1;
-        if (nullptr == (palcada = alcada = calloc_function(
-                            (size_t)n_vrt * sizeof(double) * n_alcada)))
+        if (nullptr == (palcada = alcada = calloc_function((size_t)n_h_total *
+                                                           sizeof(double))))
             return 1;
     }
 
