@@ -4754,21 +4754,23 @@ int MMResizeMiraMonFieldValue(struct MiraMonFieldValue **pFieldValue,
                               MM_EXT_DBF_N_MULTIPLE_RECORDS nProposedMax)
 {
     MM_EXT_DBF_N_MULTIPLE_RECORDS nPrevMax;
+    MM_EXT_DBF_N_MULTIPLE_RECORDS nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
     nPrevMax = *nMax;
-    *nMax = max_function(nNum + nIncr, nProposedMax);
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
     if ((pTmp = realloc_function(
-             *pFieldValue, (size_t)*nMax * sizeof(**pFieldValue))) == nullptr)
+             *pFieldValue, (size_t)nNewMax * sizeof(**pFieldValue))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                    "Memory error in MiraMon "
                    "driver (MMResizeMiraMonFieldValue())");
         return 1;
     }
+    *nMax = nNewMax;
     *pFieldValue = pTmp;
 
     memset((*pFieldValue) + nPrevMax, 0,
@@ -4783,14 +4785,15 @@ int MMResizeMiraMonPolygonArcs(struct MM_PAL_MEM **pFID,
                                MM_POLYGON_ARCS_COUNT nProposedMax)
 {
     MM_POLYGON_ARCS_COUNT nPrevMax;
+    MM_POLYGON_ARCS_COUNT nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
     nPrevMax = *nMax;
-    *nMax = max_function(nNum + nIncr, nProposedMax);
-    if ((pTmp = realloc_function(*pFID, (size_t)*nMax * sizeof(**pFID))) ==
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if ((pTmp = realloc_function(*pFID, (size_t)nNewMax * sizeof(**pFID))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4798,6 +4801,7 @@ int MMResizeMiraMonPolygonArcs(struct MM_PAL_MEM **pFID,
                    "driver (MMResizeMiraMonPolygonArcs())");
         return 1;
     }
+    *nMax = nNewMax;
     *pFID = pTmp;
 
     memset((*pFID) + nPrevMax, 0, (size_t)(*nMax - nPrevMax) * sizeof(**pFID));
@@ -4811,15 +4815,16 @@ int MMResizeMiraMonRecord(struct MiraMonRecord **pMiraMonRecord,
                           MM_EXT_DBF_N_MULTIPLE_RECORDS nProposedMax)
 {
     MM_EXT_DBF_N_MULTIPLE_RECORDS nPrevMax;
+    MM_EXT_DBF_N_MULTIPLE_RECORDS nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
     nPrevMax = *nMax;
-    *nMax = max_function(nNum + nIncr, nProposedMax);
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
     if ((pTmp = realloc_function(*pMiraMonRecord,
-                                 (size_t)*nMax * sizeof(**pMiraMonRecord))) ==
+                                 (size_t)nNewMax * sizeof(**pMiraMonRecord))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4827,6 +4832,7 @@ int MMResizeMiraMonRecord(struct MiraMonRecord **pMiraMonRecord,
                    "driver (MMResizeMiraMonRecord())");
         return 1;
     }
+    *nMax = nNewMax;
     *pMiraMonRecord = pTmp;
 
     memset((*pMiraMonRecord) + nPrevMax, 0,
@@ -4838,14 +4844,15 @@ int MMResizeZSectionDescrPointer(struct MM_ZD **pZDescription, GUInt64 *nMax,
                                  GUInt64 nNum, GUInt64 nIncr,
                                  GUInt64 nProposedMax)
 {
+    GUInt64 nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
-    *nMax = max_function(nNum + nIncr, nProposedMax);
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
     if ((pTmp = realloc_function(*pZDescription,
-                                 (size_t)*nMax * sizeof(**pZDescription))) ==
+                                 (size_t)nNewMax * sizeof(**pZDescription))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4853,6 +4860,7 @@ int MMResizeZSectionDescrPointer(struct MM_ZD **pZDescription, GUInt64 *nMax,
                    "driver (MMResizeZSectionDescrPointer())");
         return 1;
     }
+    *nMax = nNewMax;
     *pZDescription = pTmp;
     return 0;
 }
@@ -4860,20 +4868,22 @@ int MMResizeZSectionDescrPointer(struct MM_ZD **pZDescription, GUInt64 *nMax,
 int MMResizeNodeHeaderPointer(struct MM_NH **pNodeHeader, GUInt64 *nMax,
                               GUInt64 nNum, GUInt64 nIncr, GUInt64 nProposedMax)
 {
+    GUInt64 nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
-    *nMax = max_function(nNum + nIncr, nProposedMax);
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
     if ((pTmp = realloc_function(
-             *pNodeHeader, (size_t)*nMax * sizeof(**pNodeHeader))) == nullptr)
+             *pNodeHeader, (size_t)nNewMax * sizeof(**pNodeHeader))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                    "Memory error in MiraMon "
                    "driver (MMResizeNodeHeaderPointer())");
         return 1;
     }
+    *nMax = nNewMax;
     *pNodeHeader = pTmp;
     return 0;
 }
@@ -4881,20 +4891,22 @@ int MMResizeNodeHeaderPointer(struct MM_NH **pNodeHeader, GUInt64 *nMax,
 int MMResizeArcHeaderPointer(struct MM_AH **pArcHeader, GUInt64 *nMax,
                              GUInt64 nNum, GUInt64 nIncr, GUInt64 nProposedMax)
 {
+    GUInt64 nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
-    *nMax = max_function(nNum + nIncr, nProposedMax);
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
     if ((pTmp = realloc_function(
-             *pArcHeader, (size_t)*nMax * sizeof(**pArcHeader))) == nullptr)
+             *pArcHeader, (size_t)nNewMax * sizeof(**pArcHeader))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                    "Memory error in MiraMon "
                    "driver (MMResizeArcHeaderPointer())");
         return 1;
     }
+    *nMax = nNewMax;
     *pArcHeader = pTmp;
     return 0;
 }
@@ -4902,20 +4914,22 @@ int MMResizeArcHeaderPointer(struct MM_AH **pArcHeader, GUInt64 *nMax,
 int MMResizePolHeaderPointer(struct MM_PH **pPolHeader, GUInt64 *nMax,
                              GUInt64 nNum, GUInt64 nIncr, GUInt64 nProposedMax)
 {
+    GUInt64 nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
-    *nMax = max_function(nNum + nIncr, nProposedMax);
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
     if ((pTmp = realloc_function(
-             *pPolHeader, (size_t)*nMax * sizeof(**pPolHeader))) == nullptr)
+             *pPolHeader, (size_t)nNewMax * sizeof(**pPolHeader))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                    "Memory error in MiraMon "
                    "driver (MMResizePolHeaderPointer())");
         return 1;
     }
+    *nMax = nNewMax;
     *pPolHeader = pTmp;
     return 0;
 }
@@ -4926,13 +4940,14 @@ int MMResize_MM_N_VERTICES_TYPE_Pointer(MM_N_VERTICES_TYPE **pVrt,
                                         MM_N_VERTICES_TYPE nIncr,
                                         MM_N_VERTICES_TYPE nProposedMax)
 {
+    MM_N_VERTICES_TYPE nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
-    *nMax = max_function(nNum + nIncr, nProposedMax);
-    if ((pTmp = realloc_function(*pVrt, (size_t)*nMax * sizeof(**pVrt))) ==
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if ((pTmp = realloc_function(*pVrt, (size_t)nNewMax * sizeof(**pVrt))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4940,6 +4955,7 @@ int MMResize_MM_N_VERTICES_TYPE_Pointer(MM_N_VERTICES_TYPE **pVrt,
                    "driver (MMResize_MM_N_VERTICES_TYPE_Pointer())");
         return 1;
     }
+    *nMax = nNewMax;
     *pVrt = pTmp;
 
     return 0;
@@ -4948,13 +4964,14 @@ int MMResize_MM_N_VERTICES_TYPE_Pointer(MM_N_VERTICES_TYPE **pVrt,
 int MMResizeVFGPointer(char **pInt, MM_INTERNAL_FID *nMax, MM_INTERNAL_FID nNum,
                        MM_INTERNAL_FID nIncr, MM_INTERNAL_FID nProposedMax)
 {
+    MM_N_VERTICES_TYPE nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
-    *nMax = max_function(nNum + nIncr, nProposedMax);
-    if ((pTmp = realloc_function(*pInt, (size_t)*nMax * sizeof(**pInt))) ==
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if ((pTmp = realloc_function(*pInt, (size_t)nNewMax * sizeof(**pInt))) ==
         nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4962,6 +4979,7 @@ int MMResizeVFGPointer(char **pInt, MM_INTERNAL_FID *nMax, MM_INTERNAL_FID nNum,
                    "driver (MMResizeVFGPointer())");
         return 1;
     }
+    *nMax = nNewMax;
     *pInt = pTmp;
     return 0;
 }
@@ -4971,13 +4989,14 @@ int MMResizeMM_POINT2DPointer(struct MM_POINT_2D **pPoint2D,
                               MM_N_VERTICES_TYPE nIncr,
                               MM_N_VERTICES_TYPE nProposedMax)
 {
+    MM_N_VERTICES_TYPE nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
-    *nMax = max_function(nNum + nIncr, nProposedMax);
-    if ((pTmp = realloc_function(*pPoint2D, (size_t)*nMax *
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if ((pTmp = realloc_function(*pPoint2D, (size_t)nNewMax *
                                                 sizeof(**pPoint2D))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
@@ -4985,6 +5004,7 @@ int MMResizeMM_POINT2DPointer(struct MM_POINT_2D **pPoint2D,
                    "driver (MMResizeMM_POINT2DPointer())");
         return 1;
     }
+    *nMax = nNewMax;
     *pPoint2D = pTmp;
     return 0;
 }
@@ -4993,20 +5013,22 @@ int MMResizeDoublePointer(MM_COORD_TYPE **pDouble, MM_N_VERTICES_TYPE *nMax,
                           MM_N_VERTICES_TYPE nNum, MM_N_VERTICES_TYPE nIncr,
                           MM_N_VERTICES_TYPE nProposedMax)
 {
+    MM_N_VERTICES_TYPE nNewMax;
     void *pTmp;
 
     if (nNum < *nMax)
         return 0;
 
-    *nMax = max_function(nNum + nIncr, nProposedMax);
-    if ((pTmp = realloc_function(*pDouble,
-                                 (size_t)*nMax * sizeof(**pDouble))) == nullptr)
+    nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if ((pTmp = realloc_function(*pDouble, (size_t)nNewMax *
+                                               sizeof(**pDouble))) == nullptr)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                    "Memory error in MiraMon "
                    "driver (MMResizeDoublePointer())");
         return 1;
     }
+    *nMax = nNewMax;
     *pDouble = pTmp;
     return 0;
 }
