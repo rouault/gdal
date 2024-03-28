@@ -1003,6 +1003,14 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                  poFeature->GetDefnRef()->GetFieldDefn(nIField)->GetSubType() ==
                      OFSTJSON))
             {
+                if (!phMiraMonLayer->pMultRecordIndex ||
+                    phMiraMonLayer->pMultRecordIndex[nIElem].nMR == 0)
+                {
+                    memset(
+                        phMiraMonLayer->szStringToOperate, 0,
+                        phMiraMonLayer->pMMBDXP->pField[nIField].BytesPerField);
+                    continue;
+                }
                 if (poFeature->GetDefnRef()
                         ->GetFieldDefn(nIField)
                         ->GetSubType() == OFSTJSON)
@@ -1208,6 +1216,14 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                              ->GetFieldDefn(nIField)
                              ->GetType() == OFTRealList)
             {
+                if (!phMiraMonLayer->pMultRecordIndex ||
+                    phMiraMonLayer->pMultRecordIndex[nIElem].nMR == 0)
+                {
+                    memset(
+                        phMiraMonLayer->szStringToOperate, 0,
+                        phMiraMonLayer->pMMBDXP->pField[nIField].BytesPerField);
+                    continue;
+                }
                 for (nIRecord = 0;
                      nIRecord < phMiraMonLayer->pMultRecordIndex[nIElem].nMR;
                      nIRecord++)
@@ -1295,7 +1311,8 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                          ->GetFieldDefn(nIField)
                          ->GetType() == OFTDate)
             {
-                if (phMiraMonLayer->pMultRecordIndex[nIElem].nMR == 0)
+                if (!phMiraMonLayer->pMultRecordIndex ||
+                    phMiraMonLayer->pMultRecordIndex[nIElem].nMR == 0)
                 {
                     memset(
                         phMiraMonLayer->szStringToOperate, 0,
