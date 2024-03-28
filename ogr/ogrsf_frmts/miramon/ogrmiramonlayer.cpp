@@ -42,7 +42,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
       hMiraMonLayerPOL(), hMiraMonLayerReadOrNonGeom(), hMMFeature(),
       bUpdate(CPL_TO_BOOL(bUpdateIn)), nMMMemoryRatio(1.0),
       m_fp(fp ? fp : VSIFOpenL(pszFilename, (bUpdateIn ? "r+" : "r"))),
-      papszValues(nullptr), padfValues(nullptr), bValidFile(false)
+      padfValues(nullptr), bValidFile(false)
 {
 
     CPLDebugOnly("MiraMon", "Creating/Opening MiraMon layer...");
@@ -375,10 +375,6 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                     // multiple records
                     if (phMiraMonLayer->pMultRecordIndex)
                     {
-                        papszValues = static_cast<char **>(
-                            CPLCalloc((size_t)phMiraMonLayer->nMaxN + 1,
-                                      sizeof(*papszValues)));
-
                         padfValues = static_cast<double *>(
                             CPLCalloc((size_t)phMiraMonLayer->nMaxN,
                                       sizeof(*padfValues)));
@@ -658,9 +654,6 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
 
     if (m_fp != nullptr)
         VSIFCloseL(m_fp);
-
-    if (papszValues != nullptr)
-        CSLDestroy(papszValues);
 
     if (padfValues != nullptr)
         CPLFree(padfValues);
@@ -1088,6 +1081,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                 }
                 else
                 {
+                    CPLStringList aosValues;
                     for (nIRecord = 0;
                          nIRecord <
                          phMiraMonLayer->pMultRecordIndex[nIElem].nMR;
@@ -1131,12 +1125,9 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
 
                             CPLFree(pszString);
                         }
-                        papszValues[nIRecord] =
-                            CPLStrdup(phMiraMonLayer->szStringToOperate);
+                        aosValues.AddString(phMiraMonLayer->szStringToOperate);
                     }
-                    papszValues[nIRecord] =
-                        nullptr;  // Necessary to finish the list
-                    poFeature->SetField(nIField, papszValues);
+                    poFeature->SetField(nIField, aosValues.List());
                 }
             }
             else if (poFeature->GetDefnRef()

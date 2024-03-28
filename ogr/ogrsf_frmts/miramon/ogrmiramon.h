@@ -77,8 +77,7 @@ class OGRMiraMonLayer final
 
     VSILFILE *m_fp = nullptr;
 
-    // Array of string or doubles used in the field features processing
-    char **papszValues;
+    // Array of doubles used in the field features processing
     double *padfValues;
 
     OGRFeature *GetNextRawFeature();
