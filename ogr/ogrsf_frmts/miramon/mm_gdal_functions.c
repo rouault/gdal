@@ -213,8 +213,13 @@ struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS nFields)
     struct MM_FIELD *camp;
     MM_EXT_DBF_N_FIELDS i;
 
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     if (nFields >= UINT32_MAX / sizeof(*camp))
         return nullptr;
+#else
+    if (nFields >= (1000U * 1000 * 1000) / sizeof(*camp))
+        return nullptr;
+#endif
 
     if ((camp = calloc_function(nFields * sizeof(*camp))) == nullptr)
         return nullptr;
