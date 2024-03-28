@@ -28,7 +28,7 @@
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE. 
+ * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
 #ifdef GDAL_COMPILATION
@@ -559,15 +559,16 @@ int MMGetGeoFeatureFromVector(struct MiraMonVectLayerInfo *hMiraMonLayer,
             pZDescription =
                 hMiraMonLayer->MMPoint.pZSection.pZDescription + i_elem;
             num = MM_ARC_TOTAL_N_HEIGHTS_DISK(pZDescription->nZCount, 1);
+
+            if (MMResizeDoublePointer(&hMiraMonLayer->ReadFeature.pZCoord,
+                                      &hMiraMonLayer->ReadFeature.nMaxpZCoord,
+                                      1, 1, 1))
+                return 1;
+
             if (num == 0)
                 hMiraMonLayer->ReadFeature.pZCoord[0] = MM_NODATA_COORD_Z;
             else
             {
-                if (MMResizeDoublePointer(
-                        &hMiraMonLayer->ReadFeature.pZCoord,
-                        &hMiraMonLayer->ReadFeature.nMaxpZCoord, 1, 1, 1))
-                    return 1;
-
                 if (flag_z == MM_STRING_HIGHEST_ALTITUDE)  // Max z
                     cz = pZDescription->dfBBmaxz;
                 else if (flag_z == MM_STRING_LOWEST_ALTITUDE)  // Min z
