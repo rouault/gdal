@@ -180,15 +180,17 @@ int snprintf(char *str, size_t size, const char *format, ...)
 // Important for 32 vs. 64 bit compiling compatibility.
 int MMCheckSize_t(GUInt64 nCount, GUInt64 nSize)
 {
-    size_t nMul;
     if ((size_t)nCount != nCount)
         return 1;
 
     if ((size_t)nSize != nSize)
         return 1;
 
-    nMul = (size_t)(nCount * nSize);
-    if (nCount != 0 && nMul / nCount != nSize)
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    if (nCount != 0 && nSize > SIZE_MAX / nCount)
+#else
+    if (nCount != 0 && nSize > (1000 * 1000 * 1000U) / nCount)
+#endif
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory, "Overflow in MMCheckSize_t()");
         return 1;
