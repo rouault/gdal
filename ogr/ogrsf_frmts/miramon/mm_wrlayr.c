@@ -1804,6 +1804,7 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
                         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                                    "Memory error in MiraMon "
                                    "driver (MMInitLayerByType())");
+                        free_function(pszArcLayerName);
                         return 1;
                     }
                     strcpy(pszArcLayerNameAux, pszArcLayerName);
@@ -5924,6 +5925,7 @@ int MMCheck_REL_FILE(char *szREL_file)
                      "The file \"%s\" must have %s>=%d.", szREL_file, KEY_Vers,
                      MM_VERS);
             MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            free_function(pszLine);
             return 1;
         }
         free_function(pszLine);
@@ -5948,6 +5950,7 @@ int MMCheck_REL_FILE(char *szREL_file)
                      "The file \"%s\" must have %s>=%d.", szREL_file,
                      KEY_SubVers, MM_SUBVERS);
             MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            free_function(pszLine);
             return 1;
         }
         free_function(pszLine);
@@ -5972,6 +5975,7 @@ int MMCheck_REL_FILE(char *szREL_file)
                      "The file \"%s\" must have %s>=%d.", szREL_file,
                      KEY_VersMetaDades, MM_VERS_METADADES);
             MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            free_function(pszLine);
             return 1;
         }
         free_function(pszLine);
@@ -5996,7 +6000,7 @@ int MMCheck_REL_FILE(char *szREL_file)
                      "The file \"%s\" must have %s>=%d.", szREL_file,
                      KEY_SubVersMetaDades, MM_SUBVERS_METADADES);
             MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
-
+            free_function(pszLine);
             return 1;
         }
         free_function(pszLine);
