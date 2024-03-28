@@ -26,6 +26,6 @@ curl \
     --form token=$COVERITY_SCAN_TOKEN \
     --form email=$COVERITY_SCAN_EMAIL \
     --form file=@cov-int.tgz \
-    --form version=master \
-    --form description="`git rev-parse --abbrev-ref HEAD` `git rev-parse --short HEAD`" \
+    --form version=MiraMon-Vector-driver \
+    --form description="`git rev-parse --abbrev-ref HEAD` `git rev-parse --short HEAD` (miramon driver)" \
     https://scan.coverity.com/builds?project=GDAL
