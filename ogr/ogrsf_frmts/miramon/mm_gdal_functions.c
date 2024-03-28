@@ -1180,6 +1180,9 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         1 != fread_function(&(pMMBDXP->encryption_flag), 1, 1, pf) ||
         1 != fread_function(&(pMMBDXP->dbf_on_a_LAN), 12, 1, pf))
     {
+        free_function(pMMBDXP->pField);
+        pMMBDXP->pField = nullptr;
+        pMMBDXP->nFields = 0;
         fclose_function(pf);
         pMMBDXP->pfDataBase = nullptr;
         return 1;
@@ -1205,6 +1208,9 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         1 != fread_function(&(pMMBDXP->CharSet), 1, 1, pf) ||
         1 != fread_function(&(pMMBDXP->reserved_2), 2, 1, pf))
     {
+        free_function(pMMBDXP->pField);
+        pMMBDXP->pField = nullptr;
+        pMMBDXP->nFields = 0;
         fclose_function(pf);
         pMMBDXP->pfDataBase = nullptr;
         return 1;
@@ -1303,6 +1309,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                 {
                     free_function(pMMBDXP->pField);
                     pMMBDXP->pField = nullptr;
+                    pMMBDXP->nFields = 0;
                     fclose_function(pf);
                     pMMBDXP->pfDataBase = nullptr;
                     return 1;
@@ -1323,13 +1330,17 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         pMMBDXP->pField = MM_CreateAllFields(pMMBDXP->nFields);
         if (!pMMBDXP->pField)
         {
+            pMMBDXP->nFields = 0;
             fclose_function(pf);
             pMMBDXP->pfDataBase = nullptr;
             return 1;
         }
     }
     else
+    {
+        free_function(pMMBDXP->pField);
         pMMBDXP->pField = nullptr;
+    }
 
     fseek_function(pf, 32, SEEK_SET);
     for (nIField = 0; nIField < pMMBDXP->nFields; nIField++)
@@ -1351,6 +1362,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         {
             free_function(pMMBDXP->pField);
             pMMBDXP->pField = nullptr;
+            pMMBDXP->nFields = 0;
             fclose_function(pf);
             pMMBDXP->pfDataBase = nullptr;
             return 1;
@@ -1371,6 +1383,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
             {
                 free_function(pMMBDXP->pField);
                 pMMBDXP->pField = nullptr;
+                pMMBDXP->nFields = 0;
                 fclose_function(pf);
                 pMMBDXP->pfDataBase = nullptr;
                 return 1;
@@ -1379,6 +1392,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
             {
                 free_function(pMMBDXP->pField);
                 pMMBDXP->pField = nullptr;
+                pMMBDXP->nFields = 0;
                 fclose_function(pf);
                 pMMBDXP->pfDataBase = nullptr;
                 return 1;
@@ -1397,7 +1411,9 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
             {
                 free_function(pMMBDXP->pField);
                 pMMBDXP->pField = nullptr;
+                pMMBDXP->nFields = 0;
                 fclose_function(pf);
+                pMMBDXP->pfDataBase = nullptr;
                 return 1;
             }
 
@@ -1527,6 +1543,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         {
             free_function(pMMBDXP->pField);
             pMMBDXP->pField = nullptr;
+            pMMBDXP->nFields = 0;
             fclose_function(pf);
             pMMBDXP->pfDataBase = nullptr;
             return 1;
@@ -1544,6 +1561,15 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
             fseek_function(pf, offset_reintent, SEEK_SET);
             some_problems_when_reading++;
             goto reintenta_lectura_per_si_error_CreaCampBD_XP;
+        }
+        else
+        {
+            free_function(pMMBDXP->pField);
+            pMMBDXP->pField = nullptr;
+            pMMBDXP->nFields = 0;
+            fclose_function(pf);
+            pMMBDXP->pfDataBase = nullptr;
+            return 1;
         }
     }
 
@@ -1573,6 +1599,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                 {
                     free_function(pMMBDXP->pField);
                     pMMBDXP->pField = nullptr;
+                    pMMBDXP->nFields = 0;
                     fclose_function(pf);
                     pMMBDXP->pfDataBase = nullptr;
                     return 1;
