@@ -4762,6 +4762,10 @@ int MMResizeMiraMonFieldValue(struct MiraMonFieldValue **pFieldValue,
 
     nPrevMax = *nMax;
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pFieldValue)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(
              *pFieldValue, (size_t)nNewMax * sizeof(**pFieldValue))) == nullptr)
     {
@@ -4793,6 +4797,10 @@ int MMResizeMiraMonPolygonArcs(struct MM_PAL_MEM **pFID,
 
     nPrevMax = *nMax;
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pFID)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(*pFID, (size_t)nNewMax * sizeof(**pFID))) ==
         nullptr)
     {
@@ -4823,6 +4831,10 @@ int MMResizeMiraMonRecord(struct MiraMonRecord **pMiraMonRecord,
 
     nPrevMax = *nMax;
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pMiraMonRecord)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(*pMiraMonRecord,
                                  (size_t)nNewMax * sizeof(**pMiraMonRecord))) ==
         nullptr)
@@ -4851,6 +4863,10 @@ int MMResizeZSectionDescrPointer(struct MM_ZD **pZDescription, GUInt64 *nMax,
         return 0;
 
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pZDescription)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(*pZDescription,
                                  (size_t)nNewMax * sizeof(**pZDescription))) ==
         nullptr)
@@ -4875,6 +4891,10 @@ int MMResizeNodeHeaderPointer(struct MM_NH **pNodeHeader, GUInt64 *nMax,
         return 0;
 
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pNodeHeader)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(
              *pNodeHeader, (size_t)nNewMax * sizeof(**pNodeHeader))) == nullptr)
     {
@@ -4898,6 +4918,10 @@ int MMResizeArcHeaderPointer(struct MM_AH **pArcHeader, GUInt64 *nMax,
         return 0;
 
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pArcHeader)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(
              *pArcHeader, (size_t)nNewMax * sizeof(**pArcHeader))) == nullptr)
     {
@@ -4921,6 +4945,10 @@ int MMResizePolHeaderPointer(struct MM_PH **pPolHeader, GUInt64 *nMax,
         return 0;
 
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pPolHeader)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(
              *pPolHeader, (size_t)nNewMax * sizeof(**pPolHeader))) == nullptr)
     {
@@ -4947,6 +4975,10 @@ int MMResize_MM_N_VERTICES_TYPE_Pointer(MM_N_VERTICES_TYPE **pVrt,
         return 0;
 
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pVrt)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(*pVrt, (size_t)nNewMax * sizeof(**pVrt))) ==
         nullptr)
     {
@@ -4971,6 +5003,10 @@ int MMResizeVFGPointer(char **pInt, MM_INTERNAL_FID *nMax, MM_INTERNAL_FID nNum,
         return 0;
 
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pInt)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(*pInt, (size_t)nNewMax * sizeof(**pInt))) ==
         nullptr)
     {
@@ -4996,6 +5032,10 @@ int MMResizeMM_POINT2DPointer(struct MM_POINT_2D **pPoint2D,
         return 0;
 
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pPoint2D)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(*pPoint2D, (size_t)nNewMax *
                                                 sizeof(**pPoint2D))) == nullptr)
     {
@@ -5020,6 +5060,10 @@ int MMResizeDoublePointer(MM_COORD_TYPE **pDouble, MM_N_VERTICES_TYPE *nMax,
         return 0;
 
     nNewMax = max_function(nNum + nIncr, nProposedMax);
+    if (MMCheckSize_t(nNewMax, sizeof(**pDouble)))
+    {
+        return 1;
+    }
     if ((pTmp = realloc_function(*pDouble, (size_t)nNewMax *
                                                sizeof(**pDouble))) == nullptr)
     {
