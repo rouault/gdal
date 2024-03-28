@@ -1319,6 +1319,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
 
     if (pMMBDXP->nFields != 0)
     {
+        free_function(pMMBDXP->pField);
         pMMBDXP->pField = MM_CreateAllFields(pMMBDXP->nFields);
         if (!pMMBDXP->pField)
         {
