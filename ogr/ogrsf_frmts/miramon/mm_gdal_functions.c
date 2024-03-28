@@ -2640,6 +2640,8 @@ int MM_GetArcHeights(double *coord_z, FILE_TYPE *pF, MM_N_VERTICES_TYPE n_vrt,
     for (i_vrt = 0; i_vrt < n_vrt; i_vrt++)
         coord_z[i_vrt] = MM_NODATA_COORD_Z;
 
+    if (pZDescription->nZCount == INT_MIN)
+        return 0;
     tipus = MM_ARC_HEIGHT_TYPE(pZDescription->nZCount);
     n_alcada = MM_ARC_N_HEIGHTS(pZDescription->nZCount);
     if (n_vrt == 0 || n_alcada == 0)
