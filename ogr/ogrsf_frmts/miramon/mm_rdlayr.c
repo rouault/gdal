@@ -389,13 +389,19 @@ MMGetMultiPolygonCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
             &hMiraMonLayer->ReadFeature.pNCoordRing,
             &hMiraMonLayer->ReadFeature.nMaxpNCoordRing,
             (MM_N_VERTICES_TYPE)hMiraMonLayer->ReadFeature.nNRings + 1, 10, 10))
+    {
+        free_function(pBuffer);
         return 1;
+    }
 
     if (MMResizeVFGPointer(&hMiraMonLayer->ReadFeature.flag_VFG,
                            &hMiraMonLayer->ReadFeature.nMaxVFG,
                            (MM_INTERNAL_FID)pPolHeader->nArcsCount, 0,
                            0))  // Perhaps more memory than needed
+    {
+        free_function(pBuffer);
         return 1;
+    }
 
     // Preparing memory for all coordinates
     hMiraMonLayer->ReadFeature.pNCoordRing[hMiraMonLayer->ReadFeature.nNRings] =
@@ -435,7 +441,10 @@ MMGetMultiPolygonCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
             hMiraMonLayer->ReadFeature
                 .pNCoordRing[hMiraMonLayer->ReadFeature.nNRings],
             0, 0))
+    {
+        free_function(pBuffer);
         return 1;
+    }
 
     hMiraMonLayer->FlushPAL.CurrentOffset = 0;
 
@@ -475,14 +484,20 @@ MMGetMultiPolygonCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                        (hMiraMonLayer->pArcs + nIndex)->nIArc,
                                        flag_z, nNAcumulVertices, bAvoidFirst,
                                        (hMiraMonLayer->pArcs + nIndex)->VFG))
+        {
+            free_function(pBuffer);
             return 1;
+        }
 
         if (MMResize_MM_N_VERTICES_TYPE_Pointer(
                 &hMiraMonLayer->ReadFeature.pNCoordRing,
                 &hMiraMonLayer->ReadFeature.nMaxpNCoordRing,
                 (MM_N_VERTICES_TYPE)hMiraMonLayer->ReadFeature.nNRings + 1, 10,
                 10))
+        {
+            free_function(pBuffer);
             return 1;
+        }
 
         hMiraMonLayer->ReadFeature
             .pNCoordRing[hMiraMonLayer->ReadFeature.nNRings] +=
