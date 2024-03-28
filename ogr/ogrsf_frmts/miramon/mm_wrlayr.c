@@ -5054,13 +5054,12 @@ char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
                                       const char *key)
 {
     char *value = nullptr;
-    char line[16000];
+#ifndef GDAL_COMPILATION
+    char line[1024];
+#endif
+    const char *pszLine;
     char *section_header = nullptr;
     size_t key_len = 0;
-    size_t bytes_read;
-    char *pszString;
-    char *start;
-    char *end;
 
     FILE_TYPE *file = fopen_function(filename, "rb");
     if (file == nullptr)
@@ -5074,67 +5073,63 @@ char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
     if (key)
         key_len = strlen(key);
 
-    while ((bytes_read = fread_function(line, 1, sizeof(line), file)) > 0)
+#ifndef GDAL_COMPILATION
+    while (fgets(line, (int)sizeof(line), file))
     {
-        // As MiraMon is written in ANSI convertion to UTF-8 must be done
-        line[bytes_read - 1] = '\0';
-        pszString = CPLRecode_function(line, CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
-        MM_strnzcpy(line, pszString, 16000);
-        CPLFree_function(pszString);
+        pszLine = line;
+#else
+    while ((pszLine = CPLReadLine2L(file, 1024, nullptr)) != nullptr)
+    {
+#endif
+        char *pszString =
+            CPLRecode_function(pszLine, CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
 
-        // Iterate through the read buffer
-        start = line;
-        end = line + bytes_read;
-        while (start < end)
+        // Skip comments and empty lines
+        if (*pszString == ';' || *pszString == '#' || *pszString == '\n' ||
+            *pszString == '\r')
         {
-            if (!start)
-                return nullptr;
+            free_function(pszString);
+            // Move to next line
+            continue;
+        }
 
-            // Skip comments and empty lines
-            if (*start == ';' || *start == '#' || *start == '\n' ||
-                *start == '\r')
+        // Check for section header
+        if (*pszString == '[')
+        {
+            char *section_end = strchr(pszString, ']');
+            if (section_end != nullptr)
             {
-                while (start < end && *start != '\n')
-                    start++;
-                start++;  // Move to next line
-                continue;
+                *section_end = '\0';  // Terminate the string at ']'
+                if (section_header)
+                    free_function(section_header);
+                section_header =
+                    strdup_function(pszString + 1);  // Skip the '['
             }
+            free_function(pszString);
+            continue;
+        }
 
-            if (!start)
-                return nullptr;
-
-            // Check for section header
-            if (*start == '[')
+        if (key)
+        {
+            // If the current line belongs to the desired section
+            if (section_header != nullptr &&
+                strcmp(section_header, section) == 0)
             {
-                char *section_end = strchr(start, ']');
-                if (section_end != nullptr)
+                // Check if the line contains the desired key
+                if (strncmp(pszString, key, key_len) == 0 &&
+                    pszString[key_len] == '=')
                 {
-                    *section_end = '\0';  // Terminate the string at ']'
-                    if (section_header)
-                        free_function(section_header);
-                    section_header =
-                        strdup_function(start + 1);  // Skip the '['
-                }
-                start = section_end + 1;
-                continue;
-            }
-
-            if (!start)
-                return nullptr;
-
-            if (key)
-            {
-                // If the current line belongs to the desired section
-                if (section_header != nullptr &&
-                    strcmp(section_header, section) == 0)
-                {
-                    // Check if the line contains the desired key
-                    if (strncmp(start, key, key_len) == 0 &&
-                        start[key_len] == '=')
+                    // Extract the value
+                    char *value_start = pszString + key_len + 1;
+                    char *value_end = strstr(value_start, "\r\n");
+                    if (value_end != nullptr)
                     {
-                        // Extract the value
-                        char *value_start = start + key_len + 1;
-                        char *value_end = strstr(value_start, "\r\n");
+                        *value_end =
+                            '\0';  // Terminate the string at newline character if found
+                    }
+                    else
+                    {
+                        value_end = strstr(value_start, "\n");
                         if (value_end != nullptr)
                         {
                             *value_end =
@@ -5142,42 +5137,31 @@ char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
                         }
                         else
                         {
-                            value_end = strstr(value_start, "\n");
+                            value_end = strstr(value_start, "\r");
                             if (value_end != nullptr)
                             {
                                 *value_end =
                                     '\0';  // Terminate the string at newline character if found
                             }
-                            else
-                            {
-                                value_end = strstr(value_start, "\r");
-                                if (value_end != nullptr)
-                                {
-                                    *value_end =
-                                        '\0';  // Terminate the string at newline character if found
-                                }
-                            }
                         }
-
-                        value = strdup_function(value_start);
-                        fclose_function(file);
-                        free_function(section_header);  // Free allocated memory
-                        return value;
                     }
+
+                    value = strdup_function(value_start);
+                    fclose_function(file);
+                    free_function(section_header);  // Free allocated memory
+                    free_function(pszString);
+                    return value;
                 }
             }
-            else
-            {
-                value = section_header;  // Freed out
-                fclose_function(file);
-                return value;
-            }
-
-            // Move to the next line
-            while (start < end && *start != '\n')
-                start++;
-            start++;
         }
+        else
+        {
+            value = section_header;  // Freed out
+            fclose_function(file);
+            free_function(pszString);
+            return value;
+        }
+        free_function(pszString);
     }
 
     if (section_header)
