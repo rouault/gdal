@@ -975,7 +975,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
     /* -------------------------------------------------------------------- */
     /*      Create feature.                                                 */
     /* -------------------------------------------------------------------- */
-    OGRFeature *poFeature = new OGRFeature(poFeatureDefn);
+    auto poFeature = std::make_unique<OGRFeature>(poFeatureDefn);
     if (poGeom)
     {
         poGeom->assignSpatialReference(m_poSRS);
@@ -992,9 +992,12 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
 
         for (nIField = 0; nIField < phMiraMonLayer->pMMBDXP->nFields; nIField++)
         {
-            MMResizeStringToOperateIfNeeded(
-                phMiraMonLayer,
-                phMiraMonLayer->pMMBDXP->pField[nIField].BytesPerField);
+            if (MMResizeStringToOperateIfNeeded(
+                    phMiraMonLayer,
+                    phMiraMonLayer->pMMBDXP->pField[nIField].BytesPerField))
+            {
+                return nullptr;
+            }
 
             if (poFeature->GetDefnRef()->GetFieldDefn(nIField)->GetType() ==
                     OFTStringList ||
@@ -1016,11 +1019,15 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                         ->GetSubType() == OFSTJSON)
                 {
                     // REVISAR
-                    MMResizeStringToOperateIfNeeded(
-                        phMiraMonLayer,
-                        phMiraMonLayer->pMMBDXP->BytesPerRecord +
-                            2 * phMiraMonLayer->pMultRecordIndex[nIElem].nMR +
-                            8);
+                    if (MMResizeStringToOperateIfNeeded(
+                            phMiraMonLayer,
+                            phMiraMonLayer->pMMBDXP->BytesPerRecord +
+                                2 * phMiraMonLayer->pMultRecordIndex[nIElem]
+                                        .nMR +
+                                8))
+                    {
+                        return nullptr;
+                    }
                     strcpy(phMiraMonLayer->szStringToOperate, "(``[");
                     size_t nBytes = 4;
                     for (nIRecord = 0;
@@ -1391,7 +1398,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
     // Perhaps there are features without geometry.
     m_nFeaturesRead++;
 
-    return poFeature;
+    return poFeature.release();
 }
 
 /****************************************************************************/
