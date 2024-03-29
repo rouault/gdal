@@ -429,6 +429,12 @@ MMGetMultiPolygonCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
             return 1;
         }
 
+        if (hMiraMonLayer->MMPolygon.MMArc.pArcHeader == nullptr)
+        {
+            if (pBuffer)
+                free_function(pBuffer);
+            return 1;
+        }
         pArcHeader = hMiraMonLayer->MMPolygon.MMArc.pArcHeader +
                      (hMiraMonLayer->pArcs + nIndex)->nIArc;
         hMiraMonLayer->ReadFeature
