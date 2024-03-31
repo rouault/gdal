@@ -1565,6 +1565,8 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
             incoherent_record_size = FALSE;
             fseek_function(pf, offset_reintent, SEEK_SET);
             some_problems_when_reading++;
+            /* Reset IdGraficField as it might no longer be valid */
+            pMMBDXP->IdGraficField = 0;
             goto reintenta_lectura_per_si_error_CreaCampBD_XP;
         }
         else
