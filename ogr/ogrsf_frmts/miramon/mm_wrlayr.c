@@ -547,7 +547,8 @@ int MMReadZSection(struct MiraMonVectLayerInfo *hMiraMonLayer, FILE_TYPE *pF,
                     .nElemCount *
                 MM_SIZE_OF_COORDINATE;
     }
-    else if (hMiraMonLayer->bIsPolygon)
+    else if (hMiraMonLayer->bIsPolygon &&
+             hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount > 0)
     {
         // Z section begins just after last coordinate of the last arc
         pZSection->ZSectionOffset =
