@@ -2823,7 +2823,7 @@ MMCreateExtendedDBFIndex(FILE_TYPE *f, MM_EXT_DBF_N_RECORDS nNumberOfRecords,
     if (!nNumberOfRecords)
         return nullptr;  // No elements to read
 
-    if (MMCheckSize_t(nNumberOfRecords * sizeof(*id), 1))
+    if (MMCheckSize_t(nNumberOfRecords, sizeof(*id)))
         return nullptr;
     if (nullptr == (id = (struct MM_ID_GRAFIC_MULTIPLE_RECORD *)calloc_function(
                         (size_t)nNumberOfRecords * sizeof(*id))))
