@@ -217,7 +217,7 @@ struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS nFields)
 
     // MiraMon could accept a number of fields 13.4 million
     // but GDAL prefers to limit that to 20.000 to avoid
-    // problems with random data
+    // too large memory allocation attempts with corrupted datasets
     if (nFields > MM_ACCEPTABLE_NUMBER_OF_FIELDS)
     {
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
