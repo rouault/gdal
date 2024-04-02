@@ -208,10 +208,22 @@ void MM_InitializeField(struct MM_FIELD *pField)
     pField->GeoTopoTypeField = MM_NO_ES_CAMP_GEOTOPO;
 }
 
+#define MM_ACCEPTABLE_NUMBER_OF_FIELDS 20000
+
 struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS nFields)
 {
     struct MM_FIELD *camp;
     MM_EXT_DBF_N_FIELDS i;
+
+    // MiraMon could accept a number of fields 13.4 million
+    // but GDAL prefers to limit that to 20.000 to avoid
+    // problems with random data
+    if (nFields > MM_ACCEPTABLE_NUMBER_OF_FIELDS)
+    {
+        MMCPLError(CE_Failure, CPLE_OutOfMemory,
+                   "More than 20000 fields not accepted");
+        return nullptr;
+    }
 
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     if (nFields >= UINT32_MAX / sizeof(*camp))
