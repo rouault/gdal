@@ -2704,24 +2704,16 @@ int MM_GetArcHeights(double *coord_z, FILE_TYPE *pF, MM_N_VERTICES_TYPE n_vrt,
 static char *MM_l_RemoveWhitespacesFromEndOfString(char *punter,
                                                    size_t l_cadena)
 {
-    int longitud_cadena = (int)l_cadena;
-    if (longitud_cadena-- == 0)
-        return punter;
-
-    if (punter[longitud_cadena] != ' ' && punter[longitud_cadena] != '\t')
-        return punter;
-    longitud_cadena--;
-
-    while (longitud_cadena > -1)
+    size_t longitud_cadena = l_cadena;
+    while (longitud_cadena > 0)
     {
+        longitud_cadena--;
         if (punter[longitud_cadena] != ' ' && punter[longitud_cadena] != '\t')
         {
             break;
         }
-        longitud_cadena--;
+        punter[longitud_cadena] = '\0';
     }
-
-    punter[++longitud_cadena] = '\0';
     return punter;
 }
 
