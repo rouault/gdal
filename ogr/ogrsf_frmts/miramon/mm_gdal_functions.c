@@ -2334,14 +2334,8 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
         memset(whites, ' ', nNewWidth);
 
         nfitx = data_base_XP->nRecords;
-
-#ifdef _MSC_VER
-#pragma warning(disable : 4127)
-#endif
-        for (i_reg = (canvi_amplada < 0 ? 0 : nfitx - 1); TRUE;)
-#ifdef _MSC_VER
-#pragma warning(default : 4127)
-#endif
+        i_reg = (canvi_amplada < 0 ? 0 : nfitx - 1);
+        while (TRUE)
         {
             if (0 != fseek_function(data_base_XP->pfDataBase,
                                     data_base_XP->FirstRecordOffset +
