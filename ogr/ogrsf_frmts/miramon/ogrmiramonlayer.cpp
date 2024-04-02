@@ -615,33 +615,53 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
     }
 
     if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITTING_MODE)
+    {
         MMCPLDebug("MiraMon", "Destroying MiraMon polygons layer memory");
+    }
     MMDestroyLayer(&hMiraMonLayerPOL);
     if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITTING_MODE)
+    {
         MMCPLDebug("MiraMon", "MiraMon polygons layer memory destroyed");
+    }
 
     if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
+    {
         MMCPLDebug("MiraMon", "Destroying MiraMon arcs layer memory");
+    }
     MMDestroyLayer(&hMiraMonLayerARC);
     if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
+    {
         MMCPLDebug("MiraMon", "MiraMon arcs layer memory destroyed");
+    }
 
     if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
+    {
         MMCPLDebug("MiraMon", "Destroying MiraMon points layer memory");
+    }
     MMDestroyLayer(&hMiraMonLayerPNT);
     if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
+    {
         MMCPLDebug("MiraMon", "MiraMon points layer memory destroyed");
+    }
 
     if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+    {
         MMCPLDebug("MiraMon", "Destroying MiraMon DBF table layer memory");
+    }
     else
+    {
         MMCPLDebug("MiraMon", "Destroying MiraMon layer memory");
+    }
 
     MMDestroyLayer(&hMiraMonLayerReadOrNonGeom);
     if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+    {
         MMCPLDebug("MiraMon", "MiraMon DBF table layer memory destroyed");
+    }
     else
+    {
         MMCPLDebug("MiraMon", "MiraMon layer memory destroyed");
+    }
 
     memset(&hMiraMonLayerReadOrNonGeom, 0, sizeof(hMiraMonLayerReadOrNonGeom));
     memset(&hMiraMonLayerPNT, 0, sizeof(hMiraMonLayerPNT));
