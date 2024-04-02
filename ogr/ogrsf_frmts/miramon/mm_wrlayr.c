@@ -53,8 +53,6 @@
 #endif
 #endif
 
-static char local_message[MAX_LOCAL_MESSAGE];
-
 #ifdef GDAL_COMPILATION
 CPL_C_START  // Necessary for compiling in GDAL project
 #endif       // GDAL_COMPILATION
@@ -123,45 +121,40 @@ void MMDestroyMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer);
 /*      Managing errors and warnings                                    */
 /* -------------------------------------------------------------------- */
 
-void MMCPLError(int level, int code, const char *message)
-{
-#ifdef GDAL_COMPILATION
-    CPLError(level, code, "%s", message);
-#else
-    snprintf(local_message, sizeof(local_message), "level(%d), code(%d)", level,
-             code);
-    InfoMsg(local_message);
-    ErrorMsg(message);
-#endif
-}
-
-void MMCPLWarning(int level, int code, const char *message)
-{
-#ifdef GDAL_COMPILATION
-    CPLError(level, code, "%s", message);
-#else
-    snprintf(local_message, sizeof(local_message), "level(%d), code(%d)", level,
-             code);
-    InfoMsg(local_message);
-    InfoMsg(message);
-#endif
-}
-
-void MMCPLDebug(const char *c, const char *message)
-{
-#ifdef GDAL_COMPILATION
-    (void)c;
-    (void)message;
-    CPLDebugOnly(c, "%s", message);
-#else
-    snprintf(local_message, sizeof(local_message), "Code(%s)\n", c);
-    printf(local_message); /*ok*/
-    printf(message);       /*ok*/
-    printf("\n");          /*ok*/
-#endif
-}
-
 #ifndef GDAL_COMPILATION
+void MMCPLError(int code, const char *fmt, ...)
+{
+    char szBigEnoughBuffer[1024];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(szBigEnoughBuffer, sizeof(szBigEnoughBuffer), fmt, args);
+    ErrorMsg(szBigEnoughBuffer);
+    va_end(args);
+}
+
+void MMCPLWarning(int code, const char *fmt, ...)
+{
+    char szBigEnoughBuffer[1024];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(szBigEnoughBuffer, sizeof(szBigEnoughBuffer), fmt, args);
+    InfoMsg(szBigEnoughBuffer);
+    va_end(args);
+}
+
+void MMCPLDebug(int code, const char *fmt, ...)
+{
+    char szBigEnoughBuffer[1024];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(szBigEnoughBuffer, sizeof(szBigEnoughBuffer), fmt, args);
+    printf(szBigEnoughBuffer);
+    va_end(args);
+}
+
 int snprintf(char *str, size_t size, const char *format, ...)
 {
     int result;
@@ -1007,10 +1000,9 @@ static int MMInitPointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                         fopen_function(hMiraMonLayer->MMPoint.pszLayerName,
                                        hMiraMonLayer->pszFlags)))
     {
-        snprintf(local_message, sizeof(local_message),
-                 "Error MMPoint.pF: Cannot open file %s.",
-                 hMiraMonLayer->MMPoint.pszLayerName);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "Error MMPoint.pF: Cannot open file %s.",
+                   hMiraMonLayer->MMPoint.pszLayerName);
         return 1;
     }
     fseek_function(hMiraMonLayer->MMPoint.pF, 0, SEEK_SET);
@@ -1026,10 +1018,9 @@ static int MMInitPointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                             fopen_function(hMiraMonLayer->MMPoint.pszTLName,
                                            hMiraMonLayer->pszFlags)))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error MMPoint.pFTL: Cannot open file %s.",
-                     hMiraMonLayer->MMPoint.pszTLName);
-            MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            MMCPLError(CE_Failure, CPLE_OpenFailed,
+                       "Error MMPoint.pFTL: Cannot open file %s.",
+                       hMiraMonLayer->MMPoint.pszTLName);
             return 1;
         }
         fseek_function(hMiraMonLayer->MMPoint.pFTL, 0, SEEK_SET);
@@ -1053,10 +1044,9 @@ static int MMInitPointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                                 hMiraMonLayer->MMPoint.psz3DLayerName,
                                 hMiraMonLayer->pszFlags)))
             {
-                snprintf(local_message, sizeof(local_message),
-                         "Error MMPoint.pF3d: Cannot open file %s.",
-                         hMiraMonLayer->MMPoint.psz3DLayerName);
-                MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+                MMCPLError(CE_Failure, CPLE_OpenFailed,
+                           "Error MMPoint.pF3d: Cannot open file %s.",
+                           hMiraMonLayer->MMPoint.psz3DLayerName);
                 return 1;
             }
             fseek_function(hMiraMonLayer->MMPoint.pF3d, 0, SEEK_SET);
@@ -1161,10 +1151,10 @@ static int MMInitNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                         fopen_function(pMMArcLayer->MMNode.pszLayerName,
                                        hMiraMonLayer->pszFlags)))
     {
-        snprintf(local_message, sizeof(local_message),
-                 "Error MMNode.pF: Cannot open file %s.",
-                 pMMArcLayer->MMNode.pszLayerName);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "Error MMNode.pF: Cannot open file %s.",
+                   pMMArcLayer->MMNode.pszLayerName);
         return 1;
     }
     fseek_function(pMMArcLayer->MMNode.pF, 0, SEEK_SET);
@@ -1212,10 +1202,10 @@ static int MMInitNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                             fopen_function(pMMArcLayer->MMNode.pszNLName,
                                            hMiraMonLayer->pszFlags)))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error MMNode.pFNL: Cannot open file %s.",
-                     pMMArcLayer->MMNode.pszNLName);
-            MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+
+            MMCPLError(CE_Failure, CPLE_OpenFailed,
+                       "Error MMNode.pFNL: Cannot open file %s.",
+                       pMMArcLayer->MMNode.pszNLName);
             return 1;
         }
         fseek_function(pMMArcLayer->MMNode.pFNL, 0, SEEK_SET);
@@ -1286,10 +1276,9 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     if (nullptr == (pMMArcLayer->pF = fopen_function(pMMArcLayer->pszLayerName,
                                                      hMiraMonLayer->pszFlags)))
     {
-        snprintf(local_message, sizeof(local_message),
-                 "Error pMMArcLayer->pF: Cannot open file %s.",
-                 pMMArcLayer->pszLayerName);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "Error pMMArcLayer->pF: Cannot open file %s.",
+                   pMMArcLayer->pszLayerName);
         return 1;
     }
 
@@ -1300,10 +1289,9 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         if (MMReadHeader(pMMArcLayer->pF,
                          &hMiraMonLayer->MMPolygon.TopArcHeader))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error reading the format in file %s.",
-                     pMMArcLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NotSupported, local_message);
+            MMCPLError(CE_Failure, CPLE_NotSupported,
+                       "Error reading the format in file %s.",
+                       pMMArcLayer->pszLayerName);
             return 1;
         }
         // 3D information is in arcs file
@@ -1341,10 +1329,9 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         {
             if (MMReadAHArcSection(hMiraMonLayer))
             {
-                snprintf(local_message, sizeof(local_message),
-                         "Error reading the format in file %s.",
-                         pMMArcLayer->pszLayerName);
-                MMCPLError(CE_Failure, CPLE_NotSupported, local_message);
+                MMCPLError(CE_Failure, CPLE_NotSupported,
+                           "Error reading the format in file %s.",
+                           pMMArcLayer->pszLayerName);
                 return 1;
             }
         }
@@ -1366,10 +1353,9 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         if (nullptr == (pMMArcLayer->pFAL = fopen_function(
                             pMMArcLayer->pszALName, hMiraMonLayer->pszFlags)))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error pMMArcLayer->pFAL: Cannot open file %s.",
-                     pMMArcLayer->pszALName);
-            MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            MMCPLError(CE_Failure, CPLE_OpenFailed,
+                       "Error pMMArcLayer->pFAL: Cannot open file %s.",
+                       pMMArcLayer->pszALName);
             return 1;
         }
         fseek_function(pMMArcLayer->pFAL, 0, SEEK_SET);
@@ -1397,10 +1383,9 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                 (pMMArcLayer->pF3d = fopen_function(pMMArcLayer->psz3DLayerName,
                                                     hMiraMonLayer->pszFlags)))
             {
-                snprintf(local_message, sizeof(local_message),
-                         "Error pMMArcLayer->pF3d: Cannot open file %s.",
-                         pMMArcLayer->psz3DLayerName);
-                MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+                MMCPLError(CE_Failure, CPLE_OpenFailed,
+                           "Error pMMArcLayer->pF3d: Cannot open file %s.",
+                           pMMArcLayer->psz3DLayerName);
                 return 1;
             }
             fseek_function(pMMArcLayer->pF3d, 0, SEEK_SET);
@@ -1409,10 +1394,9 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         if (MMInitZSectionLayer(hMiraMonLayer, pMMArcLayer->pF3d,
                                 &pMMArcLayer->pZSection))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error reading the format in file %s %d.",
-                     pMMArcLayer->pszLayerName, 6);
-            MMCPLError(CE_Failure, CPLE_NotSupported, local_message);
+            MMCPLError(CE_Failure, CPLE_NotSupported,
+                       "Error reading the format in file %s %d.",
+                       pMMArcLayer->pszLayerName, 6);
             return 1;
         }
 
@@ -1421,10 +1405,9 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
             if (MMReadZSection(hMiraMonLayer, pMMArcLayer->pF,
                                &pMMArcLayer->pZSection))
             {
-                snprintf(local_message, sizeof(local_message),
-                         "Error reading the format in file %s.",
-                         pMMArcLayer->pszLayerName);
-                MMCPLError(CE_Failure, CPLE_NotSupported, local_message);
+                MMCPLError(CE_Failure, CPLE_NotSupported,
+                           "Error reading the format in file %s.",
+                           pMMArcLayer->pszLayerName);
                 return 1;
             }
 
@@ -1432,10 +1415,9 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                                           pArcTopHeader->nElemCount,
                                           &pMMArcLayer->pZSection))
             {
-                snprintf(local_message, sizeof(local_message),
-                         "Error reading the format in file %s.",
-                         pMMArcLayer->pszLayerName);
-                MMCPLError(CE_Failure, CPLE_NotSupported, local_message);
+                MMCPLError(CE_Failure, CPLE_NotSupported,
+                           "Error reading the format in file %s.",
+                           pMMArcLayer->pszLayerName);
                 return 1;
             }
         }
@@ -1555,10 +1537,9 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         (pMMPolygonLayer->pF = fopen_function(pMMPolygonLayer->pszLayerName,
                                               hMiraMonLayer->pszFlags)))
     {
-        snprintf(local_message, sizeof(local_message),
-                 "Error pMMPolygonLayer->pF: Cannot open file %s.",
-                 pMMPolygonLayer->pszLayerName);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "Error pMMPolygonLayer->pF: Cannot open file %s.",
+                   pMMPolygonLayer->pszLayerName);
         return 1;
     }
 
@@ -1577,10 +1558,9 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
             (pMMPolygonLayer->pFPS = fopen_function(pMMPolygonLayer->pszPSName,
                                                     hMiraMonLayer->pszFlags)))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error pMMPolygonLayer->pFPS: Cannot open file %s.",
-                     pMMPolygonLayer->pszPSName);
-            MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            MMCPLError(CE_Failure, CPLE_OpenFailed,
+                       "Error pMMPolygonLayer->pFPS: Cannot open file %s.",
+                       pMMPolygonLayer->pszPSName);
             return 1;
         }
         fseek_function(pMMPolygonLayer->pFPS, 0, SEEK_SET);
@@ -1646,10 +1626,9 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                             fopen_function(pMMPolygonLayer->pszPALName,
                                            hMiraMonLayer->pszFlags)))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error pMMPolygonLayer->pFPAL: Cannot open file %s.",
-                     pMMPolygonLayer->pszPALName);
-            MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            MMCPLError(CE_Failure, CPLE_OpenFailed,
+                       "Error pMMPolygonLayer->pFPAL: Cannot open file %s.",
+                       pMMPolygonLayer->pszPALName);
             return 1;
         }
         fseek_function(pMMPolygonLayer->pFPAL, 0, SEEK_SET);
@@ -1826,10 +1805,10 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
             else
             {
                 // There is no arc layer on the metada file
-                snprintf(local_message, sizeof(local_message),
-                         "Error reading the ARC file in the metadata file %s.",
-                         pMMPolygonLayer->pszREL_LayerName);
-                MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+                MMCPLError(
+                    CE_Failure, CPLE_OpenFailed,
+                    "Error reading the ARC file in the metadata file %s.",
+                    pMMPolygonLayer->pszREL_LayerName);
                 return 1;
             }
 
@@ -1837,29 +1816,27 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
                                 pMMPolygonLayer->MMArc.pszLayerName,
                                 hMiraMonLayer->pszFlags)))
             {
-                snprintf(local_message, sizeof(local_message),
-                         "Error pMMPolygonLayer.MMArc.pF: Cannot open file %s.",
-                         pMMPolygonLayer->MMArc.pszLayerName);
-                MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+                MMCPLError(
+                    CE_Failure, CPLE_OpenFailed,
+                    "Error pMMPolygonLayer.MMArc.pF: Cannot open file %s.",
+                    pMMPolygonLayer->MMArc.pszLayerName);
                 return 1;
             }
 
             if (MMReadHeader(hMiraMonLayer->MMPolygon.MMArc.pF,
                              &hMiraMonLayer->MMPolygon.TopArcHeader))
             {
-                snprintf(local_message, sizeof(local_message),
-                         "Error reading the format in file %s.",
-                         pMMPolygonLayer->MMArc.pszLayerName);
-                MMCPLError(CE_Failure, CPLE_NotSupported, local_message);
+                MMCPLError(CE_Failure, CPLE_NotSupported,
+                           "Error reading the format in file %s.",
+                           pMMPolygonLayer->MMArc.pszLayerName);
                 return 1;
             }
 
             if (MMReadPHPolygonSection(hMiraMonLayer))
             {
-                snprintf(local_message, sizeof(local_message),
-                         "Error reading the format in file %s.",
-                         pMMPolygonLayer->MMArc.pszLayerName);
-                MMCPLError(CE_Failure, CPLE_NotSupported, local_message);
+                MMCPLError(CE_Failure, CPLE_NotSupported,
+                           "Error reading the format in file %s.",
+                           pMMPolygonLayer->MMArc.pszLayerName);
                 return 1;
             }
 
@@ -2040,10 +2017,9 @@ static int MMClosePointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
         if (MMWriteHeader(hMiraMonLayer->MMPoint.pF, &hMiraMonLayer->TopHeader))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s",
-                     hMiraMonLayer->MMPoint.pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       hMiraMonLayer->MMPoint.pszLayerName);
             return 1;
         }
         hMiraMonLayer->OffsetCheck = hMiraMonLayer->nHeaderDiskSize;
@@ -2052,20 +2028,18 @@ static int MMClosePointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         hMiraMonLayer->MMPoint.FlushTL.SizeOfBlockToBeSaved = 0;
         if (MMAppendBlockToBuffer(&hMiraMonLayer->MMPoint.FlushTL))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s",
-                     hMiraMonLayer->MMPoint.pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       hMiraMonLayer->MMPoint.pszLayerName);
             return 1;
         }
         if (MMMoveFromFileToFile(hMiraMonLayer->MMPoint.pFTL,
                                  hMiraMonLayer->MMPoint.pF,
                                  &hMiraMonLayer->OffsetCheck))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s",
-                     hMiraMonLayer->MMPoint.pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       hMiraMonLayer->MMPoint.pszLayerName);
             return 1;
         }
 
@@ -2079,10 +2053,9 @@ static int MMClosePointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                 hMiraMonLayer->MMPoint.psz3DLayerName,
                 &hMiraMonLayer->MMPoint.pZSection, hMiraMonLayer->OffsetCheck))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s",
-                     hMiraMonLayer->MMPoint.pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       hMiraMonLayer->MMPoint.pszLayerName);
             return 1;
         }
     }
@@ -2162,9 +2135,8 @@ static int MMCloseArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
         if (MMWriteHeader(pMMArcLayer->pF, pArcTopHeader))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMArcLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s", pMMArcLayer->pszLayerName);
             return 1;
         }
         hMiraMonLayer->OffsetCheck = hMiraMonLayer->nHeaderDiskSize;
@@ -2172,9 +2144,8 @@ static int MMCloseArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         // AH Section
         if (MMWriteAHArcSection(hMiraMonLayer, hMiraMonLayer->OffsetCheck))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMArcLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s", pMMArcLayer->pszLayerName);
             return 1;
         }
 
@@ -2182,17 +2153,15 @@ static int MMCloseArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         pMMArcLayer->FlushAL.SizeOfBlockToBeSaved = 0;
         if (MMAppendBlockToBuffer(&pMMArcLayer->FlushAL))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMArcLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s", pMMArcLayer->pszLayerName);
             return 1;
         }
         if (MMMoveFromFileToFile(pMMArcLayer->pFAL, pMMArcLayer->pF,
                                  &hMiraMonLayer->OffsetCheck))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMArcLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s", pMMArcLayer->pszLayerName);
             return 1;
         }
         if (pMMArcLayer->pFAL)
@@ -2206,9 +2175,8 @@ static int MMCloseArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                 pMMArcLayer->pF3d, pMMArcLayer->psz3DLayerName,
                 &pMMArcLayer->pZSection, hMiraMonLayer->OffsetCheck))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMArcLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s", pMMArcLayer->pszLayerName);
             return 1;
         }
     }
@@ -2240,9 +2208,9 @@ static int MMClosePolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
         if (MMWriteHeader(pMMPolygonLayer->pF, &hMiraMonLayer->TopHeader))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMPolygonLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       pMMPolygonLayer->pszLayerName);
             return 1;
         }
         hMiraMonLayer->OffsetCheck = hMiraMonLayer->nHeaderDiskSize;
@@ -2251,17 +2219,17 @@ static int MMClosePolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         pMMPolygonLayer->FlushPS.SizeOfBlockToBeSaved = 0;
         if (MMAppendBlockToBuffer(&pMMPolygonLayer->FlushPS))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMPolygonLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       pMMPolygonLayer->pszLayerName);
             return 1;
         }
         if (MMMoveFromFileToFile(pMMPolygonLayer->pFPS, pMMPolygonLayer->pF,
                                  &hMiraMonLayer->OffsetCheck))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMPolygonLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       pMMPolygonLayer->pszLayerName);
             return 1;
         }
 
@@ -2273,9 +2241,9 @@ static int MMClosePolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         // AH Section
         if (MMWritePHPolygonSection(hMiraMonLayer, hMiraMonLayer->OffsetCheck))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMPolygonLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       pMMPolygonLayer->pszLayerName);
             return 1;
         }
 
@@ -2283,17 +2251,17 @@ static int MMClosePolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         pMMPolygonLayer->FlushPAL.SizeOfBlockToBeSaved = 0;
         if (MMAppendBlockToBuffer(&pMMPolygonLayer->FlushPAL))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMPolygonLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       pMMPolygonLayer->pszLayerName);
             return 1;
         }
         if (MMMoveFromFileToFile(pMMPolygonLayer->pFPAL, pMMPolygonLayer->pF,
                                  &hMiraMonLayer->OffsetCheck))
         {
-            snprintf(local_message, sizeof(local_message),
-                     "Error writing to file %s", pMMPolygonLayer->pszLayerName);
-            MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+            MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                       "Error writing to file %s",
+                       pMMPolygonLayer->pszLayerName);
             return 1;
         }
         if (pMMPolygonLayer->pFPAL)
@@ -5154,9 +5122,8 @@ char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
     FILE_TYPE *file = fopen_function(filename, "rb");
     if (file == nullptr)
     {
-        snprintf(local_message, sizeof(local_message),
-                 "Cannot open INI file %s.", filename);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed, "Cannot open INI file %s.",
+                   filename);
         return nullptr;
     }
 
@@ -5526,9 +5493,8 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
 
     if (nullptr == (pF = fopen_function(hMMMD->aLayerName, "wb")))
     {
-        snprintf(local_message, sizeof(local_message),
-                 "The file %s must exist.", hMMMD->aLayerName);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed, "The file %s must exist.",
+                   hMMMD->aLayerName);
         return 1;
     }
 
@@ -5980,9 +5946,8 @@ int MMCheck_REL_FILE(char *szREL_file)
     pF = fopen_function(szREL_file, "r");
     if (!pF)
     {
-        snprintf(local_message, sizeof(local_message),
-                 "The file %s must exist.", szREL_file);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed, "The file %s must exist.",
+                   szREL_file);
         return 1;
     }
     fclose_function(pF);
@@ -5992,12 +5957,11 @@ int MMCheck_REL_FILE(char *szREL_file)
         MMReturnValueFromSectionINIFile(szREL_file, SECTION_VERSIO, nullptr);
     if (!pszLine)
     {
-        snprintf(local_message, sizeof(local_message),
-                 "The file \"%s\" must be REL4. "
-                 "You can use ConvREL.exe from MiraMon software "
-                 "to convert this file to REL4.",
-                 szREL_file);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "The file \"%s\" must be REL4. "
+                   "You can use ConvREL.exe from MiraMon software "
+                   "to convert this file to REL4.",
+                   szREL_file);
         return 1;
     }
     free_function(pszLine);
@@ -6010,10 +5974,9 @@ int MMCheck_REL_FILE(char *szREL_file)
     {
         if (*pszLine == '\0' || atoi(pszLine) < (int)MM_VERS)
         {
-            snprintf(local_message, sizeof(local_message),
-                     "The file \"%s\" must have %s>=%d.", szREL_file, KEY_Vers,
-                     MM_VERS);
-            MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            MMCPLError(CE_Failure, CPLE_OpenFailed,
+                       "The file \"%s\" must have %s>=%d.", szREL_file,
+                       KEY_Vers, MM_VERS);
             free_function(pszLine);
             return 1;
         }
@@ -6021,10 +5984,9 @@ int MMCheck_REL_FILE(char *szREL_file)
     }
     else
     {
-        snprintf(local_message, sizeof(local_message),
-                 "The file \"%s\" must have %s>=%d.", szREL_file, KEY_Vers,
-                 MM_VERS);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "The file \"%s\" must have %s>=%d.", szREL_file, KEY_Vers,
+                   MM_VERS);
         return 1;
     }
 
@@ -6035,10 +5997,10 @@ int MMCheck_REL_FILE(char *szREL_file)
     {
         if (*pszLine == '\0' || atoi(pszLine) < (int)MM_SUBVERS)
         {
-            snprintf(local_message, sizeof(local_message),
-                     "The file \"%s\" must have %s>=%d.", szREL_file,
-                     KEY_SubVers, MM_SUBVERS);
-            MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            MMCPLError(CE_Failure, CPLE_OpenFailed,
+                       "The file \"%s\" must have %s>=%d.", szREL_file,
+                       KEY_SubVers, MM_SUBVERS);
+
             free_function(pszLine);
             return 1;
         }
@@ -6046,10 +6008,9 @@ int MMCheck_REL_FILE(char *szREL_file)
     }
     else
     {
-        snprintf(local_message, sizeof(local_message),
-                 "The file \"%s\" must have %s>=%d.", szREL_file, KEY_SubVers,
-                 MM_SUBVERS);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "The file \"%s\" must have %s>=%d.", szREL_file, KEY_SubVers,
+                   MM_SUBVERS);
         return 1;
     }
 
@@ -6060,10 +6021,9 @@ int MMCheck_REL_FILE(char *szREL_file)
     {
         if (*pszLine == '\0' || atoi(pszLine) < (int)MM_VERS_METADADES)
         {
-            snprintf(local_message, sizeof(local_message),
-                     "The file \"%s\" must have %s>=%d.", szREL_file,
-                     KEY_VersMetaDades, MM_VERS_METADADES);
-            MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            MMCPLError(CE_Failure, CPLE_OpenFailed,
+                       "The file \"%s\" must have %s>=%d.", szREL_file,
+                       KEY_VersMetaDades, MM_VERS_METADADES);
             free_function(pszLine);
             return 1;
         }
@@ -6071,10 +6031,9 @@ int MMCheck_REL_FILE(char *szREL_file)
     }
     else
     {
-        snprintf(local_message, sizeof(local_message),
-                 "The file \"%s\" must have %s>=%d.", szREL_file,
-                 KEY_VersMetaDades, MM_VERS_METADADES);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "The file \"%s\" must have %s>=%d.", szREL_file,
+                   KEY_VersMetaDades, MM_VERS_METADADES);
         return 1;
     }
 
@@ -6085,10 +6044,9 @@ int MMCheck_REL_FILE(char *szREL_file)
     {
         if (*pszLine == '\0' || atoi(pszLine) < (int)MM_SUBVERS_METADADES)
         {
-            snprintf(local_message, sizeof(local_message),
-                     "The file \"%s\" must have %s>=%d.", szREL_file,
-                     KEY_SubVersMetaDades, MM_SUBVERS_METADADES);
-            MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+            MMCPLError(CE_Failure, CPLE_OpenFailed,
+                       "The file \"%s\" must have %s>=%d.", szREL_file,
+                       KEY_SubVersMetaDades, MM_SUBVERS_METADADES);
             free_function(pszLine);
             return 1;
         }
@@ -6096,10 +6054,9 @@ int MMCheck_REL_FILE(char *szREL_file)
     }
     else
     {
-        snprintf(local_message, sizeof(local_message),
-                 "The file \"%s\" must have %s>=%d.", szREL_file,
-                 KEY_SubVersMetaDades, MM_SUBVERS_METADADES);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "The file \"%s\" must have %s>=%d.", szREL_file,
+                   KEY_SubVersMetaDades, MM_SUBVERS_METADADES);
         return 1;
     }
     return 0;
@@ -6134,10 +6091,9 @@ static int MMInitMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                         fopen_function(pMMAdmDB->pszExtDBFLayerName,
                                        "r+b")))  //hMiraMonLayer->pszFlags)))
     {
-        snprintf(local_message, sizeof(local_message),
-                 "Error pMMAdmDB: Cannot open file %s.",
-                 pMMAdmDB->pszExtDBFLayerName);
-        MMCPLError(CE_Failure, CPLE_OpenFailed, local_message);
+        MMCPLError(CE_Failure, CPLE_OpenFailed,
+                   "Error pMMAdmDB: Cannot open file %s.",
+                   pMMAdmDB->pszExtDBFLayerName);
         return 1;
     }
     fseek_function(pMMAdmDB->pFExtDBF, pMMAdmDB->pMMBDXP->FirstRecordOffset,

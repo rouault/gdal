@@ -10,7 +10,7 @@
 #include "gdalmmf.h"  // For PTR_MM_CPLRecode, ptr_MM_CPLRecode(), ...
 #else
 #include "ogr_api.h"  // For OGRLayerH
-CPL_C_START // Necessary for compiling in GDAL project
+CPL_C_START  // Necessary for compiling in GDAL project
 #endif
 
 #ifndef GDAL_COMPILATION
@@ -105,10 +105,16 @@ CPL_C_START // Necessary for compiling in GDAL project
 /*      Functions                                                       */
 /* -------------------------------------------------------------------- */
 // MM-GDAL functions
-void MMCPLError(int level, int code, const char *message);
-
-void MMCPLWarning(int level, int code, const char *message);
-void MMCPLDebug(const char *c, const char *message);
+#ifdef GDAL_COMPILATION
+#define MMCPLError CPLError
+#define MMCPLWarning CPLError
+#define MMCPLDebug CPLDebugOnly
+#else
+    void
+    MMCPLError(int code, const char *fmt, ...);
+void MMCPLWarning(int code, const char *fmt, ...);
+void MMCPLDebug(int code, const char *fmt, ...);
+#endif
 
 // Layer functions
 int MMInitLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,

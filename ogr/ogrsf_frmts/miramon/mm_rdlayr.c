@@ -50,14 +50,13 @@
 CPL_C_START  // Necessary for compiling in GDAL project
 #endif
 
-    static char local_message[MAX_LOCAL_MESSAGE];
+    /* -------------------------------------------------------------------- */
+    /*      Reading MiraMon format file functions                           */
+    /* -------------------------------------------------------------------- */
 
-/* -------------------------------------------------------------------- */
-/*      Reading MiraMon format file functions                           */
-/* -------------------------------------------------------------------- */
-
-// Initializes a MiraMon vector layer for reading
-int MMInitLayerToRead(struct MiraMonVectLayerInfo *hMiraMonLayer,
+    // Initializes a MiraMon vector layer for reading
+    int
+    MMInitLayerToRead(struct MiraMonVectLayerInfo *hMiraMonLayer,
                       FILE_TYPE *m_fp, const char *pszFilename)
 {
     char szResult[MM_MAX_ID_SNY + 10];
@@ -66,9 +65,8 @@ int MMInitLayerToRead(struct MiraMonVectLayerInfo *hMiraMonLayer,
     memset(hMiraMonLayer, 0, sizeof(*hMiraMonLayer));
     if (MMReadHeader(m_fp, &hMiraMonLayer->TopHeader))
     {
-        snprintf(local_message, sizeof(local_message),
-                 "Error reading header of file %s", pszFilename);
-        MMCPLError(CE_Failure, CPLE_NoWriteAccess, local_message);
+        MMCPLError(CE_Failure, CPLE_NoWriteAccess,
+                   "Error reading header of file %s", pszFilename);
         return 1;
     }
     hMiraMonLayer->nMemoryRatio = 1.0;
@@ -680,9 +678,9 @@ int MM_ReadExtendedDBFHeader(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     if (MM_ReadExtendedDBFHeaderFromFile(szDBFFileName, pMMBDXP, pszRelFile))
     {
-        snprintf(local_message, sizeof(local_message),
-                 "Error reading the format in the DBF file %s.", szDBFFileName);
-        MMCPLError(CE_Failure, CPLE_NotSupported, local_message);
+        MMCPLError(CE_Failure, CPLE_NotSupported,
+                   "Error reading the format in the DBF file %s.",
+                   szDBFFileName);
         return 1;
     }
 
