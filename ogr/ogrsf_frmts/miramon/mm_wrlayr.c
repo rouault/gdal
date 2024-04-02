@@ -6459,7 +6459,8 @@ MMTestAndFixValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if ((GUInt64)pMMAdmDB->pMMBDXP->BytesPerRecord + 1 >=
             pMMAdmDB->nNumRecordOnCourse)
         {
-            if (nullptr == (pMMAdmDB->szRecordOnCourse = realloc_function(
+            void *pTmp;
+            if (nullptr == (pTmp = realloc_function(
                                 pMMAdmDB->szRecordOnCourse,
                                 (size_t)pMMAdmDB->pMMBDXP->BytesPerRecord + 1)))
             {
@@ -6468,6 +6469,7 @@ MMTestAndFixValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
                            "driver (MMTestAndFixValueToRecordDBXP())");
                 return 1;
             }
+            pMMAdmDB->szRecordOnCourse = pTmp;
         }
 
         // File has changed it's size, so it has to be updated
