@@ -2770,14 +2770,9 @@ char *MM_RemoveLeadingWhitespaceOfString(char *cadena)
 
 char *MM_RemoveWhitespacesFromEndOfString(char *str)
 {
-    const char *s;
-
     if (str == nullptr)
         return str;
-
-    for (s = str; *s; ++s)
-        continue;
-    return MM_l_RemoveWhitespacesFromEndOfString(str, (s - str));
+    return MM_l_RemoveWhitespacesFromEndOfString(str, strlen(str));
 }
 
 struct MM_ID_GRAFIC_MULTIPLE_RECORD *
@@ -2806,8 +2801,13 @@ MMCreateExtendedDBFIndex(FILE_TYPE *f, MM_EXT_DBF_N_RECORDS nNumberOfRecords,
                         (size_t)nNumberOfRecords * sizeof(*id))))
         return nullptr;
 
-    if (MMCheckSize_t(bytes_id_grafic + 1, 1))
+    if (bytes_id_grafic == UINT32_MAX)
+    {
+        MMCPLError(CE_Failure, CPLE_OutOfMemory,
+                   "Overflow in bytes_id_graphic");
         return nullptr;
+    }
+
     if (nullptr ==
         (fitxa = (char *)calloc_function((size_t)bytes_id_grafic + 1)))
     {
