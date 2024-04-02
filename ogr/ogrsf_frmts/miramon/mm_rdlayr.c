@@ -684,9 +684,7 @@ int MM_ReadExtendedDBFHeader(struct MiraMonVectLayerInfo *hMiraMonLayer)
         return 1;
     }
 
-    fclose_function(pMMBDXP->pfDataBase);
-    pMMBDXP->pfDataBase = nullptr;
-
+    fclose_and_nullify(&pMMBDXP->pfDataBase);
     return 0;
 }
 

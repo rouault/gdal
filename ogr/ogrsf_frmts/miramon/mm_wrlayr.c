@@ -1922,8 +1922,7 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
                 return 1;
             }
 
-            fclose_function(hMiraMonLayer->MMPolygon.MMArc.pF);
-            hMiraMonLayer->MMPolygon.MMArc.pF = nullptr;
+            fclose_and_nullify(&hMiraMonLayer->MMPolygon.MMArc.pF);
         }
         else
         {
@@ -2056,7 +2055,8 @@ static int MMClose3DSectionLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (!hMiraMonLayer)
         return 1;
 
-    // Flushing if there is something to flush on the disk
+    // Avoid closing when it has no sense. But it's not an error.
+    // Just return elegantly.
     if (!pF || !pF3d || !pszF3d || !pZSection)
         return 0;
 
@@ -2079,8 +2079,7 @@ static int MMClose3DSectionLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
             return 1;
     }
 
-    if (pF3d)
-        fclose_function(pF3d);
+    fclose_and_nullify(&pF3d);
     if (pszF3d && *pszF3d != '\0')
         remove_function(pszF3d);
 
@@ -2125,7 +2124,8 @@ static int MMClosePointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
             return 1;
         }
 
-        fclose_function(hMiraMonLayer->MMPoint.pFTL);
+        fclose_and_nullify(&hMiraMonLayer->MMPoint.pFTL);
+
         if (*hMiraMonLayer->MMPoint.pszTLName != '\0')
             remove_function(hMiraMonLayer->MMPoint.pszTLName);
 
@@ -2141,8 +2141,7 @@ static int MMClosePointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
             return 1;
         }
     }
-    if (hMiraMonLayer->MMPoint.pF)
-        fclose_function(hMiraMonLayer->MMPoint.pF);
+    fclose_and_nullify(&hMiraMonLayer->MMPoint.pF);
     return 0;
 }
 
@@ -2179,14 +2178,12 @@ static int MMCloseNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                                  &hMiraMonLayer->OffsetCheck))
             return 1;
 
-        if (pMMArcLayer->MMNode.pFNL)
-            fclose_function(pMMArcLayer->MMNode.pFNL);
+        fclose_and_nullify(&pMMArcLayer->MMNode.pFNL);
         if (*pMMArcLayer->MMNode.pszNLName != '\0')
             remove_function(pMMArcLayer->MMNode.pszNLName);
     }
 
-    if (pMMArcLayer->MMNode.pF)
-        fclose_function(pMMArcLayer->MMNode.pF);
+    fclose_and_nullify(&pMMArcLayer->MMNode.pFNL);
 
     return 0;
 }
@@ -2246,8 +2243,8 @@ static int MMCloseArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                        "Error writing to file %s", pMMArcLayer->pszLayerName);
             return 1;
         }
-        if (pMMArcLayer->pFAL)
-            fclose_function(pMMArcLayer->pFAL);
+        fclose_and_nullify(&pMMArcLayer->pFAL);
+
         if (*pMMArcLayer->pszALName != '\0')
             remove_function(pMMArcLayer->pszALName);
 
@@ -2263,8 +2260,7 @@ static int MMCloseArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         }
     }
 
-    if (pMMArcLayer->pF)
-        fclose_function(pMMArcLayer->pF);
+    fclose_and_nullify(&pMMArcLayer->pF);
 
     if (MMCloseNodeLayer(hMiraMonLayer))
         return 1;
@@ -2315,8 +2311,7 @@ static int MMClosePolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
             return 1;
         }
 
-        if (pMMPolygonLayer->pFPS)
-            fclose_function(pMMPolygonLayer->pFPS);
+        fclose_and_nullify(&pMMPolygonLayer->pFPS);
         if (*pMMPolygonLayer->pszPSName != '\0')
             remove_function(pMMPolygonLayer->pszPSName);
 
@@ -2346,14 +2341,13 @@ static int MMClosePolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
                        pMMPolygonLayer->pszLayerName);
             return 1;
         }
-        if (pMMPolygonLayer->pFPAL)
-            fclose_function(pMMPolygonLayer->pFPAL);
+        fclose_and_nullify(&pMMPolygonLayer->pFPAL);
+
         if (*pMMPolygonLayer->pszPALName != '\0')
             remove_function(pMMPolygonLayer->pszPALName);
     }
 
-    if (pMMPolygonLayer->pF)
-        fclose_function(pMMPolygonLayer->pF);
+    fclose_and_nullify(&pMMPolygonLayer->pF);
 
     return 0;
 }
@@ -7134,12 +7128,7 @@ static int MMCloseMMBD_XPFile(struct MiraMonVectLayerInfo *hMiraMonLayer,
     }
 
     // Closing database files
-    if (MMAdmDB->pFExtDBF)
-    {
-        if (fclose_function(MMAdmDB->pFExtDBF))
-            return 1;
-        MMAdmDB->pFExtDBF = nullptr;
-    }
+    fclose_and_nullify(&MMAdmDB->pFExtDBF);
 
     return 0;
 }
@@ -7149,10 +7138,9 @@ int MMCloseMMBD_XP(struct MiraMonVectLayerInfo *hMiraMonLayer)
     if (!hMiraMonLayer)
         return 1;
 
-    if (hMiraMonLayer->pMMBDXP && hMiraMonLayer->pMMBDXP->pfDataBase)
+    if (hMiraMonLayer->pMMBDXP)
     {
-        fclose_function(hMiraMonLayer->pMMBDXP->pfDataBase);
-        hMiraMonLayer->pMMBDXP->pfDataBase = nullptr;
+        fclose_and_nullify(&hMiraMonLayer->pMMBDXP->pfDataBase);
     }
 
     if (hMiraMonLayer->bIsPoint)

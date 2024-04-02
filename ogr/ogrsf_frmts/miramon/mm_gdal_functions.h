@@ -25,6 +25,8 @@ CPL_C_START                          // Necessary for compiling in GDAL project
 
 const char *MMLog(const char *pszMsg, int nLineNumber);
 
+void fclose_and_nullify(FILE_TYPE **pFunc);
+
 // MiraMon feature table descriptors
 #define MM_MAX_IDENTIFIER_SIZE 50
 #define MM_a_WITH_GRAVE 224

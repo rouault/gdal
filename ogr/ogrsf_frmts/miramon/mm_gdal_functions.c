@@ -200,6 +200,14 @@ static const char MM_EmptyString[] = {""};
 #define MM_SetEndOfString (*MM_EmptyString)
 static const char MM_BlankString[] = {" "};
 
+void fclose_and_nullify(FILE_TYPE **pFunc)
+{
+    if (!pFunc || !(*pFunc))
+        return;
+    fclose_function(*pFunc);
+    *pFunc = nullptr;
+}
+
 // CREATING AN EXTENDED MIRAMON DBF
 void MM_InitializeField(struct MM_FIELD *pField)
 {
@@ -1066,8 +1074,7 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
 
     if (table_should_be_closed)
     {
-        fclose_function(data_base_XP->pfDataBase);
-        data_base_XP->pfDataBase = nullptr;
+        fclose_and_nullify(&data_base_XP->pfDataBase);
     }
 
     return TRUE;
@@ -1157,22 +1164,19 @@ int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
         1 != fread_function(&(pMMBDXP->month), 1, 1, pf) ||
         1 != fread_function(&(pMMBDXP->day), 1, 1, pf))
     {
-        fclose_function(pf);
-        pMMBDXP->pfDataBase = nullptr;
+        fclose_and_nullify(&pMMBDXP->pfDataBase);
         return 1;
     }
 
     if (1 != fread_function(&nRecords32LowBits, 4, 1, pf))
     {
-        fclose_function(pf);
-        pMMBDXP->pfDataBase = nullptr;
+        fclose_and_nullify(&pMMBDXP->pfDataBase);
         return 1;
     }
 
     if (1 != fread_function(&offset_primera_fitxa, 2, 1, pf))
     {
-        fclose_function(pf);
-        pMMBDXP->pfDataBase = nullptr;
+        fclose_and_nullify(&pMMBDXP->pfDataBase);
         return 1;
     }
 
@@ -1199,8 +1203,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         free_function(pMMBDXP->pField);
         pMMBDXP->pField = nullptr;
         pMMBDXP->nFields = 0;
-        fclose_function(pf);
-        pMMBDXP->pfDataBase = nullptr;
+        fclose_and_nullify(&pMMBDXP->pfDataBase);
         return 1;
     }
 
@@ -1227,8 +1230,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         free_function(pMMBDXP->pField);
         pMMBDXP->pField = nullptr;
         pMMBDXP->nFields = 0;
-        fclose_function(pf);
-        pMMBDXP->pfDataBase = nullptr;
+        fclose_and_nullify(&pMMBDXP->pfDataBase);
         return 1;
     }
 
@@ -1327,8 +1329,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                     free_function(pMMBDXP->pField);
                     pMMBDXP->pField = nullptr;
                     pMMBDXP->nFields = 0;
-                    fclose_function(pf);
-                    pMMBDXP->pfDataBase = nullptr;
+                    fclose_and_nullify(&pMMBDXP->pfDataBase);
                     return 1;
                 }
                 if (bytes_per_camp == 0)
@@ -1348,8 +1349,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         if (!pMMBDXP->pField)
         {
             pMMBDXP->nFields = 0;
-            fclose_function(pf);
-            pMMBDXP->pfDataBase = nullptr;
+            fclose_and_nullify(&pMMBDXP->pfDataBase);
             return 1;
         }
     }
