@@ -2343,8 +2343,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                                             data_base_XP->BytesPerRecord,
                                     SEEK_SET))
             {
-                if (whites)
-                    free_function(whites);
+                free_function(whites);
                 free_function(record);
                 return 1;
             }
@@ -2352,8 +2351,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
             if (1 != fread_function(record, data_base_XP->BytesPerRecord, 1,
                                     data_base_XP->pfDataBase))
             {
-                if (whites)
-                    free_function(whites);
+                free_function(whites);
                 free_function(record);
                 return 1;
             }
@@ -2366,8 +2364,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                                  canvi_amplada),
                     SEEK_SET))
             {
-                if (whites)
-                    free_function(whites);
+                free_function(whites);
                 free_function(record);
                 return 1;
             }
@@ -2375,8 +2372,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
             if (1 !=
                 fwrite_function(record, l_glop1, 1, data_base_XP->pfDataBase))
             {
-                if (whites)
-                    free_function(whites);
+                free_function(whites);
                 free_function(record);
                 return 1;
             }
@@ -2394,8 +2390,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
 
                     if (1 != retorn_fwrite)
                     {
-                        if (whites)
-                            free_function(whites);
+                        free_function(whites);
                         free_function(record);
                         return 1;
                     }
@@ -2426,8 +2421,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                                              .BytesPerField,
                                          1, data_base_XP->pfDataBase))
                             {
-                                if (whites)
-                                    free_function(whites);
+                                free_function(whites);
                                 free_function(record);
                                 return 1;
                             }
@@ -2466,8 +2460,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                                                 data_base_XP->pfDataBase);
                             if (1 != retorn_fwrite)
                             {
-                                if (whites)
-                                    free_function(whites);
+                                free_function(whites);
                                 free_function(record);
                                 return 1;
                             }
@@ -2486,8 +2479,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                         if ((sz_valor = calloc_function(sz_valor_size)) ==
                             nullptr)  // Sumo 1 per poder posar-hi el \0
                         {
-                            if (whites)
-                                free_function(whites);
+                            free_function(whites);
                             free_function(record);
                             return 1;
                         }
@@ -2517,8 +2509,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                                                 data_base_XP->pfDataBase);
                             if (1 != retorn_fwrite)
                             {
-                                if (whites)
-                                    free_function(whites);
+                                free_function(whites);
                                 free_function(record);
                                 free_function(sz_valor);
                                 return 1;
@@ -2532,8 +2523,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                                                 data_base_XP->pfDataBase);
                             if (1 != retorn_fwrite)
                             {
-                                if (whites)
-                                    free_function(whites);
+                                free_function(whites);
                                 free_function(record);
                                 free_function(sz_valor);
                                 return 1;
@@ -2553,8 +2543,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                                                 data_base_XP->pfDataBase);
                 if (1 != retorn_fwrite)
                 {
-                    if (whites)
-                        free_function(whites);
+                    free_function(whites);
                     free_function(record);
                     return 1;
                 }
@@ -2574,8 +2563,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
             }
         }
 
-        if (whites)
-            free_function(whites);
+        free_function(whites);
         free_function(record);
 
         retorn_TruncaFitxer = TruncateFile_function(
