@@ -71,16 +71,24 @@ using kmlengine::Bbox;
 
 CPLString OGRLIBKMLGetSanitizedNCName(const char *pszName)
 {
-    CPLString osName(pszName);
+    CPLString osName;
     // (Approximate) validation rules for a valid NCName.
+
+    // If the first character is illegal as a first character, but allowed in
+    // later positions, preprend an initial underscore
+    // (cf https://github.com/OSGeo/gdal/issues/9538)
+    if (pszName[0] == '-' || pszName[0] == '.' ||
+        (pszName[0] >= '0' && pszName[0] <= '9'))
+    {
+        osName = "_";
+    }
+    osName += pszName;
+
     for (size_t i = 0; i < osName.size(); i++)
     {
         char ch = osName[i];
-        if ((ch >= 'A' && ch <= 'Z') || ch == '_' || (ch >= 'a' && ch <= 'z'))
-        {
-            /* ok */
-        }
-        else if (i > 0 && (ch == '-' || ch == '.' || (ch >= '0' && ch <= '9')))
+        if ((ch >= 'A' && ch <= 'Z') || ch == '_' || (ch >= 'a' && ch <= 'z') ||
+            (ch == '-' || ch == '.' || (ch >= '0' && ch <= '9')))
         {
             /* ok */
         }
@@ -729,8 +737,7 @@ OGRErr OGRLIBKMLLayer::GetExtent(OGREnvelope *psExtent, int bForce)
 
 ******************************************************************************/
 
-OGRErr OGRLIBKMLLayer::CreateField(const OGRFieldDefn *poField,
-                                   int /* bApproxOK */)
+OGRErr OGRLIBKMLLayer::CreateField(const OGRFieldDefn *poField, int bApproxOK)
 {
     if (!bUpdate)
         return OGRERR_UNSUPPORTED_OPERATION;
@@ -739,8 +746,8 @@ OGRErr OGRLIBKMLLayer::CreateField(const OGRFieldDefn *poField,
     {
         SimpleFieldPtr poKmlSimpleField = nullptr;
 
-        if ((poKmlSimpleField =
-                 FieldDef2kml(poField, m_poOgrDS->GetKmlFactory())))
+        if ((poKmlSimpleField = FieldDef2kml(
+                 poField, m_poOgrDS->GetKmlFactory(), CPL_TO_BOOL(bApproxOK))))
         {
             if (!m_poKmlSchema)
             {
@@ -1203,4 +1210,13 @@ void OGRLIBKMLLayer::SetListStyle(const char *pszListStyleType,
 {
     osListStyleType = pszListStyleType ? pszListStyleType : "";
     osListStyleIconHref = pszListStyleIconHref ? pszListStyleIconHref : "";
+}
+
+/************************************************************************/
+/*                             GetDataset()                             */
+/************************************************************************/
+
+GDALDataset *OGRLIBKMLLayer::GetDataset()
+{
+    return m_poOgrDS;
 }

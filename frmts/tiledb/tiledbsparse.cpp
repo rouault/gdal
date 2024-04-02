@@ -249,7 +249,7 @@ GDALDataset *OGRTileDBDataset::Open(GDALOpenInfo *poOpenInfo,
                                   std::optional<std::string>())
     {
         auto poLayer = std::make_unique<OGRTileDBLayer>(
-            osLayerFilename.c_str(),
+            poDS.get(), osLayerFilename.c_str(),
             osLayerName.has_value() ? (*osLayerName).c_str()
                                     : CPLGetBasename(osLayerFilename.c_str()),
             wkbUnknown, nullptr);
@@ -347,6 +347,18 @@ OGRTileDBDataset::ICreateLayer(const char *pszName,
         return nullptr;
     }
 
+#ifdef HAS_TILEDB_GROUP
+    if (!m_osGroupName.empty() && strchr(pszName, '/'))
+    {
+        // Otherwise a layer name wit ha slash when groups are enabled causes
+        // a "[TileDB::Array] Error: FragmentID: input URI is invalid. Provided URI does not contain a fragment name."
+        // exception on re-opening starting with TileDB 2.21
+        CPLError(CE_Failure, CPLE_NotSupported,
+                 "Slash is not supported in layer name");
+        return nullptr;
+    }
+#endif
+
     const auto eGType = poGeomFieldDefn ? poGeomFieldDefn->GetType() : wkbNone;
     const auto poSpatialRef =
         poGeomFieldDefn ? poGeomFieldDefn->GetSpatialRef() : nullptr;
@@ -387,8 +399,8 @@ OGRTileDBDataset::ICreateLayer(const char *pszName,
         }
         osFilename = CPLFormFilename(osFilename.c_str(), pszName, nullptr);
     }
-    auto poLayer = std::make_unique<OGRTileDBLayer>(osFilename.c_str(), pszName,
-                                                    eGType, poSpatialRef);
+    auto poLayer = std::make_unique<OGRTileDBLayer>(
+        this, osFilename.c_str(), pszName, eGType, poSpatialRef);
     poLayer->m_bUpdatable = true;
     poLayer->m_ctx.reset(new tiledb::Context(*m_ctx));
     poLayer->m_osGroupName = m_osGroupName;
@@ -582,11 +594,11 @@ GDALDataset *OGRTileDBDataset::Create(const char *pszFilename,
 /*                         OGRTileDBLayer()                             */
 /************************************************************************/
 
-OGRTileDBLayer::OGRTileDBLayer(const char *pszFilename,
+OGRTileDBLayer::OGRTileDBLayer(GDALDataset *poDS, const char *pszFilename,
                                const char *pszLayerName,
                                const OGRwkbGeometryType eGType,
                                const OGRSpatialReference *poSRS)
-    : m_osFilename(pszFilename),
+    : m_poDS(poDS), m_osFilename(pszFilename),
       m_poFeatureDefn(new OGRFeatureDefn(pszLayerName)),
       m_pbLayerStillAlive(std::make_shared<bool>(true)),
       m_anFIDs(std::make_shared<std::vector<int64_t>>()),
@@ -832,6 +844,10 @@ bool OGRTileDBLayer::InitFromStorage(tiledb::Context *poCtx,
             case TILEDB_TIME_FS:
             case TILEDB_TIME_AS:
             case TILEDB_ANY:
+#ifdef HAS_TILEDB_GEOM_WKB_WKT
+            case TILEDB_GEOM_WKB:  // TODO: take that into account
+            case TILEDB_GEOM_WKT:
+#endif
             {
                 // TODO ?
                 const char *pszTypeName = "";

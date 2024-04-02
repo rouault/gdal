@@ -1652,6 +1652,16 @@ void TIFFFreeDirectory(TIFF *tif)
 
     _TIFFmemset(&(td->td_stripoffset_entry), 0, sizeof(TIFFDirEntry));
     _TIFFmemset(&(td->td_stripbytecount_entry), 0, sizeof(TIFFDirEntry));
+
+    /* Reset some internal parameters for IFD data size checking. */
+    tif->tif_dir.td_dirdatasize_read = 0;
+    tif->tif_dir.td_dirdatasize_write = 0;
+    if (tif->tif_dir.td_dirdatasize_offsets != NULL)
+    {
+        _TIFFfreeExt(tif, tif->tif_dir.td_dirdatasize_offsets);
+        tif->tif_dir.td_dirdatasize_offsets = NULL;
+        tif->tif_dir.td_dirdatasize_Noffsets = 0;
+    }
 }
 #undef CleanupField
 
@@ -1676,6 +1686,8 @@ TIFFExtendProc TIFFSetTagExtender(TIFFExtendProc extender)
  */
 int TIFFCreateDirectory(TIFF *tif)
 {
+    /* Free previously allocated memory and setup default values. */
+    TIFFFreeDirectory(tif);
     TIFFDefaultDirectory(tif);
     tif->tif_diroff = 0;
     tif->tif_nextdiroff = 0;
@@ -1688,6 +1700,8 @@ int TIFFCreateDirectory(TIFF *tif)
 
 int TIFFCreateCustomDirectory(TIFF *tif, const TIFFFieldArray *infoarray)
 {
+    /* Free previously allocated memory and setup default values. */
+    TIFFFreeDirectory(tif);
     TIFFDefaultDirectory(tif);
 
     /*
@@ -2262,9 +2276,11 @@ int TIFFUnlinkDirectory(TIFF *tif, tdir_t dirn)
     }
     else
     {
+        /* Need local swap because nextdir has to be used unswapped below. */
+        uint64_t nextdir64 = nextdir;
         if (tif->tif_flags & TIFF_SWAB)
-            TIFFSwabLong8(&nextdir);
-        if (!WriteOK(tif, &nextdir, sizeof(uint64_t)))
+            TIFFSwabLong8(&nextdir64);
+        if (!WriteOK(tif, &nextdir64, sizeof(uint64_t)))
         {
             TIFFErrorExtR(tif, module, "Error writing directory link");
             return (0);
