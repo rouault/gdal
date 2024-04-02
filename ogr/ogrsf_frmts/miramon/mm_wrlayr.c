@@ -2770,7 +2770,7 @@ int MMAppendBlockToBuffer(struct MM_FLUSH_INFO *FlushInfo)
 int MMMoveFromFileToFile(FILE_TYPE *pSrcFile, FILE_TYPE *pDestFile,
                          MM_FILE_OFFSET *nOffset)
 {
-    size_t bufferSize = 100 * 1024 * 1024;  // 100 MB buffer;
+    size_t bufferSize = 1024 * 1024;  // 1 MB buffer;
     unsigned char *buffer;
     size_t bytesRead, bytesWritten;
     MM_FILE_OFFSET size_of_dst_file;
