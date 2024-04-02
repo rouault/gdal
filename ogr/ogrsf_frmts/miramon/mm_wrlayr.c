@@ -3870,9 +3870,6 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (!hMMFeature)
         return MM_FATAL_ERROR_WRITING_FEATURES;
 
-    if (!hMMFeature->pCoord)
-        return MM_FATAL_ERROR_WRITING_FEATURES;
-
     // Setting pointer to 3D structure (if exists).
     if (hMiraMonLayer->TopHeader.bIs3d)
         pZ = hMMFeature->pZCoord;
