@@ -5172,9 +5172,9 @@ int MMResizeStringToOperateIfNeeded(struct MiraMonVectLayerInfo *hMiraMonLayer,
 // Checks if a string is empty
 int MMIsEmptyString(const char *string)
 {
-    char *ptr;
+    const char *ptr = string;
 
-    for (ptr = (char *)string; *ptr; ptr++)
+    for (; *ptr; ptr++)
         if (*ptr != ' ' && *ptr != '\t')
             return 0;
 
@@ -5309,27 +5309,16 @@ char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
 int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
                                 MM_BYTE direction)
 {
-    static char aEPSGCodeSRS[MM_MAX_ID_SNY];
     char *aMMIDDBFFile = nullptr;  //m_idofic.dbf
-    FILE *pfMMSRS;
+    FILE_TYPE *pfMMSRS;
+    const char *pszLine;
     size_t nLong;
-    int nLongBuffer = 5000;
-    char *pszBuffer = calloc_function(nLongBuffer);
     char *id_geodes, *psidgeodes, *epsg;
 
-    if (!pszBuffer)
-    {
-        MMCPLError(CE_Failure, CPLE_OutOfMemory,
-                   "Memory error in MiraMon "
-                   "driver (MMReturnCodeFromMM_m_idofic())");
-        return 1;
-    }
     if (!pMMSRS_or_pSRS)
     {
-        free_function(pszBuffer);
         return 1;
     }
-    memset(aEPSGCodeSRS, '\0', sizeof(*aEPSGCodeSRS));
 
 #ifdef GDAL_COMPILATION
     aMMIDDBFFile = strdup_function(CPLFindFile("gdal", "MM_m_idofic.csv"));
@@ -5343,17 +5332,15 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
 
     if (!aMMIDDBFFile)
     {
-        free_function(pszBuffer);
         MMCPLError(CE_Failure, CPLE_OpenFailed,
                    "Error opening data\\MM_m_idofic.csv.\n");
         return 1;
     }
 
     // Opening the file with SRS information
-    if (nullptr == (pfMMSRS = fopen(aMMIDDBFFile, "r")))
+    if (nullptr == (pfMMSRS = fopen_function(aMMIDDBFFile, "r")))
     {
         free_function(aMMIDDBFFile);
-        free_function(pszBuffer);
         MMCPLError(CE_Failure, CPLE_OpenFailed,
                    "Error opening data\\MM_m_idofic.csv.\n");
         return 1;
@@ -5361,30 +5348,28 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
     free_function(aMMIDDBFFile);
 
     // Checking the header of the csv file
-    memset(pszBuffer, 0, nLongBuffer);
-    if (!fgets(pszBuffer, nLongBuffer, pfMMSRS))
+    pszLine = CPLReadLine2L(pfMMSRS, 1024, nullptr);
+    if (!pszLine)
+
     {
-        free_function(pszBuffer);
-        fclose(pfMMSRS);
+        fclose_function(pfMMSRS);
         MMCPLError(CE_Failure, CPLE_NotSupported,
                    "Wrong format in data\\MM_m_idofic.csv.\n");
         return 1;
     }
-    id_geodes = strstr(pszBuffer, "ID_GEODES");
+    id_geodes = strstr(pszLine, "ID_GEODES");
     if (!id_geodes)
     {
-        free_function(pszBuffer);
-        fclose(pfMMSRS);
+        fclose_function(pfMMSRS);
         MMCPLError(CE_Failure, CPLE_NotSupported,
                    "Wrong format in data\\MM_m_idofic.csv.\n");
         return 1;
     }
     id_geodes[strlen("ID_GEODES")] = '\0';
-    psidgeodes = strstr(pszBuffer, "PSIDGEODES");
+    psidgeodes = strstr(pszLine, "PSIDGEODES");
     if (!psidgeodes)
     {
-        free_function(pszBuffer);
-        fclose(pfMMSRS);
+        fclose_function(pfMMSRS);
         MMCPLError(CE_Failure, CPLE_NotSupported,
                    "Wrong format in data\\MM_m_idofic.csv.\n");
         return 1;
@@ -5392,33 +5377,30 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
     psidgeodes[strlen("PSIDGEODES")] = '\0';
 
     // Is PSIDGEODES in first place?
-    if (strncmp(pszBuffer, psidgeodes, strlen("PSIDGEODES")))
+    if (strncmp(pszLine, psidgeodes, strlen("PSIDGEODES")))
     {
-        free_function(pszBuffer);
-        fclose(pfMMSRS);
+        fclose_function(pfMMSRS);
         MMCPLError(CE_Failure, CPLE_NotSupported,
                    "Wrong format in data\\MM_m_idofic.csv.\n");
         return 1;
     }
     // Is ID_GEODES after PSIDGEODES?
-    if (strncmp(pszBuffer + strlen("PSIDGEODES") + 1, "ID_GEODES",
+    if (strncmp(pszLine + strlen("PSIDGEODES") + 1, "ID_GEODES",
                 strlen("ID_GEODES")))
     {
-        free_function(pszBuffer);
-        fclose(pfMMSRS);
+        fclose_function(pfMMSRS);
         MMCPLError(CE_Failure, CPLE_NotSupported,
                    "Wrong format in data\\MM_m_idofic.csv.\n");
         return 1;
     }
 
-    // Looking for the information
-    while (fgets(pszBuffer, nLongBuffer, pfMMSRS))
+    // Looking for the information.
+    while ((pszLine = CPLReadLine2L(pfMMSRS, 1024, nullptr)) != nullptr)
     {
-        id_geodes = strstr(pszBuffer, ";");
-        if (!id_geodes || (id_geodes + 1)[0] == '\n')
+        id_geodes = strstr(pszLine, ";");
+        if (!id_geodes)
         {
-            free_function(pszBuffer);
-            fclose(pfMMSRS);
+            fclose_function(pfMMSRS);
             MMCPLError(CE_Failure, CPLE_NotSupported,
                        "Wrong format in data\\MM_m_idofic.csv.\n");
             return 1;
@@ -5427,23 +5409,25 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
         psidgeodes = strstr(id_geodes + 1, ";");
         if (!psidgeodes)
         {
-            free_function(pszBuffer);
-            fclose(pfMMSRS);
+            fclose_function(pfMMSRS);
             MMCPLError(CE_Failure, CPLE_NotSupported,
                        "Wrong format in data\\MM_m_idofic.csv.\n");
             return 1;
         }
 
         id_geodes[(ptrdiff_t)psidgeodes - (ptrdiff_t)id_geodes] = '\0';
-        psidgeodes = pszBuffer;
-        psidgeodes[(ptrdiff_t)id_geodes - (ptrdiff_t)psidgeodes] = '\0';
+        psidgeodes = strdup_function(pszLine);
+        psidgeodes[(ptrdiff_t)id_geodes - (ptrdiff_t)pszLine] = '\0';
         id_geodes++;
 
         if (direction == EPSG_FROM_MMSRS)
         {
             // I have pMMSRS and I want pSRS
             if (strcmp(pMMSRS_or_pSRS, id_geodes))
+            {
+                free_function(psidgeodes);
                 continue;
+            }
 
             epsg = strstr(psidgeodes, "EPSG:");
             nLong = strlen("EPSG:");
@@ -5452,15 +5436,15 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
                 if (epsg[nLong] != '\0')
                 {
                     strcpy(szResult, epsg + nLong);
-                    free_function(pszBuffer);
-                    fclose(pfMMSRS);
+                    free_function(psidgeodes);
+                    fclose_function(pfMMSRS);
                     return 0;  // found
                 }
                 else
                 {
-                    free_function(pszBuffer);
-                    fclose(pfMMSRS);
+                    fclose_function(pfMMSRS);
                     *szResult = '\0';
+                    free_function(psidgeodes);
                     return 1;  // not found
                 }
             }
@@ -5477,17 +5461,16 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
                     if (!strcmp(pMMSRS_or_pSRS, epsg + nLong))
                     {
                         strcpy(szResult, id_geodes);
-                        free_function(pszBuffer);
-                        fclose(pfMMSRS);
+                        fclose_function(pfMMSRS);
                         return 0;  // found
                     }
                 }
             }
         }
+        free_function(psidgeodes);
     }
 
-    free_function(pszBuffer);
-    fclose(pfMMSRS);
+    fclose_function(pfMMSRS);
     return 1;  // not found
 }
 
