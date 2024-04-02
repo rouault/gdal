@@ -751,7 +751,6 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
         return FALSE;
 
     /* from 4 a 7, position MM_FIRST_OFFSET_to_N_RECORDS */
-    if (data_base_XP->nRecords > UINT32_MAX)
     {
         GUInt32 nRecords32LowBits =
             (GUInt32)(data_base_XP->nRecords & UINT32_MAX);
