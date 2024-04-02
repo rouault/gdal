@@ -177,7 +177,7 @@ CPL_C_START  // Necessary for compiling in GDAL project
         if (hMiraMonLayer->pSRS && strcmp(hMiraMonLayer->pSRS, "plane"))
         {
             MMCPLWarning(CE_Warning, CPLE_NotSupported,
-                         "The MiraMon layer HRS has no equivalent "
+                         "The MiraMon layer SRS has no equivalent "
                          "in EPSG code");
         }
     }

@@ -27,23 +27,23 @@ const char *MMLog(const char *pszMsg, int nLineNumber);
 
 // MiraMon feature table descriptors
 #define MM_MAX_IDENTIFIER_SIZE 50
-#define MM_a_WITH_GRAVE (-32)
-#define MM_a_WITH_ACUTE (-31)
-#define MM_e_WITH_GRAVE (-24)
-#define MM_e_WITH_ACUTE (-23)
-#define MM_i_WITH_ACUTE (-19)
-#define MM_o_WITH_GRAVE (-14)
-#define MM_o_WITH_ACUTE (-13)
-#define MM_u_WITH_ACUTE (-6)
+#define MM_a_WITH_GRAVE 224
+#define MM_a_WITH_ACUTE 225
+#define MM_e_WITH_GRAVE 232
+#define MM_e_WITH_ACUTE 233
+#define MM_i_WITH_ACUTE 237
+#define MM_o_WITH_GRAVE 242
+#define MM_o_WITH_ACUTE 243
+#define MM_u_WITH_ACUTE 250
 
-#define MM_A_WITH_GRAVE (-64)
-#define MM_A_WITH_ACUTE (-63)
-#define MM_E_WITH_GRAVE (-56)
-#define MM_E_WITH_ACUTE (-55)
-#define MM_I_WITH_ACUTE (-51)
-#define MM_O_WITH_GRAVE (-46)
-#define MM_O_WITH_ACUTE (-45)
-#define MM_U_WITH_ACUTE (-38)
+#define MM_A_WITH_GRAVE 192
+#define MM_A_WITH_ACUTE 193
+#define MM_E_WITH_GRAVE 200
+#define MM_E_WITH_ACUTE 201
+#define MM_I_WITH_ACUTE 205
+#define MM_O_WITH_GRAVE 210
+#define MM_O_WITH_ACUTE 211
+#define MM_U_WITH_ACUTE 218
 
 // In case of diaeresis use "_WITH_DIAERESIS"
 // In case of cedilla use "_WITH_CEDILLA"
