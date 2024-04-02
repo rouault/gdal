@@ -2246,11 +2246,15 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
 
 static MM_BOOLEAN MM_EmptyString_function(const char *cadena)
 {
-    char *ptr;
+    const char *ptr = cadena;
 
-    for (ptr = (char *)cadena; *ptr; ptr++)
+    for (; *ptr; ptr++)
+    {
         if (*ptr != ' ' && *ptr != '\t')
+        {
             return FALSE;
+        }
+    }
 
     return TRUE;
 }
@@ -2258,13 +2262,15 @@ static MM_BOOLEAN MM_EmptyString_function(const char *cadena)
 int MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
                                   MM_EXT_DBF_N_FIELDS *nStringCurrentLenght)
 {
+
     if (!pszStringSrc)
     {
         if (1 >= *nStringCurrentLenght)
         {
-            (*pszStringDst) = realloc_function(*pszStringDst, 2);
-            if (!(*pszStringDst))
+            void *new_ptr = realloc_function(*pszStringDst, 2);
+            if (!new_ptr)
                 return 1;
+            *pszStringDst = new_ptr;
             *nStringCurrentLenght = (MM_EXT_DBF_N_FIELDS)2;
         }
         strcpy(*pszStringDst, "\0");
@@ -2273,10 +2279,11 @@ int MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
 
     if (strlen(pszStringSrc) >= *nStringCurrentLenght)
     {
-        (*pszStringDst) =
+        void *new_ptr =
             realloc_function(*pszStringDst, strlen(pszStringSrc) + 1);
-        if (!(*pszStringDst))
+        if (!new_ptr)
             return 1;
+        (*pszStringDst) = new_ptr;
         *nStringCurrentLenght = (MM_EXT_DBF_N_FIELDS)(strlen(pszStringSrc) + 1);
     }
     strcpy(*pszStringDst, pszStringSrc);
