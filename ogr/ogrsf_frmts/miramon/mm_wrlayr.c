@@ -2877,6 +2877,11 @@ int MMReadAHArcSection(struct MiraMonVectLayerInfo *hMiraMonLayer)
         nElem = hMiraMonLayer->TopHeader.nElemCount;
     }
 
+    if (MMCheckSize_t(nElem, pMMArcLayer->nSizeArcHeader))
+    {
+        return 1;
+    }
+
     nBlockSize = nElem * (pMMArcLayer->nSizeArcHeader);
 
     if (MMInitFlush(&FlushTMP, pMMArcLayer->pF, nBlockSize, &pBuffer,
