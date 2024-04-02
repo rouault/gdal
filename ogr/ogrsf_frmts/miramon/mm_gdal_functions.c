@@ -2428,19 +2428,14 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                         }
                         else if (canvi_amplada < 0)
                         {
-
-#ifdef _MSC_VER
-#pragma warning(disable : 4127)
-#endif
-                            for (j = (GInt32)(l_glop1 +
-                                              (data_base_XP->pField[nIField]
-                                                   .BytesPerField -
-                                               1));
-                                 TRUE; j--)
-#ifdef _MSC_VER
-#pragma warning(default : 4127)
-#endif
+                            j = (GInt32)(l_glop1 +
+                                         (data_base_XP->pField[nIField]
+                                              .BytesPerField -
+                                          1));
+                            while (TRUE)
                             {
+                                j--;
+
                                 if (j < (GInt32)l_glop1 || record[j] == ' ')
                                 {
                                     j++;
@@ -2851,13 +2846,7 @@ MMCreateExtendedDBFIndex(FILE_TYPE *f, MM_EXT_DBF_N_RECORDS nNumberOfRecords,
              id_grafic < 0);
     i = 0;
 
-#ifdef _MSC_VER
-#pragma warning(disable : 4127)
-#endif
     while (TRUE)
-#ifdef _MSC_VER
-#pragma warning(default : 4127)
-#endif
     {
         if (i > id_grafic)
         {
