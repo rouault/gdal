@@ -6554,7 +6554,7 @@ int MMGetNFieldValue(const char *pszStringList, GUInt32 nIRecord,
 
     p[(ptrdiff_t)q - (ptrdiff_t)p] = '\0';
     nNValues = atoi(p);
-    if (nIRecord > nNValues)
+    if (nIRecord >= nNValues)
     {
         return 1;
     }
@@ -6575,7 +6575,7 @@ int MMGetNFieldValue(const char *pszStringList, GUInt32 nIRecord,
             {
                 return 1;
             }
-            q[(ptrdiff_t)p - (ptrdiff_t)q] = '\0';
+            *p = '\0';
             if ((size_t)((ptrdiff_t)p - (ptrdiff_t)q) > nSizeOfRawValue - 1)
                 return 1;
             strncpy(pszPartOfRawValue, q, (ptrdiff_t)p - (ptrdiff_t)q);
@@ -6585,7 +6585,11 @@ int MMGetNFieldValue(const char *pszStringList, GUInt32 nIRecord,
         if (nIValues == nIRecord)
         {
             p = strstr(q, ",");
-            q[(ptrdiff_t)p - (ptrdiff_t)q] = '\0';
+            if (!p)
+            {
+                return 1;
+            }
+            *p = '\0';
             if ((size_t)((ptrdiff_t)p - (ptrdiff_t)q) > nSizeOfRawValue - 1)
                 return 1;
             strncpy(pszPartOfRawValue, q, (ptrdiff_t)p - (ptrdiff_t)q);
