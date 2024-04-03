@@ -2,7 +2,7 @@
  * $Id$
  *
  * Project:  OpenGIS Simple Features Reference Implementation
- * Purpose:  C API to create a MiraMon layer
+ * Purpose:  C++ classes for the MiraMon driver
  * Author:   Abel Pau
  ******************************************************************************
  * Copyright (c) 2024, Xavier Pons
