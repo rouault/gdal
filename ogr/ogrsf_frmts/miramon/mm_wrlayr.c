@@ -2185,6 +2185,8 @@ static int MMCloseNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     fclose_and_nullify(&pMMArcLayer->MMNode.pF);
 
+    fclose_and_nullify(&pMMArcLayer->MMNode.pF);
+
     return 0;
 }
 
@@ -5462,6 +5464,7 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
                     {
                         strcpy(szResult, id_geodes);
                         fclose_function(pfMMSRS);
+                        free_function(psidgeodes);
                         return 0;  // found
                     }
                 }
