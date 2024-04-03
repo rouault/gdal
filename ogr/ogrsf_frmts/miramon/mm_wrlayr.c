@@ -6686,7 +6686,7 @@ int MMAddDBFRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     struct MM_FLUSH_INFO *pFlushRecList;
 
     if (!hMiraMonLayer)
-        return 1;
+        return MM_FATAL_ERROR_WRITING_FEATURES;
 
     // Adding record to the MiraMon table (extended DBF)
     // Flush settings
@@ -6739,7 +6739,7 @@ int MMAddPointRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     struct MM_FLUSH_INFO *pFlushRecList;
 
     if (!hMiraMonLayer)
-        return 1;
+        return MM_FATAL_ERROR_WRITING_FEATURES;
 
     // In V1.1 only _UI32_MAX records number is allowed
     if (MMCheckVersionForFID(hMiraMonLayer,
@@ -6800,15 +6800,12 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     struct MM_FLUSH_INFO *pFlushRecList;
 
     if (!hMiraMonLayer)
-        return 1;
+        return MM_FATAL_ERROR_WRITING_FEATURES;
 
     if (hMiraMonLayer->bIsPolygon)
         pMMArcLayer = &hMiraMonLayer->MMPolygon.MMArc;
     else
         pMMArcLayer = &hMiraMonLayer->MMArc;
-
-    if (!pMMArcLayer)
-        return 1;
 
     // In V1.1 only _UI32_MAX records number is allowed
     if (hMiraMonLayer->bIsPolygon)
@@ -6968,7 +6965,7 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     struct MM_FLUSH_INFO *pFlushRecList;
 
     if (!hMiraMonLayer)
-        return 1;
+        return MM_FATAL_ERROR_WRITING_FEATURES;
 
     // In V1.1 only _UI32_MAX records number is allowed
     if (MMCheckVersionForFID(
