@@ -2183,7 +2183,7 @@ static int MMCloseNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
             remove_function(pMMArcLayer->MMNode.pszNLName);
     }
 
-    fclose_and_nullify(&pMMArcLayer->MMNode.pFNL);
+    fclose_and_nullify(&pMMArcLayer->MMNode.pF);
 
     return 0;
 }
