@@ -151,7 +151,7 @@ void MMCPLDebug(int code, const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     vsnprintf(szBigEnoughBuffer, sizeof(szBigEnoughBuffer), fmt, args);
-    printf(szBigEnoughBuffer);
+    printf(szBigEnoughBuffer); /*ok*/
     va_end(args);
 }
 

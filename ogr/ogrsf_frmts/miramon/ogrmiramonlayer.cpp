@@ -2201,7 +2201,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
             int nCount = 0;
             const double *panValues =
                 poFeature->GetFieldAsDoubleList(iField, &nCount);
-            char format[23];
+            //char format[23];
 
             nNumRecords = nCount;
             if (nNumRecords == 0)
