@@ -6553,18 +6553,13 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
             // A field with no valid value is written as blank
             if (!hMMFeature->pRecords[nIRecord].pField[nIField].bIsValid)
             {
-                MM_ACUMULATED_BYTES_TYPE_DBF i = 0;
-                while (
-                    i <
-                    pBD_XP->pField[nIField + nNumPrivateMMField].BytesPerField)
-                {
-                    memcpy(pszRecordOnCourse +
-                               pBD_XP->pField[nIField + nNumPrivateMMField]
-                                   .AcumulatedBytes +
-                               i,
-                           " ", 1);
-                    i++;
-                }
+                memset(
+                    pszRecordOnCourse +
+                        pBD_XP->pField[nIField + nNumPrivateMMField]
+                            .AcumulatedBytes,
+                    ' ',
+                    pBD_XP->pField[nIField + nNumPrivateMMField].BytesPerField);
+
                 continue;
             }
             if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'C')
