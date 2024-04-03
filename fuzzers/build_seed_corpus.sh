@@ -600,10 +600,10 @@ for subdir in *; do
     (cd $subdir
      for subdir2 in *; do
       (cd $subdir2
-       printf "FUZZER_FRIENDLY_ARCHIVE\\n" > $CUR_DIR/ogr_miramon_$subdir_$subdir2.tar
+       printf "FUZZER_FRIENDLY_ARCHIVE\\n" > $CUR_DIR/ogr_miramon_${subdir}_${subdir2}.tar
        for file in *; do
-           printf "***NEWFILE***:%s\\n" "$file" >> $CUR_DIR/ogr_miramon_$subdir_$subdir2.tar
-           cat $file >> $CUR_DIR/ogr_miramon_$subdir_$subdir2.tar
+           printf "***NEWFILE***:%s\\n" "$file" >> $CUR_DIR/ogr_miramon_${subdir}_${subdir2}.tar
+           cat $file >> $CUR_DIR/ogr_miramon_${subdir}_${subdir2}.tar
        done
        )
      done
