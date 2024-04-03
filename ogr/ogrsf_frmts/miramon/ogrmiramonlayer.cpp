@@ -2187,7 +2187,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
 
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
-                        CPLSPrintf("%" CPL_FRMT_GB_WITHOUT_PREFIX,
+                        CPLSPrintf("%" CPL_FRMT_GB_WITHOUT_PREFIX "d",
                                    panValues[nIRecord]),
                         &hMMFeature.pRecords[nIRecord]
                              .pField[iField]
@@ -2201,6 +2201,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
             int nCount = 0;
             const double *panValues =
                 poFeature->GetFieldAsDoubleList(iField, &nCount);
+            char format[23];
 
             nNumRecords = nCount;
             if (nNumRecords == 0)
@@ -2228,6 +2229,9 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
 
                 hMMFeature.pRecords[nIRecord].pField[iField].dValue =
                     panValues[nIRecord];
+
+                // TODO: decide how many decimals use. If possible.
+                //strncpy(format, CPLSPrintf("%f", panValues[nIRecord]),23);
 
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
