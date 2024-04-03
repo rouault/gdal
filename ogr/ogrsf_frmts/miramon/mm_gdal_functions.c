@@ -102,20 +102,28 @@ void MM_FillFieldDescriptorByLanguage(void)
                 MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szInternalGraphicIdentifierCat, "Identificador Grafic intern",
                 MM_MAX_IDENTIFIER_SIZE);
-    szInternalGraphicIdentifierCat[16] = MM_a_WITH_GRAVE;
+#pragma warning(disable : 4310)
+    szInternalGraphicIdentifierCat[16] = (char)MM_a_WITH_GRAVE;
+#pragma warning(default : 4310)
     MM_strnzcpy(szInternalGraphicIdentifierSpa, "Identificador Grafico interno",
                 MM_MAX_IDENTIFIER_SIZE);
-    szInternalGraphicIdentifierSpa[16] = MM_a_WITH_ACUTE;
+#pragma warning(disable : 4310)
+    szInternalGraphicIdentifierSpa[16] = (char)MM_a_WITH_ACUTE;
+#pragma warning(default : 4310)
 
     MM_strnzcpy(szNumberOfVerticesEng, "Number of vertices",
                 MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNumberOfVerticesCat, "Nombre de vertexs",
                 MM_MAX_IDENTIFIER_SIZE);
-    szNumberOfVerticesCat[11] = MM_e_WITH_GRAVE;
+#pragma warning(disable : 4310)
+    szNumberOfVerticesCat[11] = (char)MM_e_WITH_GRAVE;
+#pragma warning(default : 4310)
     MM_strnzcpy(szNumberOfVerticesSpa, "Numero de vertices",
                 MM_MAX_IDENTIFIER_SIZE);
-    szNumberOfVerticesSpa[1] = MM_u_WITH_ACUTE;
-    szNumberOfVerticesSpa[11] = MM_e_WITH_ACUTE;
+#pragma warning(disable : 4310)
+    szNumberOfVerticesSpa[1] = (char)MM_u_WITH_ACUTE;
+    szNumberOfVerticesSpa[11] = (char)MM_e_WITH_ACUTE;
+#pragma warning(default : 4310)
 
     MM_strnzcpy(szLenghtOfAarcEng, "Lenght of arc", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szLenghtOfAarcCat, "Longitud de l'arc", MM_MAX_IDENTIFIER_SIZE);
@@ -135,7 +143,9 @@ void MM_FillFieldDescriptorByLanguage(void)
                 MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNumberOfArcsToNodeSpa, "Numero de arcos al nodo",
                 MM_MAX_IDENTIFIER_SIZE);
-    szNumberOfArcsToNodeSpa[1] = MM_u_WITH_ACUTE;
+#pragma warning(disable : 4310)
+    szNumberOfArcsToNodeSpa[1] = (char)MM_u_WITH_ACUTE;
+#pragma warning(default : 4310)
 
     MM_strnzcpy(szNodeTypeEng, "Node type", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNodeTypeCat, "Tipus de node", MM_MAX_IDENTIFIER_SIZE);
@@ -147,10 +157,12 @@ void MM_FillFieldDescriptorByLanguage(void)
                 MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szPerimeterOfThePolygonSpa, "Perimetro del poligono",
                 MM_MAX_IDENTIFIER_SIZE);
-    szPerimeterOfThePolygonCat[3] = MM_i_WITH_ACUTE;
-    szPerimeterOfThePolygonSpa[3] = MM_i_WITH_ACUTE;
-    szPerimeterOfThePolygonCat[17] = MM_i_WITH_ACUTE;
-    szPerimeterOfThePolygonSpa[17] = MM_i_WITH_ACUTE;
+#pragma warning(disable : 4310)
+    szPerimeterOfThePolygonCat[3] = (char)MM_i_WITH_ACUTE;
+    szPerimeterOfThePolygonSpa[3] = (char)MM_i_WITH_ACUTE;
+    szPerimeterOfThePolygonCat[17] = (char)MM_i_WITH_ACUTE;
+    szPerimeterOfThePolygonSpa[17] = (char)MM_i_WITH_ACUTE;
+#pragma warning(default : 4310)
 
     MM_strnzcpy(szAreaOfThePolygonEng, "Area of the polygon",
                 MM_MAX_IDENTIFIER_SIZE);
@@ -158,15 +170,19 @@ void MM_FillFieldDescriptorByLanguage(void)
                 MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szAreaOfThePolygonSpa, "Area del poligono",
                 MM_MAX_IDENTIFIER_SIZE);
-    szAreaOfThePolygonCat[0] = MM_A_WITH_GRAVE;
-    szAreaOfThePolygonSpa[0] = MM_A_WITH_ACUTE;
-    szAreaOfThePolygonCat[12] = MM_i_WITH_ACUTE;
-    szAreaOfThePolygonSpa[12] = MM_i_WITH_ACUTE;
+#pragma warning(disable : 4310)
+    szAreaOfThePolygonCat[0] = (char)MM_A_WITH_GRAVE;
+    szAreaOfThePolygonSpa[0] = (char)MM_A_WITH_ACUTE;
+    szAreaOfThePolygonCat[12] = (char)MM_i_WITH_ACUTE;
+    szAreaOfThePolygonSpa[12] = (char)MM_i_WITH_ACUTE;
+#pragma warning(default : 4310)
 
     MM_strnzcpy(szNumberOfArcsEng, "Number of arcs", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNumberOfArcsCat, "Nombre d'arcs", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNumberOfArcsSpa, "Numero de arcos", MM_MAX_IDENTIFIER_SIZE);
-    szNumberOfArcsSpa[1] = MM_u_WITH_ACUTE;
+#pragma warning(disable : 4310)
+    szNumberOfArcsSpa[1] = (char)MM_u_WITH_ACUTE;
+#pragma warning(default : 4310)
 
     MM_strnzcpy(szNumberOfElementaryPolygonsEng,
                 "Number of elementary polygons", MM_MAX_IDENTIFIER_SIZE);
@@ -174,9 +190,11 @@ void MM_FillFieldDescriptorByLanguage(void)
                 "Nombre de poligons elementals", MM_MAX_IDENTIFIER_SIZE);
     MM_strnzcpy(szNumberOfElementaryPolygonsSpa,
                 "Numero de poligonos elementales", MM_MAX_IDENTIFIER_SIZE);
-    szNumberOfElementaryPolygonsSpa[1] = MM_u_WITH_ACUTE;
-    szNumberOfElementaryPolygonsCat[13] = MM_i_WITH_ACUTE;
-    szNumberOfElementaryPolygonsSpa[13] = MM_i_WITH_ACUTE;
+#pragma warning(disable : 4310)
+    szNumberOfElementaryPolygonsSpa[1] = (char)MM_u_WITH_ACUTE;
+    szNumberOfElementaryPolygonsCat[13] = (char)MM_i_WITH_ACUTE;
+    szNumberOfElementaryPolygonsSpa[13] = (char)MM_i_WITH_ACUTE;
+#pragma warning(default : 4310)
 }
 
 const char *MM_pszLogFilename = nullptr;
@@ -191,7 +209,7 @@ const char *MMLog(const char *pszMsg, int nLineNumber)
     f = fopen(MM_pszLogFilename, "at");
     if (f == nullptr)
         return pszMsg;
-    fprintf(f, "%d: %s\n", nLineNumber, pszMsg);
+    fprintf(f, "%d: %s\n", nLineNumber, pszMsg); /*ok*/
     fclose(f);
     return pszMsg;
 }

@@ -5479,9 +5479,9 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
 // Generates an idientifier that REL 4 MiraMon metadata needs.
 static char *MMGenerateFileIdentifierFromMetadataFileName(char *pMMFN)
 {
-    static char aCharRand[8],
-        aCharset[] =
-            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    char aCharRand[8];
+    static const char aCharset[] =
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     int i, len_charset;
     static char aFileIdentifier[MM_MAX_LEN_LAYER_IDENTIFIER];
 
