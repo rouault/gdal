@@ -40,9 +40,6 @@ static int OGRMiraMonDriverIdentify(GDALOpenInfo *poOpenInfo)
              EQUAL(CPLGetExtension(poOpenInfo->pszFilename), "ARC") ||
              EQUAL(CPLGetExtension(poOpenInfo->pszFilename), "POL"))
     {
-        if (!poOpenInfo->TryToIngest(7))
-            return FALSE;
-
         // Format
         if ((poOpenInfo->pabyHeader[0] == 'P' &&
              poOpenInfo->pabyHeader[1] == 'N' &&
@@ -140,7 +137,6 @@ void RegisterOGRMiraMon()
     poDriver->SetMetadataItem(GDAL_DCAP_CREATE_FIELD, "YES");
     poDriver->SetMetadataItem(GDAL_DMD_LONGNAME,
                               "MiraMon Vectors (.pol, .arc, .pnt)");
-    poDriver->SetMetadataItem(GDAL_DMD_EXTENSION, "pol");
     poDriver->SetMetadataItem(GDAL_DMD_EXTENSIONS, "pol arc pnt");
     poDriver->SetMetadataItem(GDAL_DMD_HELPTOPIC,
                               "drivers/vector/miramon.html");
@@ -150,7 +146,7 @@ void RegisterOGRMiraMon()
     poDriver->SetMetadataItem(
         GDAL_DMD_OPENOPTIONLIST,
         "<OpenOptionList>"
-        "  <Option name='Height' scope='vector' type='string' "
+        "  <Option name='Height' scope='vector' type='string-select' "
         "   description='Sets which of the possible heights is chosen: "
         "   the first, the highest or the lowest one.'>"
         "    <Value>First</Value>"
@@ -161,10 +157,6 @@ void RegisterOGRMiraMon()
         "   description='Sets which of the possible records is chosen: "
         "   0, 1, 2,... or the Last one. Use JSON when a serialized "
         "   JSON is wanted'>"
-        "    <Value>0</Value>"
-        "    <Value>1,...</Value>"
-        "    <Value>Last</Value>"
-        "    <Value>JSON</Value>"
         "  </Option>"
         "  <Option name='OpenMemoryRatio' scope='vector' type='float' "
         "   description='Ratio used to enhance certain aspects of memory"
@@ -175,9 +167,6 @@ void RegisterOGRMiraMon()
         "   OpenMemoryRatio=0.5 in less powerful computers."
         "   By increasing this parameter, more memory will be required,"
         "   but there will be fewer read/write operations to the disk.'>"
-        "    <Value>0.5</Value>"
-        "    <Value>1</Value>"
-        "    <Value>2</Value>"
         "  </Option>"
         "  <Option name='OpenLanguage' scope='vector' type='string' "
         "   description='If the layer to be opened is multilingual "
@@ -192,7 +181,8 @@ void RegisterOGRMiraMon()
     poDriver->SetMetadataItem(
         GDAL_DS_LAYER_CREATIONOPTIONLIST,
         "<LayerCreationOptionList>"
-        "  <Option name='Version' type='string' description='Version of the "
+        "  <Option name='Version' type='string-select' description='Version of "
+        "the "
         "file."
         "V1.1 is a limited 32 bits for FID and for internal offsets. "
         "V2.0 is the 64 bits version, with pratically no limits for FID nor for"
@@ -201,16 +191,15 @@ void RegisterOGRMiraMon()
         "<Value>V1.1</Value>"
         "<Value>V2.0</Value>"
         "<Value>last_version</Value>"
-        "<Value>nullptr</Value>"
         "</Option>"
-        "  <Option name='DBFEncoding' type='string' description='Encoding of "
+        "  <Option name='DBFEncoding' type='string-select' "
+        "description='Encoding of "
         "the "
         ".dbf files."
         "MiraMon can write *.dbf* files in these two charsets.' "
         "default='ANSI'>"
         "<Value>UTF8</Value>"
         "<Value>ANSI</Value>"
-        "<Value>last_version</Value>"
         "</Option>"
         "  <Option name='CreationMemoryRatio' scope='vector' type='float' "
         "   description='It is a ratio used to enhance certain aspects of "
@@ -223,11 +212,8 @@ void RegisterOGRMiraMon()
         "   By increasing this parameter, more memory will be required, "
         "   but there will be fewer read/write operations to the (network and) "
         "disk.'>"
-        "    <Value>0.5</Value>"
-        "    <Value>1</Value>"
-        "    <Value>2</Value>"
         "  </Option>"
-        "  <Option name='CreationLanguage' scope='vector' type='string' "
+        "  <Option name='CreationLanguage' scope='vector' type='string-select' "
         "   description='If the layer to be opened is multilingual "
         "   (in fact the *.rel* file), this parameter sets the language "
         "    to be read.'>"

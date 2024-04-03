@@ -134,7 +134,7 @@ class OGRMiraMonLayer final
 };
 
 /************************************************************************/
-/*                           OGRMiraMonDataSource                           */
+/*                           OGRMiraMonDataSource                       */
 /************************************************************************/
 
 class OGRMiraMonDataSource final : public OGRDataSource

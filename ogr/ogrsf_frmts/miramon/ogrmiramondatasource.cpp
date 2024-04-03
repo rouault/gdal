@@ -92,15 +92,26 @@ int OGRMiraMonDataSource::Open(const char *pszFilename, VSILFILE *fp,
             if (!MMMap.nNumberOfLayers)
             {
                 MMMap.fMMMap = VSIFOpenL(MMMap.pszMapName, "w+");
-                VSIFPrintfL(MMMap.fMMMap, "[VERSIO]\n");
-                VSIFPrintfL(MMMap.fMMMap, "Vers=2\n");
-                VSIFPrintfL(MMMap.fMMMap, "SubVers=0\n");
-                VSIFPrintfL(MMMap.fMMMap, "variant=b\n");
-                VSIFPrintfL(MMMap.fMMMap, "\n");
-                VSIFPrintfL(MMMap.fMMMap, "[DOCUMENT]\n");
-                VSIFPrintfL(MMMap.fMMMap, "Titol= %s(map)\n",
-                            CPLGetBasename(poLayer->GetName()));
-                VSIFPrintfL(MMMap.fMMMap, "\n");
+                if (!MMMap.fMMMap)
+                {
+                    // It could be an error but it is not so important
+                    // to stop the process. This map is an extra element
+                    // to open all layers in one click, at least in MiraMon
+                    // software.
+                    *MMMap.pszMapName = '\0';
+                }
+                else
+                {
+                    VSIFPrintfL(MMMap.fMMMap, "[VERSIO]\n");
+                    VSIFPrintfL(MMMap.fMMMap, "Vers=2\n");
+                    VSIFPrintfL(MMMap.fMMMap, "SubVers=0\n");
+                    VSIFPrintfL(MMMap.fMMMap, "variant=b\n");
+                    VSIFPrintfL(MMMap.fMMMap, "\n");
+                    VSIFPrintfL(MMMap.fMMMap, "[DOCUMENT]\n");
+                    VSIFPrintfL(MMMap.fMMMap, "Titol= %s(map)\n",
+                                CPLGetBasename(poLayer->GetName()));
+                    VSIFPrintfL(MMMap.fMMMap, "\n");
+                }
             }
         }
         else
@@ -127,6 +138,7 @@ int OGRMiraMonDataSource::Create(const char *pszDataSetName,
                                  char ** /* papszOptions */)
 
 {
+    bUpdate = TRUE;
     pszDSName = CPLStrdup(pszDataSetName);
     pszRootName = CPLStrdup(pszDataSetName);
 
@@ -152,47 +164,10 @@ OGRMiraMonDataSource::ICreateLayer(const char *pszLayerName,
     // MMGenerateFileIdentifierFromMetadataFileName() function
     srand((unsigned int)time(nullptr));
 
-    switch (eType)
+    if (OGR_GT_HasM(eType))
     {
-        case wkbPointM:
-        case wkbLineStringM:
-        case wkbPolygonM:
-        case wkbMultiPointM:
-        case wkbMultiLineStringM:
-        case wkbMultiPolygonM:
-        case wkbGeometryCollectionM:
-        case wkbCircularStringM:
-        case wkbCompoundCurveM:
-        case wkbCurvePolygonM:
-        case wkbMultiCurveM:
-        case wkbMultiSurfaceM:
-        case wkbCurveM:
-        case wkbSurfaceM:
-        case wkbPolyhedralSurfaceM:
-        case wkbTINM:
-        case wkbTriangleM:
-        case wkbPointZM:
-        case wkbLineStringZM:
-        case wkbPolygonZM:
-        case wkbMultiPointZM:
-        case wkbMultiLineStringZM:
-        case wkbMultiPolygonZM:
-        case wkbGeometryCollectionZM:
-        case wkbCircularStringZM:
-        case wkbCompoundCurveZM:
-        case wkbCurvePolygonZM:
-        case wkbMultiCurveZM:
-        case wkbMultiSurfaceZM:
-        case wkbCurveZM:
-        case wkbSurfaceZM:
-        case wkbPolyhedralSurfaceZM:
-        case wkbTINZM:
-        case wkbTriangleZM:
-            CPLError(CE_Warning, CPLE_NotSupported,
-                     "Measures in this layer will be ignored.");
-            break;
-        default:
-            break;
+        CPLError(CE_Warning, CPLE_NotSupported,
+                 "Measures in this layer will be ignored.");
     }
 
     /* -------------------------------------------------------------------- */
@@ -215,9 +190,9 @@ OGRMiraMonDataSource::ICreateLayer(const char *pszLayerName,
         const char *szDestFolder = CPLGetDirname(pszFullMMLayerName);
         if (!STARTS_WITH(szDestFolder, "/vsimem"))
         {
-            char **papszDirContent = nullptr;
-            papszDirContent = VSIReadDir(szDestFolder);
-            if (!papszDirContent)
+            VSIStatBufL sStat;
+            if (VSIStatL(szDestFolder, &sStat) != 0 ||
+                !VSI_ISDIR(sStat.st_mode))
             {
                 CPLFree(pszMMLayerName);
                 CPLFree(pszFullMMLayerName);
@@ -225,8 +200,6 @@ OGRMiraMonDataSource::ICreateLayer(const char *pszLayerName,
                          "The folder %s does not exist.", szDestFolder);
                 return nullptr;
             }
-            else
-                CSLDestroy(papszDirContent);
         }
         CPLFree(pszMMLayerName);
     }
@@ -244,9 +217,8 @@ OGRMiraMonDataSource::ICreateLayer(const char *pszLayerName,
         /* -------------------------------------------------------------------- */
         if (!STARTS_WITH(osPath, "/vsimem"))
         {
-            char **papszDirContent = nullptr;
-            papszDirContent = VSIReadDir(osPath);
-            if (!papszDirContent)
+            VSIStatBufL sStat;
+            if (VSIStatL(osPath, &sStat) != 0 || !VSI_ISDIR(sStat.st_mode))
             {
                 if (VSIMkdir(osPath, 0755) != 0)
                 {
@@ -256,8 +228,6 @@ OGRMiraMonDataSource::ICreateLayer(const char *pszLayerName,
                     return nullptr;
                 }
             }
-            else
-                CSLDestroy(papszDirContent);
         }
     }
 
@@ -283,7 +253,7 @@ int OGRMiraMonDataSource::TestCapability(const char *pszCap)
 
 {
     if (EQUAL(pszCap, ODsCCreateLayer))
-        return TRUE;
+        return bUpdate;
     else if (EQUAL(pszCap, ODsCZGeometries))
         return TRUE;
 
