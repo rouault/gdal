@@ -5683,19 +5683,14 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
 
 #ifdef GDAL_COMPILATION
     {
-        time_t tp = time(nullptr);
-        if (tp != -1)
-        {
-            struct tm ltime;
-            VSILocalTime(&tp, &ltime);
-            snprintf(aTimeString, sizeof(aTimeString),
-                     "%04d%02d%02d %02d%02d%02d%02d+00:00",
-                     ltime.tm_year + 1900, ltime.tm_mon + 1, ltime.tm_mday,
-                     ltime.tm_hour, ltime.tm_min, ltime.tm_sec, 0);
-            fprintf_function(pF, "%s=%s" LineReturn, KEY_CreationDate,
-                             aTimeString);
-            fprintf_function(pF, LineReturn);
-        }
+        struct tm ltime;
+        VSILocalTime(&currentTime, &ltime);
+        snprintf(aTimeString, sizeof(aTimeString),
+                 "%04d%02d%02d %02d%02d%02d%02d+00:00", ltime.tm_year + 1900,
+                 ltime.tm_mon + 1, ltime.tm_mday, ltime.tm_hour, ltime.tm_min,
+                 ltime.tm_sec, 0);
+        fprintf_function(pF, "%s=%s" LineReturn, KEY_CreationDate, aTimeString);
+        fprintf_function(pF, LineReturn);
     }
 #else
     {

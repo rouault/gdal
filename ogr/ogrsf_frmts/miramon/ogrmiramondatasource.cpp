@@ -148,6 +148,10 @@ OGRMiraMonDataSource::ICreateLayer(const char *pszLayerName,
     const auto poSRS =
         poGeomFieldDefn ? poGeomFieldDefn->GetSpatialRef() : nullptr;
 
+    // It's a seed to be able to generate a random identifier in
+    // MMGenerateFileIdentifierFromMetadataFileName() function
+    srand((unsigned int)time(NULL));
+
     switch (eType)
     {
         case wkbPointM:
@@ -209,18 +213,21 @@ OGRMiraMonDataSource::ICreateLayer(const char *pszLayerName,
 
         // Checking that the folder where to write exists
         const char *szDestFolder = CPLGetDirname(pszFullMMLayerName);
-        char **papszDirContent = nullptr;
-        papszDirContent = VSIReadDir(szDestFolder);
-        if (!papszDirContent)
+        if (!STARTS_WITH(szDestFolder, "/vsimem"))
         {
-            CPLFree(pszMMLayerName);
-            CPLFree(pszFullMMLayerName);
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "The folder %s does not exist.", szDestFolder);
-            return nullptr;
+            char **papszDirContent = nullptr;
+            papszDirContent = VSIReadDir(szDestFolder);
+            if (!papszDirContent)
+            {
+                CPLFree(pszMMLayerName);
+                CPLFree(pszFullMMLayerName);
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "The folder %s does not exist.", szDestFolder);
+                return nullptr;
+            }
+            else
+                CSLDestroy(papszDirContent);
         }
-        else
-            CSLDestroy(papszDirContent);
         CPLFree(pszMMLayerName);
     }
     else
@@ -235,20 +242,23 @@ OGRMiraMonDataSource::ICreateLayer(const char *pszLayerName,
         /*      Let's create the folder if it's not already created.            */
         /*      (only the las level of the folder)                              */
         /* -------------------------------------------------------------------- */
-        char **papszDirContent = nullptr;
-        papszDirContent = VSIReadDir(osPath);
-        if (!papszDirContent)
+        if (!STARTS_WITH(osPath, "/vsimem"))
         {
-            if (VSIMkdir(osPath, 0755) != 0)
+            char **papszDirContent = nullptr;
+            papszDirContent = VSIReadDir(osPath);
+            if (!papszDirContent)
             {
-                CPLFree(pszFullMMLayerName);
-                CPLError(CE_Failure, CPLE_AppDefined,
-                         "Unable to create the folder %s.", pszRootName);
-                return nullptr;
+                if (VSIMkdir(osPath, 0755) != 0)
+                {
+                    CPLFree(pszFullMMLayerName);
+                    CPLError(CE_Failure, CPLE_AppDefined,
+                             "Unable to create the folder %s.", pszRootName);
+                    return nullptr;
+                }
             }
+            else
+                CSLDestroy(papszDirContent);
         }
-        else
-            CSLDestroy(papszDirContent);
     }
 
     /* -------------------------------------------------------------------- */
