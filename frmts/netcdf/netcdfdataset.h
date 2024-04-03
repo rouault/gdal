@@ -502,6 +502,7 @@ class netCDFDataset final : public GDALPamDataset
     bool ProcessNASAEMITGeoLocation(int nGroupId, int nVarId);
 
     int ProcessCFGeolocation(int nGroupId, int nVarId,
+                             const std::string &osGeolocWKT,
                              std::string &osGeolocXNameOut,
                              std::string &osGeolocYNameOut);
     CPLErr Set1DGeolocation(int nGroupId, int nVarId, const char *szDimName);
@@ -761,6 +762,8 @@ class netCDFLayer final : public OGRLayer
     virtual OGRErr ICreateFeature(OGRFeature *poFeature) override;
     virtual OGRErr CreateField(const OGRFieldDefn *poFieldDefn,
                                int bApproxOK) override;
+
+    GDALDataset *GetDataset() override;
 };
 
 std::string NCDFGetProjectedCFUnit(const OGRSpatialReference *poSRS);

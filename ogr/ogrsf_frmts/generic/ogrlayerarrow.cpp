@@ -2238,25 +2238,6 @@ int OGRLayer::StaticGetNextArrowArray(struct ArrowArrayStream *stream,
 }
 
 /************************************************************************/
-/*                          GetDataset()                                */
-/************************************************************************/
-
-/** Return the dataset associated with this layer.
- *
- * NOTE: that method is implemented in very few drivers, and cannot generally
- * be relied on. It is currently only used by the GetRecordBatchSchema()
- * method to retrieve the field domain associated with a field, to fill the
- * dictionary field of a struct ArrowSchema.
- *
- * @return dataset, or nullptr when unknown.
- * @since GDAL 3.6
- */
-GDALDataset *OGRLayer::GetDataset()
-{
-    return nullptr;
-}
-
-/************************************************************************/
 /*                            ReleaseStream()                           */
 /************************************************************************/
 
@@ -5938,20 +5919,24 @@ bool OGRLayer::CreateFieldFromArrowSchemaInternal(
                     oFieldDefn.SetDefault(oIter.second.c_str());
                 else if (oIter.first == MD_GDAL_OGR_SUBTYPE)
                 {
-                    const auto &osSubType = oIter.second;
-                    for (auto eSubType = OFSTNone; eSubType <= OFSTMaxSubType;)
+                    if (eTypeIn == eTypeOut)
                     {
-                        if (OGRFieldDefn::GetFieldSubTypeName(eSubType) ==
-                            osSubType)
+                        const auto &osSubType = oIter.second;
+                        for (auto eSubType = OFSTNone;
+                             eSubType <= OFSTMaxSubType;)
                         {
-                            oFieldDefn.SetSubType(eSubType);
-                            break;
+                            if (OGRFieldDefn::GetFieldSubTypeName(eSubType) ==
+                                osSubType)
+                            {
+                                oFieldDefn.SetSubType(eSubType);
+                                break;
+                            }
+                            if (eSubType == OFSTMaxSubType)
+                                break;
+                            else
+                                eSubType =
+                                    static_cast<OGRFieldSubType>(eSubType + 1);
                         }
-                        if (eSubType == OFSTMaxSubType)
-                            break;
-                        else
-                            eSubType =
-                                static_cast<OGRFieldSubType>(eSubType + 1);
                     }
                 }
                 else if (oIter.first == MD_GDAL_OGR_WIDTH)

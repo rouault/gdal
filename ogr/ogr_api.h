@@ -279,6 +279,7 @@ double CPL_DLL OGR_G_Distance(OGRGeometryH, OGRGeometryH);
 double CPL_DLL OGR_G_Distance3D(OGRGeometryH, OGRGeometryH);
 double CPL_DLL OGR_G_Length(OGRGeometryH);
 double CPL_DLL OGR_G_Area(OGRGeometryH);
+double CPL_DLL OGR_G_GeodesicArea(OGRGeometryH);
 bool CPL_DLL OGR_G_IsClockwise(OGRGeometryH hGeom);
 int CPL_DLL OGR_G_Centroid(OGRGeometryH, OGRGeometryH);
 OGRGeometryH CPL_DLL OGR_G_Value(OGRGeometryH,
@@ -695,6 +696,9 @@ typedef void *OGRSFDriverH;
 
 const char CPL_DLL *OGR_L_GetName(OGRLayerH);
 OGRwkbGeometryType CPL_DLL OGR_L_GetGeomType(OGRLayerH);
+
+/* Defined in gdal.h to avoid circular dependency with ogr_api.h */
+/* GDALDatasetH CPL_DLL OGR_L_GetDataset(OGRLayerH hLayer); */
 
 /** Result item of OGR_L_GetGeometryTypes */
 typedef struct

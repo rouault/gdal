@@ -725,7 +725,7 @@ void OGRLayer::ConvertGeomsIfNecessary(OGRFeature *poFeature)
                         if (poNewGeom)
                         {
                             poFeature->SetGeomFieldDirectly(i, poNewGeom);
-                            // If there was potential futher processing...
+                            // If there was potential further processing...
                             // poGeom = poFeature->GetGeomFieldRef(i);
                         }
                     }
@@ -5636,4 +5636,59 @@ OGRErr OGR_L_SetActiveSRS(OGRLayerH hLayer, int iGeomField,
     VALIDATE_POINTER1(hLayer, "OGR_L_SetActiveSRS", OGRERR_FAILURE);
     return OGRLayer::FromHandle(hLayer)->SetActiveSRS(
         iGeomField, OGRSpatialReference::FromHandle(hSRS));
+}
+
+/************************************************************************/
+/*                             GetDataset()                             */
+/************************************************************************/
+
+/** Return the dataset associated with this layer.
+ *
+ * As of GDAL 3.9, GetDataset() is implemented on all in-tree drivers that
+ * have CreateLayer() capability. It may not be implemented in read-only
+ * drivers or out-of-tree drivers.
+ *
+ * It is currently only used by the GetRecordBatchSchema()
+ * method to retrieve the field domain associated with a field, to fill the
+ * dictionary field of a struct ArrowSchema.
+ * It is also used by CreateFieldFromArrowSchema() to determine which field
+ * types and subtypes are supported by the layer, by inspecting the driver
+ * metadata, and potentially use fallback types when needed.
+ *
+ * This method is the same as the C function OGR_L_GetDataset().
+ *
+ * @return dataset, or nullptr when unknown.
+ * @since GDAL 3.6
+ */
+GDALDataset *OGRLayer::GetDataset()
+{
+    return nullptr;
+}
+
+/************************************************************************/
+/*                          OGR_L_GetDataset()                          */
+/************************************************************************/
+
+/** Return the dataset associated with this layer.
+ *
+ * As of GDAL 3.9, GetDataset() is implemented on all in-tree drivers that
+ * have CreateLayer() capability. It may not be implemented in read-only
+ * drivers or out-of-tree drivers.
+ *
+ * It is currently only used by the GetRecordBatchSchema()
+ * method to retrieve the field domain associated with a field, to fill the
+ * dictionary field of a struct ArrowSchema.
+ * It is also used by CreateFieldFromArrowSchema() to determine which field
+ * types and subtypes are supported by the layer, by inspecting the driver
+ * metadata, and potentially use fallback types when needed.
+ *
+ * This function is the same as the C++ method OGRLayer::GetDataset().
+ *
+ * @return dataset, or nullptr when unknown.
+ * @since GDAL 3.9
+ */
+GDALDatasetH OGR_L_GetDataset(OGRLayerH hLayer)
+{
+    VALIDATE_POINTER1(hLayer, "OGR_L_GetDataset", nullptr);
+    return GDALDataset::ToHandle(OGRLayer::FromHandle(hLayer)->GetDataset());
 }

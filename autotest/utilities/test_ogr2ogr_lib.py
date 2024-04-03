@@ -1257,6 +1257,26 @@ def test_ogr2ogr_lib_clipsrc_3d_polygon(tmp_vsimem):
 
 
 ###############################################################################
+# Test -clipsrc argument errors
+
+
+@pytest.mark.require_geos
+def test_ogr2ogr_lib_clipsrc_argument_errors():
+
+    srcDS = gdal.GetDriverByName("Memory").Create("", 0, 0, 0, gdal.GDT_Unknown)
+    srcDS.CreateLayer("test")
+
+    with pytest.raises(Exception, match="-clipsrc option requires 1 argument"):
+        gdal.VectorTranslate("", srcDS, options="-f MEM -clipsrc")
+
+    with pytest.raises(Exception):
+        gdal.VectorTranslate("", srcDS, options="-f MEM -clipsrc 1 2 3")
+
+    with pytest.raises(Exception, match="Duplicate argument -clipsrc"):
+        gdal.VectorTranslate("", srcDS, options="-f MEM -clipsrc 1 2 3 4 -clipsrc foo")
+
+
+###############################################################################
 # Test -clipdst with a clip datasource
 
 
@@ -1418,6 +1438,26 @@ def test_ogr2ogr_lib_clip_datasource_reprojection(tmp_vsimem, clipSrc):
 
     # Cleanup
     ogr.GetDriverByName("ESRI Shapefile").DeleteDataSource(clip_path)
+
+
+###############################################################################
+# Test -clipdst argument errors
+
+
+@pytest.mark.require_geos
+def test_ogr2ogr_lib_clipdst_argument_errors():
+
+    srcDS = gdal.GetDriverByName("Memory").Create("", 0, 0, 0, gdal.GDT_Unknown)
+    srcDS.CreateLayer("test")
+
+    with pytest.raises(Exception, match="-clipdst option requires 1 argument"):
+        gdal.VectorTranslate("", srcDS, options="-f MEM -clipdst")
+
+    with pytest.raises(Exception):
+        gdal.VectorTranslate("", srcDS, options="-f MEM -clipdst 1 2 3")
+
+    with pytest.raises(Exception, match="Duplicate argument -clipdst"):
+        gdal.VectorTranslate("", srcDS, options="-f MEM -clipdst 1 2 3 4 -clipdst foo")
 
 
 ###############################################################################
@@ -2516,13 +2556,13 @@ def test_ogr2ogr_lib_coordinate_precision(tmp_vsimem):
 
     with pytest.raises(
         Exception,
-        match="Invalid value for -mRes",
+        match="Failed to parse 'invalid' as number",
     ):
         gdal.VectorTranslate(out_filename, src_ds, mRes="invalid")
 
     with pytest.raises(
         Exception,
-        match="Invalid value for -mRes",
+        match="Failed to parse '1 invalid' as number",
     ):
         gdal.VectorTranslate(out_filename, src_ds, mRes="1 invalid")
 
