@@ -201,7 +201,8 @@ int MMResizeDoublePointer(MM_COORD_TYPE **pDouble, MM_N_VERTICES_TYPE *nMax,
 int MMResizeStringToOperateIfNeeded(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                     MM_EXT_DBF_N_FIELDS nNewSize);
 int MMIsEmptyString(const char *string);
-char *MMGetNFieldValue(const char *pszStringList, GUInt32 nIRecord);
+int MMGetNFieldValue(const char *pszStringList, GUInt32 nIRecord,
+                     char *pszPartOfRawValue, size_t nSizeOfRawValue);
 // Metadata functions
 int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *result,
                                 MM_BYTE direction);
@@ -214,7 +215,7 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *result,
     MMReturnCodeFromMM_m_idofic((pSRS), (szResult), MMSRS_FROM_EPSG)
 
 int MMWriteVectorMetadata(struct MiraMonVectLayerInfo *hMiraMonLayer);
-int MMCheck_REL_FILE(char *szREL_file);
+int MMCheck_REL_FILE(const char *szREL_file);
 
 #ifdef GDAL_COMPILATION
 CPL_C_END  // Necessary for compiling in GDAL project

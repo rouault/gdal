@@ -5477,13 +5477,13 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
 #define LineReturn "\r\n"
 
 // Generates an idientifier that REL 4 MiraMon metadata needs.
-static char *MMGenerateFileIdentifierFromMetadataFileName(char *pMMFN)
+static void MMGenerateFileIdentifierFromMetadataFileName(char *pMMFN,
+                                                         char *aFileIdentifier)
 {
     char aCharRand[8];
     static const char aCharset[] =
         "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     int i, len_charset;
-    static char aFileIdentifier[MM_MAX_LEN_LAYER_IDENTIFIER];
 
     memset(aFileIdentifier, '\0', MM_MAX_LEN_LAYER_IDENTIFIER);
 
@@ -5494,7 +5494,7 @@ static char *MMGenerateFileIdentifierFromMetadataFileName(char *pMMFN)
     aCharRand[7] = '\0';
     MM_strnzcpy(aFileIdentifier, pMMFN, MM_MAX_LEN_LAYER_IDENTIFIER - 7);
     strcat(aFileIdentifier, aCharRand);
-    return aFileIdentifier;
+    return;
 }
 
 // Converts a string from UTF-8 to ANSI to be written in a REL 4 file
@@ -5546,7 +5546,6 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
     MM_EXT_DBF_N_FIELDS nIField;
     FILE_TYPE *pF;
     time_t currentTime;
-    struct tm *pLocalTime;
     char aTimeString[200];
 
     if (!hMMMD->aLayerName)
@@ -5573,8 +5572,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
     // Writing METADADES section
     fprintf_function(pF, "\r\n[%s]" LineReturn, SECTION_METADADES);
     strcpy(aMessage, hMMMD->aLayerName);
-    strcpy(aFileIdentifier,
-           MMGenerateFileIdentifierFromMetadataFileName(aMessage));
+    MMGenerateFileIdentifierFromMetadataFileName(aMessage, aFileIdentifier);
     fprintf_function(pF, "%s=%s" LineReturn, KEY_FileIdentifier,
                      aFileIdentifier);
     fprintf_function(pF, "%s=%s" LineReturn, KEY_language, KEY_Value_eng);
@@ -5682,14 +5680,36 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
     fprintf_function(pF, LineReturn "[%s]" LineReturn, SECTION_OVERVIEW);
 
     currentTime = time(nullptr);
-    pLocalTime = localtime(&currentTime);
-    snprintf(aTimeString, sizeof(aTimeString),
-             "%04d%02d%02d %02d%02d%02d%02d+00:00", pLocalTime->tm_year + 1900,
-             pLocalTime->tm_mon + 1, pLocalTime->tm_mday, pLocalTime->tm_hour,
-             pLocalTime->tm_min, pLocalTime->tm_sec, 0);
-    fprintf_function(pF, "%s=%s" LineReturn, KEY_CreationDate, aTimeString);
 
-    fprintf_function(pF, LineReturn);
+#ifdef GDAL_COMPILATION
+    {
+        time_t tp = time(nullptr);
+        if (tp != -1)
+        {
+            struct tm ltime;
+            VSILocalTime(&tp, &ltime);
+            snprintf(aTimeString, sizeof(aTimeString),
+                     "%04d%02d%02d %02d%02d%02d%02d+00:00",
+                     ltime.tm_year + 1900, ltime.tm_mon + 1, ltime.tm_mday,
+                     ltime.tm_hour, ltime.tm_min, ltime.tm_sec, 0);
+            fprintf_function(pF, "%s=%s" LineReturn, KEY_CreationDate,
+                             aTimeString);
+            fprintf_function(pF, LineReturn);
+        }
+    }
+#else
+    {
+        struct tm *pLocalTime;
+        pLocalTime = localtime(&currentTime);
+        snprintf(aTimeString, sizeof(aTimeString),
+                 "%04d%02d%02d %02d%02d%02d%02d+00:00",
+                 pLocalTime->tm_year + 1900, pLocalTime->tm_mon + 1,
+                 pLocalTime->tm_mday, pLocalTime->tm_hour, pLocalTime->tm_min,
+                 pLocalTime->tm_sec, 0);
+        fprintf_function(pF, "%s=%s" LineReturn, KEY_CreationDate, aTimeString);
+        fprintf_function(pF, LineReturn);
+    }
+#endif
 
     // Writing TAULA_PRINCIPAL section
     fprintf_function(pF, "[%s]" LineReturn, SECTION_TAULA_PRINCIPAL);
@@ -5998,7 +6018,7 @@ int MMWriteVectorMetadata(struct MiraMonVectLayerInfo *hMiraMonLayer)
 }
 
 // Verifies the version of a MiraMon REL 4 file.
-int MMCheck_REL_FILE(char *szREL_file)
+int MMCheck_REL_FILE(const char *szREL_file)
 {
     char *pszLine;
     FILE_TYPE *pF;
@@ -6455,7 +6475,7 @@ MMTestAndFixValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
             pMMAdmDB->szRecordOnCourse = pTmp;
         }
 
-        // File has changed it's size, so it has to be updated
+        // File has changed its size, so it has to be updated
         // at the Flush tool
         fseek_function(pMMAdmDB->pFExtDBF, 0, SEEK_END);
         pMMAdmDB->FlushRecList.OffsetWhereToFlush =
@@ -6512,54 +6532,78 @@ int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
 }
 
 // Gets the n-th value of the format (number_of_values:val1,val2,...,valN)
-char *MMGetNFieldValue(const char *pszStringList, GUInt32 nIRecord)
+int MMGetNFieldValue(const char *pszStringList, GUInt32 nIRecord,
+                     char *pszPartOfRawValue, size_t nSizeOfRawValue)
 {
     char *p, *q;
     GUInt32 nNValues, nIValues;
-    char *pszAux;
 
     if (!pszStringList)
-        return nullptr;
+        return 1;
 
-    pszAux = strdup_function(pszStringList);
-    p = strstr(pszAux, "(");
+    strncpy(pszPartOfRawValue, pszStringList, nSizeOfRawValue - 1);
+    pszPartOfRawValue[nSizeOfRawValue - 1] = '\0';
+
+    p = strstr(pszPartOfRawValue, "(");
     if (!p)
-        return nullptr;
+    {
+        return 1;
+    }
     p++;
-    if (!p)
-        return nullptr;
+
     q = strstr(p, ":");
+    if (!q)
+    {
+        return 1;
+    }
+
     p[(ptrdiff_t)q - (ptrdiff_t)p] = '\0';
     nNValues = atoi(p);
     if (nIRecord > nNValues)
-        return nullptr;
+    {
+        return 1;
+    }
 
     q++;
     nIValues = 0;
     while (nIValues <= nIRecord)
     {
         if (!q)
-            return nullptr;
+        {
+            return 1;
+        }
         p = strstr(q, ",");
         if (!p)
         {
             p = strstr(q, ")");
             if (!p)
-                return nullptr;
+            {
+                return 1;
+            }
             q[(ptrdiff_t)p - (ptrdiff_t)q] = '\0';
-            return q;
+            if ((size_t)((ptrdiff_t)p - (ptrdiff_t)q) > nSizeOfRawValue - 1)
+                return 1;
+            strncpy(pszPartOfRawValue, q, (ptrdiff_t)p - (ptrdiff_t)q);
+            pszPartOfRawValue[(ptrdiff_t)p - (ptrdiff_t)q] = '\0';
+            return 0;
         }
         if (nIValues == nIRecord)
         {
             p = strstr(q, ",");
             q[(ptrdiff_t)p - (ptrdiff_t)q] = '\0';
-
-            return q;
+            if ((size_t)((ptrdiff_t)p - (ptrdiff_t)q) > nSizeOfRawValue - 1)
+                return 1;
+            strncpy(pszPartOfRawValue, q, (ptrdiff_t)p - (ptrdiff_t)q);
+            pszPartOfRawValue[(ptrdiff_t)p - (ptrdiff_t)q] = '\0';
+            return 0;
         }
         q = p + 1;
     }
-
-    return q;
+    if ((size_t)((ptrdiff_t)p - (ptrdiff_t)q) > nSizeOfRawValue - 1)
+        return 1;
+    strncpy(pszPartOfRawValue, q, (ptrdiff_t)p - (ptrdiff_t)q);
+    pszPartOfRawValue[(ptrdiff_t)p - (ptrdiff_t)q] = '\0';
+    return 0;
 }
 
 static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
