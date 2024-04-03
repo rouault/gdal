@@ -1870,7 +1870,7 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
                         free_function(pszArcLayerName);
                         return 1;
                     }
-                    snprintf(pszArcLayerNameAux, sizeof(pszArcLayerNameAux),
+                    snprintf(pszArcLayerNameAux, strlen(pszArcLayerName) + 5,
                              "%s.arc", pszArcLayerName);
 
                     free_function(pszArcLayerName);
