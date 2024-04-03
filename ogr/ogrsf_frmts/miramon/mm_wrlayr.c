@@ -6699,8 +6699,9 @@ int MMAddDBFRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
     pBD_XP = hMiraMonLayer->MMAdmDBWriting.pMMBDXP;
 
-    // Test lenght
-    if (hMMFeature->nNumMRecords && hMMFeature->pRecords[0].nNumField)
+    // Test length
+    if (hMMFeature && hMMFeature->nNumMRecords &&
+        hMMFeature->pRecords[0].nNumField)
     {
         if (MMDetectAndFixDBFWidthChange(
                 hMiraMonLayer, hMMFeature, &hMiraMonLayer->MMAdmDBWriting,
@@ -6758,8 +6759,9 @@ int MMAddPointRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
     pBD_XP = hMiraMonLayer->MMPoint.MMAdmDB.pMMBDXP;
 
-    // Test lenght
-    if (hMMFeature->nNumMRecords && hMMFeature->pRecords[0].nNumField)
+    // Test length
+    if (hMMFeature && hMMFeature->nNumMRecords &&
+        hMMFeature->pRecords[0].nNumField)
     {
         if (MMDetectAndFixDBFWidthChange(
                 hMiraMonLayer, hMMFeature, &hMiraMonLayer->MMPoint.MMAdmDB,
@@ -6771,7 +6773,7 @@ int MMAddPointRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     pszRecordOnCourse = hMiraMonLayer->MMPoint.MMAdmDB.szRecordOnCourse;
     pFlushRecList->pBlockToBeSaved = (void *)pszRecordOnCourse;
 
-    // Now lenght is sure, write
+    // Now length is sure, write
     memset(pszRecordOnCourse, 0, pBD_XP->BytesPerRecord);
     MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse, pBD_XP->pField,
                              &nElemCount, TRUE);
@@ -6843,7 +6845,7 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     pFlushRecList->SizeOfBlockToBeSaved = pBD_XP->BytesPerRecord;
     pFlushRecList->pBlockToBeSaved = (void *)pszRecordOnCourse;
 
-    // Test lenght
+    // Test length
     if (!hMiraMonLayer->bIsPolygon)
     {
         if (hMMFeature->nNumMRecords && hMMFeature->pRecords[0].nNumField)
@@ -6859,7 +6861,7 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
         pFlushRecList->pBlockToBeSaved = (void *)pszRecordOnCourse;
     }
 
-    // Now lenght is sure, write
+    // Now length is sure, write
     memset(pszRecordOnCourse, 0, pBD_XP->BytesPerRecord);
     MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse, pBD_XP->pField,
                              &nElemCount, TRUE);
@@ -6986,8 +6988,9 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     pFlushRecList->SizeOfBlockToBeSaved = pBD_XP->BytesPerRecord;
     pFlushRecList->pBlockToBeSaved = (void *)pszRecordOnCourse;
 
-    // Test lenght
-    if (hMMFeature->nNumMRecords && hMMFeature->pRecords[0].nNumField)
+    // Test length
+    if (hMMFeature && hMMFeature->nNumMRecords &&
+        hMMFeature->pRecords[0].nNumField)
     {
         if (MMDetectAndFixDBFWidthChange(
                 hMiraMonLayer, hMMFeature, &hMiraMonLayer->MMPolygon.MMAdmDB,
@@ -6999,7 +7002,7 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     pszRecordOnCourse = hMiraMonLayer->MMPolygon.MMAdmDB.szRecordOnCourse;
     pFlushRecList->pBlockToBeSaved = (void *)pszRecordOnCourse;
 
-    // Now lenght is sure, write
+    // Now length is sure, write
     memset(pszRecordOnCourse, 0, pBD_XP->BytesPerRecord);
     if (MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse,
                                  pBD_XP->pField, &nElemCount, TRUE))
