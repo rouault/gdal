@@ -2113,8 +2113,6 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
             int nCount = 0;
             const int *panValues =
                 poFeature->GetFieldAsIntegerList(iField, &nCount);
-            size_t nSizeOfRawValue;
-            char *pszPartOfRawValue;
 
             nNumRecords = nCount;
             if (nNumRecords == 0)
@@ -2128,9 +2126,6 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
             // It will contains the i-th element of the list.
-            nSizeOfRawValue = strlen(pszRawValue);
-            pszPartOfRawValue = (char *)calloc_function(nSizeOfRawValue + 1);
-
             for (nIRecord = 0; nIRecord < hMMFeature.nNumMRecords; nIRecord++)
             {
                 hMMFeature.pRecords[nIRecord].nNumField = nNumFields;
@@ -2146,13 +2141,9 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 hMMFeature.pRecords[nIRecord].pField[iField].dValue =
                     panValues[nIRecord];
 
-                if (MMGetNFieldValue(pszRawValue, nIRecord, pszPartOfRawValue,
-                                     nSizeOfRawValue + 1))
-                    return OGRERR_FAILURE;
-
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
-                        pszPartOfRawValue,
+                        CPLSPrintf("%d", panValues[nIRecord]),
                         &hMMFeature.pRecords[nIRecord]
                              .pField[iField]
                              .nNumDinValue))
@@ -2160,15 +2151,12 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
 
                 hMMFeature.pRecords[nIRecord].pField[iField].bIsValid = 1;
             }
-            free_function(pszPartOfRawValue);
         }
         else if (eFType == OFTInteger64List)
         {
             int nCount = 0;
             const GIntBig *panValues =
                 poFeature->GetFieldAsInteger64List(iField, &nCount);
-            size_t nSizeOfRawValue;
-            char *pszPartOfRawValue;
 
             nNumRecords = nCount;
             if (nNumRecords == 0)
@@ -2182,9 +2170,6 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
             // It will contains the i-th element of the list.
-            nSizeOfRawValue = strlen(pszRawValue);
-            pszPartOfRawValue = (char *)calloc_function(nSizeOfRawValue + 1);
-
             for (nIRecord = 0; nIRecord < hMMFeature.nNumMRecords; nIRecord++)
             {
                 hMMFeature.pRecords[nIRecord].nNumField = nNumFields;
@@ -2200,27 +2185,22 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 hMMFeature.pRecords[nIRecord].pField[iField].iValue =
                     panValues[nIRecord];
 
-                if (MMGetNFieldValue(pszRawValue, nIRecord, pszPartOfRawValue,
-                                     nSizeOfRawValue + 1))
-                    return OGRERR_FAILURE;
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
-                        pszPartOfRawValue,
+                        CPLSPrintf("%" CPL_FRMT_GB_WITHOUT_PREFIX,
+                                   panValues[nIRecord]),
                         &hMMFeature.pRecords[nIRecord]
                              .pField[iField]
                              .nNumDinValue))
                     return OGRERR_NOT_ENOUGH_MEMORY;
                 hMMFeature.pRecords[nIRecord].pField[iField].bIsValid = 1;
             }
-            free_function(pszPartOfRawValue);
         }
         else if (eFType == OFTRealList)
         {
             int nCount = 0;
             const double *panValues =
                 poFeature->GetFieldAsDoubleList(iField, &nCount);
-            size_t nSizeOfRawValue;
-            char *pszPartOfRawValue;
 
             nNumRecords = nCount;
             if (nNumRecords == 0)
@@ -2234,9 +2214,6 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
             // It will contains the i-th element of the list.
-            nSizeOfRawValue = strlen(pszRawValue);
-            pszPartOfRawValue = (char *)calloc_function(nSizeOfRawValue + 1);
-
             for (nIRecord = 0; nIRecord < hMMFeature.nNumMRecords; nIRecord++)
             {
                 hMMFeature.pRecords[nIRecord].nNumField = iField;
@@ -2252,19 +2229,15 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 hMMFeature.pRecords[nIRecord].pField[iField].dValue =
                     panValues[nIRecord];
 
-                if (MMGetNFieldValue(pszRawValue, nIRecord, pszPartOfRawValue,
-                                     nSizeOfRawValue + 1))
-                    return OGRERR_FAILURE;
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
-                        pszPartOfRawValue,
+                        CPLSPrintf("%f", panValues[nIRecord]),
                         &hMMFeature.pRecords[nIRecord]
                              .pField[iField]
                              .nNumDinValue))
                     return OGRERR_NOT_ENOUGH_MEMORY;
                 hMMFeature.pRecords[nIRecord].pField[iField].bIsValid = 1;
             }
-            free_function(pszPartOfRawValue);
         }
         else if (eFType == OFTString)
         {
