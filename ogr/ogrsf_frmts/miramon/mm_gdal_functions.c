@@ -1456,14 +1456,11 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                                                       "descriptor");
             if (pszDesc)
             {
-                pszString = CPLRecode_function(pszDesc, CPL_ENC_ISO8859_1,
-                                               CPL_ENC_UTF8);
-                free_function(pszDesc);
                 MM_strnzcpy(
                     pMMBDXP->pField[nIField].FieldDescription[MM_DEF_LANGUAGE],
-                    pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                    pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
 
-                free_function(pszString);
+                free_function(pszDesc);
             }
             else
                 *pMMBDXP->pField[nIField].FieldDescription[MM_DEF_LANGUAGE] =
@@ -1474,21 +1471,18 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                                                       "descriptor_eng");
             if (pszDesc)
             {
-                pszString = CPLRecode_function(pszDesc, CPL_ENC_ISO8859_1,
-                                               CPL_ENC_UTF8);
-                free_function(pszDesc);
                 MM_strnzcpy(
                     pMMBDXP->pField[nIField].FieldDescription[MM_ENG_LANGUAGE],
-                    pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                    pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
 
                 if (*pMMBDXP->pField[nIField]
                          .FieldDescription[MM_DEF_LANGUAGE] != '\0')
                 {
                     MM_strnzcpy(pMMBDXP->pField[nIField]
                                     .FieldDescription[MM_DEF_LANGUAGE],
-                                pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                                pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
                 }
-                free_function(pszString);
+                free_function(pszDesc);
             }
             else
                 *pMMBDXP->pField[nIField].FieldDescription[MM_ENG_LANGUAGE] =
@@ -1499,23 +1493,19 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                                                       "descriptor_cat");
             if (pszDesc)
             {
-                pszString = CPLRecode_function(pszDesc, CPL_ENC_ISO8859_1,
-                                               CPL_ENC_UTF8);
-                free_function(pszDesc);
-
                 MM_strnzcpy(
                     pMMBDXP->pField[nIField].FieldDescription[MM_CAT_LANGUAGE],
-                    pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                    pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
 
                 if (*pMMBDXP->pField[nIField]
                          .FieldDescription[MM_DEF_LANGUAGE] != '\0')
                 {
                     MM_strnzcpy(pMMBDXP->pField[nIField]
                                     .FieldDescription[MM_DEF_LANGUAGE],
-                                pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                                pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
                 }
 
-                free_function(pszString);
+                free_function(pszDesc);
             }
             else
                 *pMMBDXP->pField[nIField].FieldDescription[MM_CAT_LANGUAGE] =
@@ -1526,23 +1516,19 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                                                       "descriptor_spa");
             if (pszDesc)
             {
-                pszString = CPLRecode_function(pszDesc, CPL_ENC_ISO8859_1,
-                                               CPL_ENC_UTF8);
-                free_function(pszDesc);
-
                 MM_strnzcpy(
                     pMMBDXP->pField[nIField].FieldDescription[MM_SPA_LANGUAGE],
-                    pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                    pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
 
                 if (*pMMBDXP->pField[nIField]
                          .FieldDescription[MM_DEF_LANGUAGE] != '\0')
                 {
                     MM_strnzcpy(pMMBDXP->pField[nIField]
                                     .FieldDescription[MM_DEF_LANGUAGE],
-                                pszString, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+                                pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
                 }
 
-                free_function(pszString);
+                free_function(pszDesc);
             }
             else
                 *pMMBDXP->pField[nIField].FieldDescription[MM_SPA_LANGUAGE] =
