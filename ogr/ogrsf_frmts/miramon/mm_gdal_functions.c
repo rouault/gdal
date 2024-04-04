@@ -1476,7 +1476,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                     pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
 
                 if (*pMMBDXP->pField[nIField]
-                         .FieldDescription[MM_DEF_LANGUAGE] != '\0')
+                         .FieldDescription[MM_DEF_LANGUAGE] == '\0')
                 {
                     MM_strnzcpy(pMMBDXP->pField[nIField]
                                     .FieldDescription[MM_DEF_LANGUAGE],
@@ -1498,7 +1498,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                     pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
 
                 if (*pMMBDXP->pField[nIField]
-                         .FieldDescription[MM_DEF_LANGUAGE] != '\0')
+                         .FieldDescription[MM_DEF_LANGUAGE] == '\0')
                 {
                     MM_strnzcpy(pMMBDXP->pField[nIField]
                                     .FieldDescription[MM_DEF_LANGUAGE],
@@ -1521,7 +1521,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                     pszDesc, MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
 
                 if (*pMMBDXP->pField[nIField]
-                         .FieldDescription[MM_DEF_LANGUAGE] != '\0')
+                         .FieldDescription[MM_DEF_LANGUAGE] == '\0')
                 {
                     MM_strnzcpy(pMMBDXP->pField[nIField]
                                     .FieldDescription[MM_DEF_LANGUAGE],
