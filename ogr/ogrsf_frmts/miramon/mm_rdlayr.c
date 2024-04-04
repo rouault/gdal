@@ -439,7 +439,7 @@ MMGetMultiPolygonCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
         }
 
         // Checking if the index of the arc is in the correct range.
-        if ((hMiraMonLayer->pArcs + nIndex)->nIArc >
+        if ((hMiraMonLayer->pArcs + nIndex)->nIArc >=
             hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount)
         {
             if (pBuffer)

@@ -775,9 +775,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
     if (nFeatureId < 0)
         return nullptr;
 
-    // In case of nIElem == 0 and there are no elements we give the chance
-    // to get the field name, ...
-    if (nIElem != 0 && nIElem >= phMiraMonLayer->TopHeader.nElemCount)
+    if (nIElem >= phMiraMonLayer->TopHeader.nElemCount)
         return nullptr;
 
     /* -------------------------------------------------------------------- */
