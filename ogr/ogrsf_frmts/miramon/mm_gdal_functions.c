@@ -622,7 +622,10 @@ static char *MM_SetSubIndexFieldNam(const char *nom_camp,
 
     _subindex = MM_GiveNewStringWithCharacterInFront(subindex, '_');
     if (!_subindex)
+    {
+        free_function(NomCamp_SubIndex);
         return nullptr;
+    }
 
     sizet_subindex = strlen(_subindex);
     sizet_nomcamp = strlen(NomCamp_SubIndex);
