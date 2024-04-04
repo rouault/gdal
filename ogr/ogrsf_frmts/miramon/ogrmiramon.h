@@ -42,11 +42,11 @@ class OGRMiraMonLayer final
     : public OGRLayer,
       public OGRGetNextFeatureThroughRaw<OGRMiraMonLayer>
 {
-    GDALDataset *m_poDS = nullptr;
-    OGRSpatialReference *m_poSRS = nullptr;
-    OGRFeatureDefn *poFeatureDefn;
+    GDALDataset *m_poDS;
+    OGRSpatialReference *m_poSRS;
+    OGRFeatureDefn *m_poFeatureDefn;
 
-    GUIntBig iNextFID;
+    GUIntBig m_iNextFID;
 
     // Pointer to one of three possible MiraMon layers: points,
     // arcs or polygons. Every time a feature is read this pointer
