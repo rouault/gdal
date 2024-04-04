@@ -333,7 +333,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                     delete m_poSRS;
                     m_poSRS = nullptr;
                 }
-                if (m_poSRS)
+                else
                     poFeatureDefn->GetGeomFieldDefn(0)->SetSpatialRef(m_poSRS);
             }
 
