@@ -9,7 +9,7 @@ repos:
                 autotest/ogr/data/
               )
     -   repo: https://github.com/timothycrosley/isort
-        rev: 5.10.1
+        rev: 5.12.0
         hooks:
         -   id: isort
             exclude: >
@@ -28,7 +28,7 @@ repos:
                 autotest/ogr/data/
               )
     -   repo: https://github.com/pre-commit/mirrors-clang-format
-        rev: 'v15.0.4'
+        rev: 'v15.0.7'
         hooks:
         -   id: clang-format
             exclude: >
@@ -39,6 +39,7 @@ repos:
                 third_party/|
                 autotest/ogr/data/|
                 alg/internal_libqhull/|
+                apps/argparse/|
                 frmts/gtiff/libtiff/|
                 frmts/gtiff/libgeotiff/|
                 frmts/hdf4/hdf-eos/|
@@ -51,7 +52,10 @@ repos:
                 frmts/pcidsk/sdk|
                 frmts/grib/degrib/degrib|
                 frmts/grib/degrib/g2clib|
+                ogr/utf8.h|
                 ogr/ogrsf_frmts/cad/libopencad/|
                 ogr/ogrsf_frmts/geojson/libjson/|
-                ogr/ogrsf_frmts/flatgeobuf/flatbuffers/
+                ogr/ogrsf_frmts/flatgeobuf/flatbuffers/|
+                ogr/ogrsf_frmts/pmtiles/pmtiles/|
+                ogr/ogrsf_frmts/sqlite/sqlite_rtree_bulk_load
               )
