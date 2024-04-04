@@ -99,8 +99,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
             CSLFetchNameValue(papszOpenOptions, "CreationMemoryRatio");
 
         if (pszMemoryRatio)
-            nMMMemoryRatio =
-                std::clamp(CPLAtof(pszMemoryRatio), (double)0.5f, (double)100);
+            nMMMemoryRatio = std::clamp(CPLAtof(pszMemoryRatio), 0.5, 100.0);
         else
             nMMMemoryRatio = 1;  // Default
 
@@ -300,8 +299,8 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                 CSLFetchNameValue(papszOpenOptions, "OpenMemoryRatio");
 
             if (pszMemoryRatio)
-                phMiraMonLayer->nMemoryRatio = std::clamp(
-                    CPLAtof(pszMemoryRatio), (double)0.5, (double)100);
+                phMiraMonLayer->nMemoryRatio =
+                    std::clamp(CPLAtof(pszMemoryRatio), 0.5, 100.0);
             else
                 phMiraMonLayer->nMemoryRatio = 1;  // Default
 
