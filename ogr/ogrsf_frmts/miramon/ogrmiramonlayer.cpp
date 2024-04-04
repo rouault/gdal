@@ -29,6 +29,7 @@
 #include "mm_gdal_functions.h"  // For MMCreateExtendedDBFIndex()
 #include "mm_gdal_constants.h"  // For strcasecmp()
 #include "mm_rdlayr.h"          // For MMInitLayerToRead()
+#include <algorithm>            // for std::clamp()
 
 /****************************************************************************/
 /*                            OGRMiraMonLayer()                             */
@@ -98,7 +99,8 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
             CSLFetchNameValue(papszOpenOptions, "CreationMemoryRatio");
 
         if (pszMemoryRatio)
-            nMMMemoryRatio = atof(pszMemoryRatio);
+            nMMMemoryRatio =
+                std::clamp(CPLAtof(pszMemoryRatio), (double)0.5f, (double)100);
         else
             nMMMemoryRatio = 1;  // Default
 
@@ -187,17 +189,17 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
         // Saving the HRS in the layer structure
         if (poSRS)
         {
-            if (poSRS->GetAuthorityName(nullptr) &&
-                EQUAL(poSRS->GetAuthorityName(nullptr), "EPSG"))
+            const char *pszAuthorityName = poSRS->GetAuthorityName(nullptr);
+            const char *pszAuthorityCode = poSRS->GetAuthorityCode(nullptr);
+
+            if (pszAuthorityName && pszAuthorityCode &&
+                EQUAL(pszAuthorityName, "EPSG"))
             {
                 CPLDebugOnly("MiraMon", "Setting EPSG code %s",
-                             poSRS->GetAuthorityCode(nullptr));
-                hMiraMonLayerPNT.pSRS =
-                    CPLStrdup(poSRS->GetAuthorityCode(nullptr));
-                hMiraMonLayerARC.pSRS =
-                    CPLStrdup(poSRS->GetAuthorityCode(nullptr));
-                hMiraMonLayerPOL.pSRS =
-                    CPLStrdup(poSRS->GetAuthorityCode(nullptr));
+                             pszAuthorityCode);
+                hMiraMonLayerPNT.pSRS = CPLStrdup(pszAuthorityCode);
+                hMiraMonLayerARC.pSRS = CPLStrdup(pszAuthorityCode);
+                hMiraMonLayerPOL.pSRS = CPLStrdup(pszAuthorityCode);
             }
         }
     }
@@ -298,17 +300,10 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                 CSLFetchNameValue(papszOpenOptions, "OpenMemoryRatio");
 
             if (pszMemoryRatio)
-                phMiraMonLayer->nMemoryRatio = atof(pszMemoryRatio);
+                phMiraMonLayer->nMemoryRatio = std::clamp(
+                    CPLAtof(pszMemoryRatio), (double)0.5, (double)100);
             else
                 phMiraMonLayer->nMemoryRatio = 1;  // Default
-
-            if (phMiraMonLayer->nMemoryRatio < 0)
-                phMiraMonLayer->nMemoryRatio =
-                    fabs(phMiraMonLayer->nMemoryRatio);
-
-            // It has no sense try to work with less ratio than 0.25.
-            if (phMiraMonLayer->nMemoryRatio < 0.25)
-                phMiraMonLayer->nMemoryRatio = 0.25;
 
             /* ------------------------------------------------------------ */
             /*   Establish the descriptors language when                    */
@@ -415,9 +410,11 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
 
                     oField.SetAlternativeName(
                         phMiraMonLayer->pMMBDXP->pField[nIField]
-                            .FieldDescription[phMiraMonLayer->nMMLanguage < 4
-                                                  ? phMiraMonLayer->nMMLanguage
-                                                  : 0]);
+                            .FieldDescription
+                                [phMiraMonLayer->nMMLanguage <
+                                         MM_NUM_IDIOMES_MD_MULTIDIOMA
+                                     ? phMiraMonLayer->nMMLanguage
+                                     : 0]);
 
                     if (phMiraMonLayer->pMMBDXP->pField[nIField].FieldType ==
                         'C')
@@ -492,12 +489,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
             }
         }
 
-        if (poSRS)
-        {
-            m_poSRS = poSRS->Clone();
-            m_poSRS->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-        }
-
+        m_poSRS->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
         poFeatureDefn->GetGeomFieldDefn(0)->SetSpatialRef(m_poSRS);
     }
 
@@ -847,7 +839,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
             case MM_LayerType_Pol:
             case MM_LayerType_Pol3d:
                 // Read polygon
-                OGRPolygon poPoly;
+                auto poPoly = std::make_unique<OGRPolygon>();
                 MM_POLYGON_RINGS_COUNT nIRing;
                 MM_N_VERTICES_TYPE nIVrtAcum;
 
@@ -879,7 +871,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                     for (nIRing = 0;
                          nIRing < phMiraMonLayer->ReadFeature.nNRings; nIRing++)
                     {
-                        OGRLinearRing poRing;
+                        auto poRing = std::make_unique<OGRLinearRing>();
 
                         IAmExternal = (MM_BOOLEAN)(phMiraMonLayer->ReadFeature
                                                        .flag_VFG[nIRing] |
@@ -892,23 +884,23 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                         {
                             if (phMiraMonLayer->TopHeader.bIs3d)
                             {
-                                poRing.addPoint(phMiraMonLayer->ReadFeature
-                                                    .pCoord[nIVrtAcum]
-                                                    .dfX,
-                                                phMiraMonLayer->ReadFeature
-                                                    .pCoord[nIVrtAcum]
-                                                    .dfY,
-                                                phMiraMonLayer->ReadFeature
-                                                    .pZCoord[nIVrtAcum]);
+                                poRing->addPoint(phMiraMonLayer->ReadFeature
+                                                     .pCoord[nIVrtAcum]
+                                                     .dfX,
+                                                 phMiraMonLayer->ReadFeature
+                                                     .pCoord[nIVrtAcum]
+                                                     .dfY,
+                                                 phMiraMonLayer->ReadFeature
+                                                     .pZCoord[nIVrtAcum]);
                             }
                             else
                             {
-                                poRing.addPoint(phMiraMonLayer->ReadFeature
-                                                    .pCoord[nIVrtAcum]
-                                                    .dfX,
-                                                phMiraMonLayer->ReadFeature
-                                                    .pCoord[nIVrtAcum]
-                                                    .dfY);
+                                poRing->addPoint(phMiraMonLayer->ReadFeature
+                                                     .pCoord[nIVrtAcum]
+                                                     .dfX,
+                                                 phMiraMonLayer->ReadFeature
+                                                     .pCoord[nIVrtAcum]
+                                                     .dfY);
                             }
 
                             nIVrtAcum++;
@@ -922,12 +914,12 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                               MM_EXTERIOR_ARC_SIDE)) ||
                             nIRing + 1 >= phMiraMonLayer->ReadFeature.nNRings)
                         {
-                            poPoly.addRing(&poRing);
-                            poMP->addGeometry(&poPoly);
-                            poPoly.empty();
+                            poPoly->addRingDirectly(poRing.release());
+                            poMP->addGeometryDirectly(poPoly.release());
+                            poPoly = std::make_unique<OGRPolygon>();
                         }
                         else
-                            poPoly.addRing(&poRing);
+                            poPoly->addRingDirectly(poRing.release());
                     }
                 }
                 else
@@ -961,7 +953,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                              nIRing < phMiraMonLayer->ReadFeature.nNRings;
                              nIRing++)
                         {
-                            OGRLinearRing poRing;
+                            auto poRing = std::make_unique<OGRLinearRing>();
 
                             for (MM_N_VERTICES_TYPE nIVrt = 0;
                                  nIVrt < phMiraMonLayer->ReadFeature
@@ -970,28 +962,28 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                             {
                                 if (phMiraMonLayer->TopHeader.bIs3d)
                                 {
-                                    poRing.addPoint(phMiraMonLayer->ReadFeature
-                                                        .pCoord[nIVrtAcum]
-                                                        .dfX,
-                                                    phMiraMonLayer->ReadFeature
-                                                        .pCoord[nIVrtAcum]
-                                                        .dfY,
-                                                    phMiraMonLayer->ReadFeature
-                                                        .pZCoord[nIVrtAcum]);
+                                    poRing->addPoint(phMiraMonLayer->ReadFeature
+                                                         .pCoord[nIVrtAcum]
+                                                         .dfX,
+                                                     phMiraMonLayer->ReadFeature
+                                                         .pCoord[nIVrtAcum]
+                                                         .dfY,
+                                                     phMiraMonLayer->ReadFeature
+                                                         .pZCoord[nIVrtAcum]);
                                 }
                                 else
                                 {
-                                    poRing.addPoint(phMiraMonLayer->ReadFeature
-                                                        .pCoord[nIVrtAcum]
-                                                        .dfX,
-                                                    phMiraMonLayer->ReadFeature
-                                                        .pCoord[nIVrtAcum]
-                                                        .dfY);
+                                    poRing->addPoint(phMiraMonLayer->ReadFeature
+                                                         .pCoord[nIVrtAcum]
+                                                         .dfX,
+                                                     phMiraMonLayer->ReadFeature
+                                                         .pCoord[nIVrtAcum]
+                                                         .dfY);
                                 }
 
                                 nIVrtAcum++;
                             }
-                            poP->addRing(&poRing);
+                            poP->addRingDirectly(poRing.release());
                         }
                     }
                 }
