@@ -617,6 +617,7 @@ static char *MM_SetSubIndexFieldNam(const char *nom_camp,
         return nullptr;
 
     strncpy(NomCamp_SubIndex, nom_camp, ampladamax);
+    NomCamp_SubIndex[ampladamax - 1] = '\0';
 
     snprintf(subindex, sizeof(subindex), sprintf_UINT64, (GUInt64)index);
 
