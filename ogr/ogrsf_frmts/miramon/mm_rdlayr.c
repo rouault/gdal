@@ -345,6 +345,10 @@ MMGetMultiPolygonCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
     MM_BOOLEAN bAvoidFirst;
     MM_N_VERTICES_TYPE nNAcumulVertices = 0;
 
+    // Checking if the index of the polygon is in the correct range.
+    if (i_pol >= hMiraMonLayer->TopHeader.nElemCount)
+        return 1;
+
     MMResetFeatureGeometry(&hMiraMonLayer->ReadFeature);
     MMResetFeatureRecord(&hMiraMonLayer->ReadFeature);
     pPolHeader = hMiraMonLayer->MMPolygon.pPolHeader + i_pol;
@@ -433,6 +437,16 @@ MMGetMultiPolygonCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
                 free_function(pBuffer);
             return 1;
         }
+
+        // Checking if the index of the arc is in the correct range.
+        if ((hMiraMonLayer->pArcs + nIndex)->nIArc >
+            hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount)
+        {
+            if (pBuffer)
+                free_function(pBuffer);
+            return 1;
+        }
+
         pArcHeader = hMiraMonLayer->MMPolygon.MMArc.pArcHeader +
                      (hMiraMonLayer->pArcs + nIndex)->nIArc;
         hMiraMonLayer->ReadFeature
