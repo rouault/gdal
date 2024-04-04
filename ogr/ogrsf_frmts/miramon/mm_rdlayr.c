@@ -442,8 +442,7 @@ MMGetMultiPolygonCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if ((hMiraMonLayer->pArcs + nIndex)->nIArc >=
             hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount)
         {
-            if (pBuffer)
-                free_function(pBuffer);
+            free_function(pBuffer);
             return 1;
         }
 
