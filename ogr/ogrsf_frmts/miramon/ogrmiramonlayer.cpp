@@ -334,6 +334,8 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                     delete m_poSRS;
                     m_poSRS = nullptr;
                 }
+                m_poSRS->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+                poFeatureDefn->GetGeomFieldDefn(0)->SetSpatialRef(m_poSRS);
             }
 
             // If there is associated information
@@ -488,9 +490,6 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                 }
             }
         }
-
-        m_poSRS->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-        poFeatureDefn->GetGeomFieldDefn(0)->SetSpatialRef(m_poSRS);
     }
 
     bValidFile = true;
