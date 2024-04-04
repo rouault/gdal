@@ -4538,6 +4538,12 @@ static int MMCreateFeaturePoint(struct MiraMonVectLayerInfo *hMiraMonLayer,
             else
             {
                 pZDescription = hMiraMonLayer->MMPoint.pZSection.pZDescription;
+                if (!pZDescription)
+                {
+                    MMCPLError(CE_Failure, CPLE_ObjectNull,
+                               "Error: pZDescription should not be nullptr");
+                    return MM_STOP_WRITING_FEATURES;
+                }
                 if (MMCheckVersionFor3DOffset(
                         hMiraMonLayer,
                         pZDescription[nElemCount - 1].nOffsetZ + sizeof(*pZ),
@@ -4562,6 +4568,12 @@ static int MMCreateFeaturePoint(struct MiraMonVectLayerInfo *hMiraMonLayer,
             }
 
             pZDescription = hMiraMonLayer->MMPoint.pZSection.pZDescription;
+            if (!pZDescription)
+            {
+                MMCPLError(CE_Failure, CPLE_ObjectNull,
+                           "Error: pZDescription should not be nullptr");
+                return MM_STOP_WRITING_FEATURES;
+            }
 
             pZDescription[nElemCount].dfBBminz = *pZ;
             pZDescription[nElemCount].dfBBmaxz = *pZ;
@@ -4608,6 +4620,13 @@ static int MMCreateFeaturePoint(struct MiraMonVectLayerInfo *hMiraMonLayer,
                 if (MMAppendBlockToBuffer(
                         &hMiraMonLayer->MMPoint.pZSection.FlushZL))
                     return MM_FATAL_ERROR_WRITING_FEATURES;
+
+                if (!pZDescription)
+                {
+                    MMCPLError(CE_Failure, CPLE_ObjectNull,
+                               "Error: pZDescription should not be nullptr");
+                    return MM_STOP_WRITING_FEATURES;
+                }
 
                 if (pZDescription[nElemCount].dfBBminz > *pZ)
                     pZDescription[nElemCount].dfBBminz = *pZ;
