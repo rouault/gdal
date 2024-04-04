@@ -97,16 +97,23 @@ edit data.
 
     An attribute query in a restricted form of the queries used in the SQL
     `WHERE` statement. Only features matching the attribute query will be
-    reported. Starting with GDAL 2.1, the ``\filename`` syntax can be used to
+    reported. Starting with GDAL 2.1, the ``@<filename>`` syntax can be used to
     indicate that the content is in the pointed filename.
 
-.. option:: -sql <statement>
+    Example of ``-where`` and quoting:
+
+.. code-block: bash
+
+    -where "\"Corner Point Identifier\" LIKE '%__00_00'"
+
+.. option:: -sql <statement>|@<filename>
 
     Execute the indicated SQL statement and return the result. Starting with
-    GDAL 2.1, the ``@filename`` syntax can be used to indicate that the content is
-    in the pointed filename. Data can also be edited with SQL INSERT, UPDATE,
+    GDAL 2.1, the ``@<filename>`` syntax can be used to indicate that the content is
+    in the pointed filename (e.g ``@my_select.txt`` where my_select.txt is a file
+    in the current directory). Data can also be edited with SQL INSERT, UPDATE,
     DELETE, DROP TABLE, ALTER TABLE etc. Editing capabilities depend on the selected
-    ``dialect``.
+    dialect with :option:`-dialect`.
 
 
 .. option:: -dialect <dialect>
