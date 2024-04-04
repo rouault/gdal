@@ -2850,7 +2850,7 @@ static void MMGetOffsetAlignedTo8(MM_FILE_OFFSET *Offset)
 // Reading integers depending on the version being read.
 int MMReadGUInt64DependingOnVersion(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                     struct MM_FLUSH_INFO *FlushInfo,
-                                    GUInt64 *nUI64)
+                                    GUInt64 *pnUI64)
 {
     uint32_t nUL32;
 
@@ -2866,12 +2866,12 @@ int MMReadGUInt64DependingOnVersion(struct MiraMonVectLayerInfo *hMiraMonLayer,
             FlushInfo->pBlockToBeSaved = nullptr;
             return 1;
         }
-        *nUI64 = (GUInt64)nUL32;
+        *pnUI64 = (GUInt64)nUL32;
     }
     else
     {
-        FlushInfo->pBlockToBeSaved = (void *)nUI64;
-        FlushInfo->SizeOfBlockToBeSaved = sizeof(&nUI64);
+        FlushInfo->pBlockToBeSaved = (void *)pnUI64;
+        FlushInfo->SizeOfBlockToBeSaved = sizeof(*pnUI64);
         if (MMReadBlockFromBuffer(FlushInfo))
         {
             FlushInfo->pBlockToBeSaved = nullptr;
@@ -2885,7 +2885,7 @@ int MMReadGUInt64DependingOnVersion(struct MiraMonVectLayerInfo *hMiraMonLayer,
 // Reading offsets depending on the version is being read.
 int MMReadOffsetDependingOnVersion(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                    struct MM_FLUSH_INFO *FlushInfo,
-                                   MM_FILE_OFFSET *nUI64)
+                                   MM_FILE_OFFSET *pnUI64)
 {
     uint32_t nUL32;
 
@@ -2901,12 +2901,12 @@ int MMReadOffsetDependingOnVersion(struct MiraMonVectLayerInfo *hMiraMonLayer,
             FlushInfo->pBlockToBeSaved = nullptr;
             return 1;
         }
-        *nUI64 = (MM_FILE_OFFSET)nUL32;
+        *pnUI64 = (MM_FILE_OFFSET)nUL32;
     }
     else
     {
-        FlushInfo->pBlockToBeSaved = (void *)nUI64;
-        FlushInfo->SizeOfBlockToBeSaved = sizeof(&nUI64);
+        FlushInfo->pBlockToBeSaved = (void *)pnUI64;
+        FlushInfo->SizeOfBlockToBeSaved = sizeof(*pnUI64);
         if (MMReadBlockFromBuffer(FlushInfo))
         {
             FlushInfo->pBlockToBeSaved = nullptr;

@@ -76,7 +76,7 @@ static int OGRMiraMonDriverIdentify(GDALOpenInfo *poOpenInfo)
 static GDALDataset *OGRMiraMonDriverOpen(GDALOpenInfo *poOpenInfo)
 
 {
-    if (!poOpenInfo->bStatOK)
+    if (OGRMiraMonDriverIdentify(poOpenInfo) == FALSE)
         return nullptr;
 
     OGRMiraMonDataSource *poDS = new OGRMiraMonDataSource();

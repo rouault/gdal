@@ -152,7 +152,7 @@ int MMReadFlush(struct MM_FLUSH_INFO *pFlush);
 int MMReadBlockFromBuffer(struct MM_FLUSH_INFO *FlushInfo);
 int MMReadGUInt64DependingOnVersion(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                     struct MM_FLUSH_INFO *FlushInfo,
-                                    GUInt64 *nUI64);
+                                    GUInt64 *pnUI64);
 int MMReadOffsetDependingOnVersion(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                    struct MM_FLUSH_INFO *FlushInfo,
                                    MM_FILE_OFFSET *nUI64);
