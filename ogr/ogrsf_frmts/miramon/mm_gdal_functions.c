@@ -917,16 +917,19 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
                         }
                         if (c)
                         {
-                            strcpy(
+                            strncpy(
                                 data_base_XP->pField[i].ClassicalDBFFieldName,
-                                c);
+                                c,
+                                sizeof(data_base_XP->pField[i]
+                                           .ClassicalDBFFieldName));
                             free_function(c);
                         }
                     }
                 }
                 else
-                    strcpy(data_base_XP->pField[i].ClassicalDBFFieldName,
-                           nom_temp);
+                    strncpy(
+                        data_base_XP->pField[i].ClassicalDBFFieldName, nom_temp,
+                        sizeof(data_base_XP->pField[i].ClassicalDBFFieldName));
             }
 
             // This is a 11-byte fixed size field consisting of the filename
@@ -1090,11 +1093,11 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
 MM_BOOLEAN MM_CreateDBFFile(struct MM_DATA_BASE_XP *bd_xp,
                             const char *NomFitxer)
 {
-    if (MMIsEmptyString(NomFitxer))
-        return TRUE;  // No file no error. Just continue
+    if (!NomFitxer || MMIsEmptyString(NomFitxer) || !bd_xp)
+        return FALSE;
+
     MM_CheckDBFHeader(bd_xp);
-    if (NomFitxer)
-        strcpy(bd_xp->szFileName, NomFitxer);
+    strncpy(bd_xp->szFileName, NomFitxer, sizeof(bd_xp->szFileName));
     return MM_UpdateEntireHeader(bd_xp);
 }
 
@@ -1153,7 +1156,7 @@ int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
     if (!szFileName)
         return 1;
 
-    strcpy(pMMBDXP->szFileName, szFileName);
+    strncpy(pMMBDXP->szFileName, szFileName, sizeof(pMMBDXP->szFileName));
     strcpy(pMMBDXP->ReadingMode, "rb");
 
     if ((pMMBDXP->pfDataBase = fopen_function(pMMBDXP->szFileName,
@@ -1248,7 +1251,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         char charset_cpg[11];
 
         strcpy(cpg_file, pMMBDXP->szFileName);
-        strcpy(cpg_file, reset_extension(cpg_file, "cpg"));
+        strncpy(cpg_file, reset_extension(cpg_file, "cpg"), sizeof(cpg_file));
         f_cpg = fopen_function(cpg_file, "r");
         if (f_cpg)
         {
@@ -1968,22 +1971,26 @@ static MM_BOOLEAN MM_FillFieldDB_XP(
     }
 
     if (FieldDescriptionEng)
-        strcpy(camp->FieldDescription[MM_DEF_LANGUAGE], FieldDescriptionEng);
+        strncpy(camp->FieldDescription[MM_DEF_LANGUAGE], FieldDescriptionEng,
+                sizeof(camp->FieldDescription[MM_DEF_LANGUAGE]));
     else
         strcpy(camp->FieldDescription[MM_DEF_LANGUAGE], "\0");
 
     if (FieldDescriptionEng)
-        strcpy(camp->FieldDescription[MM_ENG_LANGUAGE], FieldDescriptionEng);
+        strncpy(camp->FieldDescription[MM_ENG_LANGUAGE], FieldDescriptionEng,
+                sizeof(camp->FieldDescription[MM_ENG_LANGUAGE]));
     else
         strcpy(camp->FieldDescription[MM_ENG_LANGUAGE], "\0");
 
     if (FieldDescriptionCat)
-        strcpy(camp->FieldDescription[MM_CAT_LANGUAGE], FieldDescriptionCat);
+        strncpy(camp->FieldDescription[MM_CAT_LANGUAGE], FieldDescriptionCat,
+                sizeof(camp->FieldDescription[MM_CAT_LANGUAGE]));
     else
         strcpy(camp->FieldDescription[MM_CAT_LANGUAGE], "\0");
 
     if (FieldDescriptionSpa)
-        strcpy(camp->FieldDescription[MM_SPA_LANGUAGE], FieldDescriptionSpa);
+        strncpy(camp->FieldDescription[MM_SPA_LANGUAGE], FieldDescriptionSpa,
+                sizeof(camp->FieldDescription[MM_SPA_LANGUAGE]));
     else
         strcpy(camp->FieldDescription[MM_SPA_LANGUAGE], "\0");
 
@@ -2807,6 +2814,7 @@ MMCreateExtendedDBFIndex(FILE_TYPE *f, MM_EXT_DBF_N_RECORDS nNumberOfRecords,
 
     if (bytes_id_grafic == UINT32_MAX)
     {
+        free_function(id);
         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                    "Overflow in bytes_id_graphic");
         return nullptr;

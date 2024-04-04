@@ -855,7 +855,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                     }
 
                     nIVrtAcum = 0;
-                    if (!(phMiraMonLayer->ReadFeature.flag_VFG[0] |
+                    if (!(phMiraMonLayer->ReadFeature.flag_VFG[0] &
                           MM_EXTERIOR_ARC_SIDE))
                     {
                         CPLError(CE_Failure, CPLE_NoWriteAccess,
@@ -871,7 +871,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                         auto poRing = std::make_unique<OGRLinearRing>();
 
                         IAmExternal = (MM_BOOLEAN)(phMiraMonLayer->ReadFeature
-                                                       .flag_VFG[nIRing] |
+                                                       .flag_VFG[nIRing] &
                                                    MM_EXTERIOR_ARC_SIDE);
 
                         for (MM_N_VERTICES_TYPE nIVrt = 0;
@@ -1587,7 +1587,9 @@ OGRErr OGRMiraMonLayer::MMProcessGeometry(OGRGeometryH hGeom,
         if (!phMiraMonLayer->bIsBeenInit)
         {
             phMiraMonLayer->bIsDBF = TRUE;
-            MMInitLayerByType(phMiraMonLayer);
+            if (MMInitLayerByType(phMiraMonLayer))
+                eErr = OGRERR_FAILURE;
+
             phMiraMonLayer->bIsBeenInit = 1;
         }
     }
@@ -1678,6 +1680,9 @@ OGRErr OGRMiraMonLayer::MMDumpVertices(OGRGeometryH hGeom,
 {
     // If the MiraMonLayer structure has not been init,
     // here is the moment to do that.
+    if (!phMiraMonLayer)
+        return OGRERR_FAILURE;
+
     if (!phMiraMonLayer->bIsBeenInit)
     {
         if (MMInitLayerByType(phMiraMonLayer))

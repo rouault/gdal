@@ -86,9 +86,10 @@ int OGRMiraMonDataSource::Open(const char *pszFilename, VSILFILE *fp,
         if (!EQUAL(pszExtension, "pol") && !EQUAL(pszExtension, "arc") &&
             !EQUAL(pszExtension, "pnt"))
         {
-            strcpy(
+            strncpy(
                 MMMap.pszMapName,
-                CPLFormFilename(pszDSName, CPLGetBasename(pszDSName), "mmm"));
+                CPLFormFilename(pszDSName, CPLGetBasename(pszDSName), "mmm"),
+                sizeof(MMMap.pszMapName));
             if (!MMMap.nNumberOfLayers)
             {
                 MMMap.fMMMap = VSIFOpenL(MMMap.pszMapName, "w+");
