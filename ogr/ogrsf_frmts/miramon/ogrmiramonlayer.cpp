@@ -1411,7 +1411,9 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
         }
     }
 
-    poFeature->SetFID(nIElem);
+    // Even in case of polygons, where the first feature is jumped
+    // the ID of the first feature has to be 0, the second, 1,...
+    poFeature->SetFID(nFeatureId);
 
     // Perhaps there are features without geometry.
     m_nFeaturesRead++;
