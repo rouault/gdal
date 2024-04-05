@@ -182,7 +182,7 @@ def test_ogr_miramon_simple_polygon():
 
     assert lyr is not None, "Failed to get layer"
 
-    assert lyr.GetFeatureCount() == 4
+    assert lyr.GetFeatureCount() == 3
     assert lyr.GetGeomType() == ogr.wkbPolygon
 
     # going to the first polygon
@@ -204,7 +204,7 @@ def test_ogr_miramon_simple_polygon():
 
     f = lyr.GetNextFeature()
     assert f is not None, "Failed to get feature"
-    assert f.GetFID() == 2
+    assert f.GetFID() == 1
     assert (
         f.GetGeometryRef().ExportToWkt()
         == "POLYGON ((1068.01522359662 849.807802093194,1160.10275927693 795.756422454755,1224.16365366323 682.648905803946,1156.09895337779 525.499524262557,962.915318744103 489.465271170264,830.789724072362 617.587059942862,924.879162702239 740.704091341529,1068.01522359662 849.807802093194))"
@@ -220,7 +220,7 @@ def test_ogr_miramon_simple_polygon():
 
     f = lyr.GetNextFeature()
     assert f is not None, "Failed to get feature"
-    assert f.GetFID() == 3
+    assert f.GetFID() == 2
     assert (
         f.GetGeometryRef().ExportToWkt()
         == "POLYGON ((636.605137963894 390.371075166458,580.551855375883 575.547098001853,723.687916270269 594.565176022785,796.757373929641 475.451950523261,744.707897240773 396.376784015173,636.605137963894 390.371075166458))"
