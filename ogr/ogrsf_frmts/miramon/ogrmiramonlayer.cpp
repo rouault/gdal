@@ -31,6 +31,7 @@
 #include "mm_rdlayr.h"          // For MMInitLayerToRead()
 #include <algorithm>            // For std::clamp()
 #include <string>               // For std::string
+#include <algorithm>            // For std::max
 
 /****************************************************************************/
 /*                            OGRMiraMonLayer()                             */
@@ -758,7 +759,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
     OGRGeometry *poGeom = nullptr;
     OGRPoint *poPoint = nullptr;
     OGRLineString *poLS = nullptr;
-    MM_INTERNAL_FID nIElem = (MM_INTERNAL_FID)nFeatureId;
+    MM_INTERNAL_FID nIElem;
     MM_EXT_DBF_N_MULTIPLE_RECORDS nIRecord = 0;
 
     if (!phMiraMonLayer)
@@ -766,6 +767,16 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
 
     if (nFeatureId < 0)
         return nullptr;
+
+    if (phMiraMonLayer->bIsPolygon)
+    {
+        if (nFeatureId == GINTBIG_MAX)
+            return nullptr;
+
+        nIElem = (MM_INTERNAL_FID)(nFeatureId + 1);
+    }
+    else
+        nIElem = (MM_INTERNAL_FID)nFeatureId;
 
     if (nIElem >= phMiraMonLayer->TopHeader.nElemCount)
         return nullptr;
@@ -998,7 +1009,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
     /*      Process field values if its possible.                           */
     /* -------------------------------------------------------------------- */
     if (phMiraMonLayer->pMMBDXP &&
-        (MM_EXT_DBF_N_RECORDS)nFeatureId < phMiraMonLayer->pMMBDXP->nRecords)
+        (MM_EXT_DBF_N_RECORDS)nIElem < phMiraMonLayer->pMMBDXP->nRecords)
     {
         MM_EXT_DBF_N_FIELDS nIField;
 
@@ -1400,7 +1411,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
         }
     }
 
-    poFeature->SetFID(nFeatureId);
+    poFeature->SetFID(nIElem);
 
     // Perhaps there are features without geometry.
     m_nFeaturesRead++;
@@ -1417,6 +1428,11 @@ GIntBig OGRMiraMonLayer::GetFeatureCount(int bForce)
         m_poAttrQuery != nullptr)
         return OGRLayer::GetFeatureCount(bForce);
 
+    if (phMiraMonLayer->bIsPolygon)
+    {
+        return std::max((GIntBig)0,
+                        (GIntBig)(phMiraMonLayer->TopHeader.nElemCount - 1));
+    }
     return (GIntBig)phMiraMonLayer->TopHeader.nElemCount;
 }
 
