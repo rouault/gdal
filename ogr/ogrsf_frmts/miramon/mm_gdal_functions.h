@@ -98,7 +98,9 @@ extern char szNumberOfElementaryPolygonsEng[];
 extern char szNumberOfElementaryPolygonsCat[];
 extern char szNumberOfElementaryPolygonsSpa[];
 
-char *MM_strnzcpy(char *dest, const char *src, size_t maxlen);
+#ifndef GDAL_COMPILATION
+char *CPLStrlcpy(char *dest, const char *src, size_t maxlen);
+#endif
 char *MM_oemansi(char *szcadena);
 char *MM_oemansi_n(char *szcadena, size_t n_bytes);
 void MM_InitializeField(struct MM_FIELD *camp);

@@ -1390,17 +1390,17 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                     char pszDate_3[3];
                     int Year, Month, Day;
 
-                    strncpy(pszDate_5, phMiraMonLayer->szStringToOperate, 4);
+                    CPLStrlcpy(pszDate_5, phMiraMonLayer->szStringToOperate, 4);
                     pszDate_5[4] = '\0';
                     Year = atoi(pszDate_5);
 
-                    strncpy(pszDate_3, phMiraMonLayer->szStringToOperate + 4,
-                            2);
+                    CPLStrlcpy(pszDate_3, phMiraMonLayer->szStringToOperate + 4,
+                               2);
                     (pszDate_3)[2] = '\0';
                     Month = atoi(pszDate_3);
 
-                    strncpy(pszDate_3, phMiraMonLayer->szStringToOperate + 6,
-                            2);
+                    CPLStrlcpy(pszDate_3, phMiraMonLayer->szStringToOperate + 6,
+                               2);
                     (pszDate_3)[2] = '\0';
                     Day = atoi(pszDate_3);
 
@@ -1971,14 +1971,14 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
                     char *pszString = CPLRecode(
                         m_poFeatureDefn->GetFieldDefn(iField)->GetNameRef(),
                         CPL_ENC_UTF8, CPL_ENC_ISO8859_1);
-                    MM_strnzcpy(
+                    CPLStrlcpy(
                         phMiraMonLayer->pLayerDB->pFields[iField].pszFieldName,
                         pszString, MM_MAX_LON_FIELD_NAME_DBF);
                     CPLFree(pszString);
                 }
                 else
                 {
-                    MM_strnzcpy(
+                    CPLStrlcpy(
                         phMiraMonLayer->pLayerDB->pFields[iField].pszFieldName,
                         m_poFeatureDefn->GetFieldDefn(iField)->GetNameRef(),
                         MM_MAX_LON_FIELD_NAME_DBF);
@@ -1993,18 +1993,18 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
                         CPLRecode(m_poFeatureDefn->GetFieldDefn(iField)
                                       ->GetAlternativeNameRef(),
                                   CPL_ENC_UTF8, CPL_ENC_ISO8859_1);
-                    MM_strnzcpy(phMiraMonLayer->pLayerDB->pFields[iField]
-                                    .pszFieldDescription,
-                                pszString, MM_MAX_BYTES_FIELD_DESC);
+                    CPLStrlcpy(phMiraMonLayer->pLayerDB->pFields[iField]
+                                   .pszFieldDescription,
+                               pszString, MM_MAX_BYTES_FIELD_DESC);
                     CPLFree(pszString);
                 }
                 else
                 {
-                    MM_strnzcpy(phMiraMonLayer->pLayerDB->pFields[iField]
-                                    .pszFieldDescription,
-                                m_poFeatureDefn->GetFieldDefn(iField)
-                                    ->GetAlternativeNameRef(),
-                                MM_MAX_BYTES_FIELD_DESC);
+                    CPLStrlcpy(phMiraMonLayer->pLayerDB->pFields[iField]
+                                   .pszFieldDescription,
+                               m_poFeatureDefn->GetFieldDefn(iField)
+                                   ->GetAlternativeNameRef(),
+                               MM_MAX_BYTES_FIELD_DESC);
                 }
             }
             phMiraMonLayer->pLayerDB->nNFields++;
@@ -2225,7 +2225,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                     panValues[nIRecord];
 
                 // TODO: decide how many decimals use. If possible.
-                //strncpy(format, CPLSPrintf("%f", panValues[nIRecord]),23);
+                //CPLStrlcpy(format, CPLSPrintf("%f", panValues[nIRecord]),23);
 
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,

@@ -86,7 +86,7 @@ int OGRMiraMonDataSource::Open(const char *pszFilename, VSILFILE *fp,
         if (!EQUAL(pszExtension, "pol") && !EQUAL(pszExtension, "arc") &&
             !EQUAL(pszExtension, "pnt"))
         {
-            strncpy(
+            CPLStrlcpy(
                 MMMap.pszMapName,
                 CPLFormFilename(pszDSName, CPLGetBasename(pszDSName), "mmm"),
                 sizeof(MMMap.pszMapName));
