@@ -753,9 +753,12 @@ struct MiraMonVectLayerInfo
     MM_EXT_DBF_N_RECORDS
     nMaxN;  // Max number of elements in a field features list
     struct MM_ID_GRAFIC_MULTIPLE_RECORD *pMultRecordIndex;
-    // In case of multirecord, if user wants only one Record 'iMultiRecord'
-    // specifies which one: 0, 1, 2,... or "Last". There is also the "JSON" option
-    // that writes a serialized JSON array like (``[1,2]``).
+// In case of multirecord, if user wants only one Record 'iMultiRecord'
+// specifies which one: 0, 1, 2,... or "Last". There is also the "JSON" option
+// that writes a serialized JSON array like (``[1,2]``).
+#define MM_MULTIRECORD_LAST -1
+#define MM_MULTIRECORD_NO_MULTIRECORD -2
+#define MM_MULTIRECORD_JSON -3
     int iMultiRecord;
 
     // Charset of DBF files (same for all) when writing it.
