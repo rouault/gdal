@@ -155,6 +155,9 @@ git clone --depth 1 https://gitbox.apache.org/repos/asf/xerces-c.git
 rm -rf sqlite
 git clone --depth 1 https://github.com/sqlite/sqlite sqlite
 
+rm -rf arrow
+git clone --depth 1 https://github.com/apache/arrow arrow
+
 # libxerces-c-dev${ARCH_SUFFIX}
 # libsqlite3-dev${ARCH_SUFFIX}
 PACKAGES="zlib1g-dev${ARCH_SUFFIX} libexpat-dev${ARCH_SUFFIX} liblzma-dev${ARCH_SUFFIX} \
@@ -178,6 +181,31 @@ if [ "$ARCHITECTURE" = "i386" ]; then
     NON_FUZZING_CFLAGS="-m32 ${NON_FUZZING_CFLAGS}"
 fi
 NON_FUZZING_CXXFLAGS="$NON_FUZZING_CFLAGS -stdlib=libc++"
+
+# build arrow
+cd arrow/cpp
+mkdir -p build
+cd build
+cmake .. \
+  -DCMAKE_INSTALL_PREFIX=$SRC/install \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DARROW_BUILD_SHARED=OFF \
+  -DARROW_BUILD_STATIC=ON \
+  -DARROW_WITH_ZLIB=ON \
+  -DARROW_WITH_ZSTD=ON \
+  -DARROW_WITH_SNAPPY=ON \
+  -DARROW_BUILD_TESTS=OFF \
+  -DARROW_BUILD_UTILITIES=OFF \
+  -DARROW_BUILD_INTEGRATION=OFF \
+  -DARROW_JEMALLOC=OFF \
+  -DARROW_MIMALLOC=OFF \
+  -DARROW_PARQUET=ON \
+  -DARROW_DATASET=ON \
+  -DARROW_FUZZING=ON
+make clean -s
+make -j$(nproc) -s
+make install
+cd ../../..
 
 # build sqlite
 cd sqlite
@@ -315,6 +343,7 @@ cmake .. \
     -DGDAL_USE_GEOTIFF_INTERNAL=ON \
     -DGDAL_USE_HDF5=OFF \
     -DGDAL_USE_PNG_INTERNAL=ON \
+    -DARROW_USE_STATIC_LIBRARIES=ON \
     -DBUILD_APPS:BOOL=OFF  \
     -DBUILD_CSHARP_BINDINGS:BOOL=OFF  \
     -DBUILD_JAVA_BINDINGS:BOOL=OFF  \
@@ -338,6 +367,8 @@ if [ "$ARCHITECTURE" = "x86_64" ]; then
 fi
 # poppler related
 export EXTRA_LIBS="$EXTRA_LIBS -L$SRC/install/lib -lpoppler -ljpeg -lfreetype -lfontconfig -lpng"
+# arrow related
+export EXTRA_LIBS="$EXTRA_LIBS -L$SRC/install/lib -larrow -larrow_dataset -larrow_acero -lparquet"
 export EXTRA_LIBS="$EXTRA_LIBS -Wl,-Bdynamic -ldl -lpthread"
 
 # to find sqlite3.h

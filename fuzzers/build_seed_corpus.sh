@@ -613,5 +613,11 @@ cd $CUR_DIR
 zip -r $OUT/ogr_miramon_fuzzer_seed_corpus.zip ogr_miramon_*.tar >/dev/null
 rm ogr_miramon_*.tar
 
+echo "Building parquet_fuzzer_seed_corpus.zip"
+cd $(dirname $0)/../autotest/ogr/data/parquet
+rm -f $OUT/parquet_fuzzer_seed_corpus.zip
+zip -r $OUT/parquet_fuzzer_seed_corpus.zip ./*.parquet >/dev/null
+cd $OLDPWD
+
 echo "Copying data to $OUT"
 cp $(dirname $0)/../data/* $OUT
