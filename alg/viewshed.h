@@ -61,22 +61,22 @@ public:
 
     struct Options
     {
-        Point observer;
-        uint8_t visibleVal;
-        uint8_t invisibleVal;
-        uint8_t outOfRangeVal;
-        double nodataVal;
-        double targetHeight;
-        double maxDistance;
-        double curveCoeff;
-        OutputMode outputMode;
-        std::string outputFormat;
-        std::string outputFilename;
-        CPLStringList creationOpts;
-        CellMode cellMode = CellMode::Edge;
+        Point observer { 0, 0, 0 };
+        uint8_t visibleVal { 0 };
+        uint8_t invisibleVal { 0 };
+        uint8_t outOfRangeVal { 0 };
+        double nodataVal { 0.0 };
+        double targetHeight { 0.0 };
+        double maxDistance { 0.0 };
+        double curveCoeff { 0.0 };
+        OutputMode outputMode { OutputMode::Normal };
+        std::string outputFormat {};
+        std::string outputFilename {};
+        CPLStringList creationOpts {};
+        CellMode cellMode { CellMode::Edge };
     };
 
-    CPL_DLL Viewshed(const Options& opts) : oOpts{opts}, poDstDS{}
+    CPL_DLL explicit Viewshed(const Options& opts) : oOpts{opts}, poDstDS{}
     {}
 
     CPL_DLL bool run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress);

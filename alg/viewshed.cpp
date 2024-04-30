@@ -25,7 +25,9 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
+#include <algorithm>
 #include <array>
+#include <limits>
 
 #include "gdal_alg.h"
 #include "gdal_priv.h"
@@ -109,10 +111,8 @@ void SetVisibility(int iPixel, double dfZ, double dfZTarget,
         padfZVal[iPixel] = dfZ;
 }
 
-bool AdjustHeightInRange(const double *adfGeoTransform,
-                                       int iPixel, int iLine, double &dfHeight,
-                                       double dfDistance2, double dfCurvCoeff,
-                                       double dfSphereDiameter)
+bool AdjustHeightInRange(const double *adfGeoTransform, int iPixel, int iLine, double &dfHeight,
+                         double dfDistance2, double dfCurvCoeff, double dfSphereDiameter)
 {
     if (dfDistance2 <= 0 && dfCurvCoeff == 0)
         return true;
@@ -155,7 +155,7 @@ double CalcHeightEdge(int i, int j, double Za, double Zb, double Zo)
 
 double CalcHeight(double dfZ, double dfZ2, Viewshed::CellMode eMode)
 {
-    double dfHeight;
+    double dfHeight = dfZ;
 
     switch (eMode)
     {
