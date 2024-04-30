@@ -202,6 +202,43 @@ static inline bool IsLargeBinary(const char *format)
     return format[0] == ARROW_LETTER_LARGE_BINARY && format[1] == 0;
 }
 
+static inline bool IsTimestampInternal(const char *format, char chType)
+{
+    return format[0] == 't' && format[1] == 's' && format[2] == chType &&
+           format[3] == ':';
+}
+
+static inline bool IsTimestampSeconds(const char *format)
+{
+    return IsTimestampInternal(format, 's');
+}
+
+static inline bool IsTimestampMilliseconds(const char *format)
+{
+    return IsTimestampInternal(format, 'm');
+}
+
+static inline bool IsTimestampMicroseconds(const char *format)
+{
+    return IsTimestampInternal(format, 'u');
+}
+
+static inline bool IsTimestampNanoseconds(const char *format)
+{
+    return IsTimestampInternal(format, 'n');
+}
+
+static inline bool IsTimestamp(const char *format)
+{
+    return IsTimestampSeconds(format) || IsTimestampMilliseconds(format) ||
+           IsTimestampMicroseconds(format) || IsTimestampNanoseconds(format);
+}
+
+static inline const char *GetTimestampTimezone(const char *format)
+{
+    return IsTimestamp(format) ? format + strlen("tm?:") : "";
+}
+
 /************************************************************************/
 /*                            TestBit()                                 */
 /************************************************************************/
@@ -2820,20 +2857,9 @@ static bool IsHandledSchema(bool bTopLevel, const struct ArrowSchema *schema,
         return true;
     }
 
-    const char *const apszHandledFormatsPrefix[] = {
-        "w:",    // fixed width binary
-        "tss:",  // timestamp [seconds] with timezone
-        "tsm:",  // timestamp [milliseconds] with timezone
-        "tsu:",  // timestamp [microseconds] with timezone
-        "tsn:",  // timestamp [nanoseconds] with timezone
-    };
-
-    for (const char *pszHandledFormat : apszHandledFormatsPrefix)
+    if (IsFixedWidthBinary(format) || IsTimestamp(format))
     {
-        if (strncmp(format, pszHandledFormat, strlen(pszHandledFormat)) == 0)
-        {
-            return true;
-        }
+        return true;
     }
 
     CPLDebug("OGR", "Field %s has unhandled format '%s'",
@@ -4303,37 +4329,30 @@ static bool SetFieldForOtherFormats(OGRFeature &oFeature,
                           static_cast<GIntBig>(static_cast<const int64_t *>(
                               array->buffers[1])[nOffsettedIndex]));
     }
-    else if (format[0] == 't' && format[1] == 's' && format[2] == 's' &&
-             format[3] == ':')  // STARTS_WITH(format, "tss:")
+    else if (IsTimestampSeconds(format))
     {
-        // timestamp [seconds] with timezone
         ArrowTimestampToOGRDateTime(
             static_cast<const int64_t *>(array->buffers[1])[nOffsettedIndex], 1,
-            format + strlen("tss:"), oFeature, iOGRFieldIndex);
+            GetTimestampTimezone(format), oFeature, iOGRFieldIndex);
     }
-    else if (format[0] == 't' && format[1] == 's' && format[2] == 'm' &&
-             format[3] == ':')  // STARTS_WITH(format, "tsm:"))
+    else if (IsTimestampMilliseconds(format))
     {
-        //  timestamp [milliseconds] with timezone
         ArrowTimestampToOGRDateTime(
             static_cast<const int64_t *>(array->buffers[1])[nOffsettedIndex],
-            1000, format + strlen("tsm:"), oFeature, iOGRFieldIndex);
+            1000, GetTimestampTimezone(format), oFeature, iOGRFieldIndex);
     }
-    else if (format[0] == 't' && format[1] == 's' && format[2] == 'u' &&
-             format[3] == ':')  // STARTS_WITH(format, "tsu:"))
+    else if (IsTimestampMicroseconds(format))
     {
-        //  timestamp [microseconds] with timezone
         ArrowTimestampToOGRDateTime(
             static_cast<const int64_t *>(array->buffers[1])[nOffsettedIndex],
-            1000 * 1000, format + strlen("tsu:"), oFeature, iOGRFieldIndex);
+            1000 * 1000, GetTimestampTimezone(format), oFeature,
+            iOGRFieldIndex);
     }
-    else if (format[0] == 't' && format[1] == 's' && format[2] == 'n' &&
-             format[3] == ':')  // STARTS_WITH(format, "tsn:"))
+    else if (IsTimestampNanoseconds(format))
     {
-        //  timestamp [nanoseconds] with timezone
         ArrowTimestampToOGRDateTime(
             static_cast<const int64_t *>(array->buffers[1])[nOffsettedIndex],
-            1000 * 1000 * 1000, format + strlen("tsn:"), oFeature,
+            1000 * 1000 * 1000, GetTimestampTimezone(format), oFeature,
             iOGRFieldIndex);
     }
     else if (IsFixedSizeList(format))
@@ -5227,9 +5246,7 @@ static bool OGRCloneArrowArray(const struct ArrowSchema *schema,
             }
             else if (IsUInt64(format) || IsInt64(format) || IsFloat64(format) ||
                      strcmp(format, "tdm") == 0 || strcmp(format, "ttu") == 0 ||
-                     strcmp(format, "ttn") == 0 || strcmp(format, "tss") == 0 ||
-                     STARTS_WITH(format, "tsm:") ||
-                     STARTS_WITH(format, "tsu:") || STARTS_WITH(format, "tsn:"))
+                     strcmp(format, "ttn") == 0 || IsTimestamp(format))
             {
                 nEltSize = sizeof(uint64_t);
             }
@@ -5692,20 +5709,8 @@ static bool IsArrowSchemaSupportedInternal(const struct ArrowSchema *schema,
             }
         }
 
-        if (IsFixedWidthBinary(format))
+        if (IsFixedWidthBinary(format) || IsTimestamp(format))
             return true;
-
-        const char *const apszTimestamps[] = {
-            "tss:",  // timestamp[s]
-            "tsm:",  // timestamp[ms]
-            "tsu:",  // timestamp[us]
-            "tsn:"   // timestamp[ns]
-        };
-        for (const char *pszSupported : apszTimestamps)
-        {
-            if (STARTS_WITH(format, pszSupported))
-                return true;
-        }
 
         AppendError("Type '" + std::string(format) + "' for field " +
                     osFieldPrefix + fieldName + " is not supported.");
@@ -5948,6 +5953,11 @@ bool OGRLayer::CreateFieldFromArrowSchemaInternal(
                     if (poDS && poDS->GetFieldDomain(oIter.second))
                         oFieldDefn.SetDomainName(oIter.second);
                 }
+                else if (oIter.first == ARROW_EXTENSION_NAME_KEY &&
+                         oIter.second == EXTENSION_NAME_ARROW_JSON)
+                {
+                    oFieldDefn.SetSubType(OFSTJSON);
+                }
                 else
                 {
                     CPLDebug("OGR", "Unknown field metadata: %s",
@@ -5986,10 +5996,7 @@ bool OGRLayer::CreateFieldFromArrowSchemaInternal(
         return AddField(OFTString, OFSTJSON, 0, 0);
     }
 
-    if (STARTS_WITH(format, "tss:") ||  // timestamp[s]
-        STARTS_WITH(format, "tsm:") ||  // timestamp[ms]
-        STARTS_WITH(format, "tsu:") ||  // timestamp[us]
-        STARTS_WITH(format, "tsn:"))    // timestamp[ns]
+    if (IsTimestamp(format))
     {
         return AddField(OFTDateTime, OFSTNone, 0, 0);
     }
@@ -6306,6 +6313,64 @@ static bool BuildOGRFieldInfo(
                         bTypeOK = true;
                         break;
                     }
+                    else if (eOGRType == OFTInteger &&
+                             sType.eType == OFTInteger64)
+                    {
+                        // Potentially lossy.
+                        CPLDebug("OGR",
+                                 "For field %s, writing from Arrow array of "
+                                 "type Int64 into OGR Int32 field. "
+                                 "Potentially loss conversion can happen",
+                                 sInfo.osName.c_str());
+                        bFallbackTypesUsed = true;
+                        bTypeOK = true;
+                        break;
+                    }
+                    else if (eOGRType == OFTInteger && sType.eType == OFTReal)
+                    {
+                        // Potentially lossy.
+                        CPLDebug("OGR",
+                                 "For field %s, writing from Arrow array of "
+                                 "type Real into OGR Int32 field. "
+                                 "Potentially loss conversion can happen",
+                                 sInfo.osName.c_str());
+                        bFallbackTypesUsed = true;
+                        bTypeOK = true;
+                        break;
+                    }
+                    else if (eOGRType == OFTInteger64 && sType.eType == OFTReal)
+                    {
+                        // Potentially lossy.
+                        CPLDebug("OGR",
+                                 "For field %s, writing from Arrow array of "
+                                 "type Real into OGR Int64 field. "
+                                 "Potentially loss conversion can happen",
+                                 sInfo.osName.c_str());
+                        bFallbackTypesUsed = true;
+                        bTypeOK = true;
+                        break;
+                    }
+                    else if (eOGRType == OFTReal && sType.eType == OFTInteger64)
+                    {
+                        // Potentially lossy.
+                        CPLDebug("OGR",
+                                 "For field %s, writing from Arrow array of "
+                                 "type Int64 into OGR Real field. "
+                                 "Potentially loss conversion can happen",
+                                 sInfo.osName.c_str());
+                        bFallbackTypesUsed = true;
+                        bTypeOK = true;
+                        break;
+                    }
+                    else if ((eOGRType == OFTInteger64 ||
+                              eOGRType == OFTReal) &&
+                             sType.eType == OFTInteger)
+                    {
+                        // Non-lossy
+                        bFallbackTypesUsed = true;
+                        bTypeOK = true;
+                        break;
+                    }
                     else
                     {
                         CPLError(CE_Failure, CPLE_AppDefined,
@@ -6338,9 +6403,7 @@ static bool BuildOGRFieldInfo(
                 }
             }
 
-            if (!bTypeOK &&
-                (STARTS_WITH(format, "tss:") || STARTS_WITH(format, "tsm:") ||
-                 STARTS_WITH(format, "tsu:") || STARTS_WITH(format, "tsn:")))
+            if (!bTypeOK && IsTimestamp(format))
             {
                 sInfo.eNominalFieldType = OFTDateTime;
                 if (eOGRType == sInfo.eNominalFieldType)
@@ -7148,8 +7211,18 @@ static bool FillFeature(OGRLayer *poLayer, const struct ArrowSchema *schema,
  * will be supported by WriteArrowBatch().
  *
  * OGR fields for the corresponding children arrays must exist and be of a
- * compatible type. For attribute fields, they should be created with
- * CreateFieldFromArrowSchema().
+ * compatible type. For attribute fields, they should generally be created with
+ * CreateFieldFromArrowSchema(). This is strictly required for output drivers
+ * Arrow or Parquet, and strongly recommended otherwise. For geometry fields,
+ * they should be created either implicitly at CreateLayer() type
+ * (if geom_type != wkbNone), or explicitly with CreateGeomField().
+ *
+ * Starting with GDAL 3.9, some tolerance has been introduced in the base
+ * implementation of WriteArrowBatch() for scenarios that involve appending to
+ * an already existing output layer when the input Arrow field type and the
+ * OGR layer field type are 32/64-bi integers or real number, but do not match
+ * exactly, which may cause lossy conversions. The IF_FIELD_NOT_PRESERVED option
+ * can be used to control the behavior in case of lossy conversion.
  *
  * Arrays for geometry columns should be of binary or large binary type and
  * contain WKB geometry.
@@ -7174,6 +7247,14 @@ static bool FillFeature(OGRLayer *poLayer, const struct ArrowSchema *schema,
  *     Setting it to ERROR will cause the function to error out. Setting it
  *     to WARNING will cause the function to emit a warning but continue its
  *     processing.
+ * </li>
+ * <li>IF_FIELD_NOT_PRESERVED=ERROR/WARNING. (since GDAL 3.9)
+ *     Action to perform when the input field value is not preserved in the
+ *     output layer.
+ *     The default is WARNING, which will cause the function to emit a warning
+ *     but continue its processing.
+ *     Setting it to ERROR will cause the function to error out if a lossy
+ *     conversion is detected.
  * </li>
  * <li>GEOMETRY_NAME=name. Name of the geometry column. If not provided,
  *     GetGeometryColumn() is used. The special name
@@ -7310,6 +7391,9 @@ bool OGRLayer::WriteArrowBatch(const struct ArrowSchema *schema,
     const bool bWarningIfFIDNotPreserved =
         EQUAL(CSLFetchNameValueDef(papszOptions, "IF_FID_NOT_PRESERVED", ""),
               "WARNING");
+    const bool bErrorIfFieldNotPreserved =
+        EQUAL(CSLFetchNameValueDef(papszOptions, "IF_FIELD_NOT_PRESERVED", ""),
+              "ERROR");
     const char *pszGeomFieldName = CSLFetchNameValueDef(
         papszOptions, "GEOMETRY_NAME", GetGeometryColumn());
     if (!pszGeomFieldName || pszGeomFieldName[0] == 0)
@@ -7480,6 +7564,59 @@ bool OGRLayer::WriteArrowBatch(const struct ArrowSchema *schema,
                                    /*bForgiving=*/true,
                                    /*bUseISO8601ForDateTimeAsString=*/true);
             oFeatureTarget.SetFID(oFeature.GetFID());
+
+            if (bErrorIfFieldNotPreserved)
+            {
+                for (int i = 0; i < poLayerDefn->GetFieldCount(); ++i)
+                {
+                    if (!oFeature.IsFieldSetAndNotNullUnsafe(i))
+                    {
+                        continue;
+                    }
+                    bool bLossyConversion = false;
+                    const auto eSrcType =
+                        oLayerDefnTmp.GetFieldDefnUnsafe(i)->GetType();
+                    const auto eDstType =
+                        poLayerDefn->GetFieldDefnUnsafe(i)->GetType();
+                    if (eSrcType == OFTInteger64 && eDstType == OFTInteger &&
+                        oFeatureTarget.GetFieldAsIntegerUnsafe(i) !=
+                            oFeature.GetFieldAsInteger64Unsafe(i))
+                    {
+                        bLossyConversion = true;
+                    }
+                    else if (eSrcType == OFTReal && eDstType == OFTInteger &&
+                             oFeatureTarget.GetFieldAsIntegerUnsafe(i) !=
+                                 oFeature.GetFieldAsDoubleUnsafe(i))
+                    {
+                        bLossyConversion = true;
+                    }
+                    else if (eSrcType == OFTReal && eDstType == OFTInteger64 &&
+                             static_cast<double>(
+                                 oFeatureTarget.GetFieldAsInteger64Unsafe(i)) !=
+                                 oFeature.GetFieldAsDoubleUnsafe(i))
+                    {
+                        bLossyConversion = true;
+                    }
+                    else if (eSrcType == OFTInteger64 && eDstType == OFTReal &&
+                             static_cast<GIntBig>(
+                                 oFeatureTarget.GetFieldAsDoubleUnsafe(i)) !=
+                                 oFeature.GetFieldAsInteger64Unsafe(i))
+                    {
+                        bLossyConversion = true;
+                    }
+                    if (bLossyConversion)
+                    {
+                        CPLError(CE_Failure, CPLE_AppDefined,
+                                 "For feature " CPL_FRMT_GIB
+                                 ", value of field %s cannot not preserved",
+                                 oFeatureTarget.GetFID(),
+                                 oLayerDefnTmp.GetFieldDefn(i)->GetNameRef());
+                        if (bTransactionOK)
+                            RollbackTransaction();
+                        return false;
+                    }
+                }
+            }
         }
 
         const auto nInputFID = poFeatureTarget->GetFID();
@@ -7593,10 +7730,18 @@ bool OGRLayer::WriteArrowBatch(const struct ArrowSchema *schema,
  * will be supported by WriteArrowBatch().
  *
  * OGR fields for the corresponding children arrays must exist and be of a
- * compatible type. For attribute fields, they should be created with
- * CreateFieldFromArrowSchema(). For geometry fields, they should be created
- * either implicitly at CreateLayer() type (if geom_type != wkbNone), or
- * explicitly with CreateGeomField().
+ * compatible type. For attribute fields, they should generally be created with
+ * CreateFieldFromArrowSchema(). This is strictly required for output drivers
+ * Arrow or Parquet, and strongly recommended otherwise. For geometry fields,
+ * they should be created either implicitly at CreateLayer() type
+ * (if geom_type != wkbNone), or explicitly with CreateGeomField().
+ *
+ * Starting with GDAL 3.9, some tolerance has been introduced in the base
+ * implementation of WriteArrowBatch() for scenarios that involve appending to
+ * an already existing output layer when the input Arrow field type and the
+ * OGR layer field type are 32/64-bi integers or real number, but do not match
+ * exactly, which may cause lossy conversions. The IF_FIELD_NOT_PRESERVED option
+ * can be used to control the behavior in case of lossy conversion.
  *
  * Arrays for geometry columns should be of binary or large binary type and
  * contain WKB geometry.
@@ -7621,6 +7766,14 @@ bool OGRLayer::WriteArrowBatch(const struct ArrowSchema *schema,
  *     Setting it to ERROR will cause the function to error out. Setting it
  *     to WARNING will cause the function to emit a warning but continue its
  *     processing.
+ * </li>
+ * <li>IF_FIELD_NOT_PRESERVED=ERROR/WARNING. (since GDAL 3.9)
+ *     Action to perform when the input field value is not preserved in the
+ *     output layer.
+ *     The default is WARNING, which will cause the function to emit a warning
+ *     but continue its processing.
+ *     Setting it to ERROR will cause the function to error out if a lossy
+ *     conversion is detected.
  * </li>
  * <li>GEOMETRY_NAME=name. Name of the geometry column. If not provided,
  *     GetGeometryColumn() is used. The special name

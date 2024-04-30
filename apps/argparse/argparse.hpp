@@ -1786,8 +1786,8 @@ public:
   void parse_args(const std::vector<std::string> &arguments) {
     parse_args_internal(arguments);
     // Check if all arguments are parsed
-    for (const auto &iter : m_argument_map) {
-      iter.second->validate();
+    for ([[maybe_unused]] const auto &[unused, argument] : m_argument_map) {
+      argument->validate();
     }
 
     // Check each mutually exclusive group and make sure

@@ -207,6 +207,7 @@ class CPL_DLL OGRSpatialReference
     void dumpReadable();
     OGRErr exportToWkt(char **) const;
     OGRErr exportToWkt(char **ppszWKT, const char *const *papszOptions) const;
+    std::string exportToWkt(const char *const *papszOptions = nullptr) const;
     OGRErr exportToPrettyWkt(char **, int = FALSE) const;
     // cppcheck-suppress functionStatic
     OGRErr exportToPROJJSON(char **, const char *const *papszOptions) const;
@@ -386,6 +387,7 @@ class CPL_DLL OGRSpatialReference
     int IsGeographic() const;
     int IsDerivedGeographic() const;
     int IsProjected() const;
+    int IsDerivedProjected() const;
     int IsGeocentric() const;
     bool IsDynamic() const;
 

@@ -1554,7 +1554,7 @@ void OGRGeoPackageTableLayer::CancelAsyncNextArrowArray()
 {
     if (m_poFillArrowArray)
     {
-        std::lock_guard<std::mutex> oLock(m_poFillArrowArray->oMutex);
+        std::lock_guard oLock(m_poFillArrowArray->oMutex);
         m_poFillArrowArray->nCountRows = -1;
         m_poFillArrowArray->oCV.notify_one();
     }
@@ -1572,7 +1572,7 @@ void OGRGeoPackageTableLayer::CancelAsyncNextArrowArray()
         m_oQueueArrowArrayPrefetchTasks.pop();
 
         {
-            std::lock_guard<std::mutex> oLock(task->m_oMutex);
+            std::lock_guard oLock(task->m_oMutex);
             task->m_bStop = true;
             task->m_oCV.notify_one();
         }
@@ -2715,9 +2715,22 @@ void OGRGeoPackageTableLayer::StartAsyncRTree()
     }
     if (m_hAsyncDBHandle != nullptr)
     {
+        /* Make sure our auxiliary DB has the same page size as the main one.
+         * Because the number of RTree cells depends on the SQLite page size.
+         * However the sqlite implementation limits to 51 cells maximum per page,
+         * which is reached starting with a page size of 2048 bytes.
+         * As the default SQLite page size is 4096 currently, having potentially
+         * different page sizes >= 4096 between the main and auxiliary DBs would
+         * not be a practical issue, but better be consistent.
+         */
+        const int nPageSize =
+            SQLGetInteger(m_poDS->GetDB(), "PRAGMA page_size", nullptr);
+
         if (SQLCommand(m_hAsyncDBHandle,
-                       "PRAGMA journal_mode = OFF;\n"
-                       "PRAGMA synchronous = OFF;") == OGRERR_NONE)
+                       CPLSPrintf("PRAGMA page_size = %d;\n"
+                                  "PRAGMA journal_mode = OFF;\n"
+                                  "PRAGMA synchronous = OFF;",
+                                  nPageSize)) == OGRERR_NONE)
         {
             char *pszSQL = sqlite3_mprintf("ATTACH DATABASE '%q' AS '%q'",
                                            m_osAsyncDBName.c_str(),
@@ -2725,17 +2738,14 @@ void OGRGeoPackageTableLayer::StartAsyncRTree()
             OGRErr eErr = SQLCommand(m_poDS->GetDB(), pszSQL);
             sqlite3_free(pszSQL);
 
-            VSIUnlink(m_osAsyncDBName.c_str());
-
             if (eErr == OGRERR_NONE)
             {
+                m_hRTree = gdal_sqlite_rtree_bl_new(nPageSize);
                 try
                 {
                     m_oThreadRTree =
                         std::thread([this]() { AsyncRTreeThreadFunction(); });
                     m_bThreadRTreeStarted = true;
-
-                    m_hRTree = gdal_sqlite_rtree_bl_new(4096);
                 }
                 catch (const std::exception &e)
                 {
@@ -2747,6 +2757,11 @@ void OGRGeoPackageTableLayer::StartAsyncRTree()
 
         if (!m_bThreadRTreeStarted)
         {
+            if (m_hRTree)
+            {
+                gdal_sqlite_rtree_bl_free(m_hRTree);
+                m_hRTree = nullptr;
+            }
             m_oQueueRTreeEntries.clear();
             m_bErrorDuringRTreeThread = true;
             sqlite3_close(m_hAsyncDBHandle);
@@ -2767,13 +2782,16 @@ void OGRGeoPackageTableLayer::StartAsyncRTree()
 
 void OGRGeoPackageTableLayer::RemoveAsyncRTreeTempDB()
 {
-    SQLCommand(
-        m_poDS->GetDB(),
-        CPLSPrintf("DETACH DATABASE \"%s\"",
-                   SQLEscapeName(m_osAsyncDBAttachName.c_str()).c_str()));
-    m_osAsyncDBAttachName.clear();
-    VSIUnlink(m_osAsyncDBName.c_str());
-    m_osAsyncDBName.clear();
+    if (!m_osAsyncDBAttachName.empty())
+    {
+        SQLCommand(
+            m_poDS->GetDB(),
+            CPLSPrintf("DETACH DATABASE \"%s\"",
+                       SQLEscapeName(m_osAsyncDBAttachName.c_str()).c_str()));
+        m_osAsyncDBAttachName.clear();
+        VSIUnlink(m_osAsyncDBName.c_str());
+        m_osAsyncDBName.clear();
+    }
 }
 
 /************************************************************************/
@@ -2849,8 +2867,6 @@ bool OGRGeoPackageTableLayer::FlushInMemoryRTree(sqlite3 *hRTreeDB,
             m_hAsyncDBHandle = nullptr;
         }
 
-        VSIUnlink(m_osAsyncDBName.c_str());
-
         m_oQueueRTreeEntries.clear();
     }
     sqlite3_free(pszErrMsg);
@@ -2887,6 +2903,8 @@ static size_t GetMaxRAMUsageAllowedForRTree()
 
 void OGRGeoPackageTableLayer::AsyncRTreeThreadFunction()
 {
+    CPLAssert(m_hRTree);
+
     const size_t nMaxRAMUsageAllowed = GetMaxRAMUsageAllowedForRTree();
     sqlite3_stmt *hStmt = nullptr;
     GIntBig nCount = 0;
@@ -2931,14 +2949,24 @@ void OGRGeoPackageTableLayer::AsyncRTreeThreadFunction()
         if (hStmt == nullptr)
         {
             const char *pszInsertSQL =
-                "INSERT INTO my_rtree VALUES (?,?,?,?,?)";
+                CPLGetConfigOption(
+                    "OGR_GPKG_SIMULATE_INSERT_INTO_MY_RTREE_PREPARATION_ERROR",
+                    nullptr)
+                    ? "INSERT INTO my_rtree_SIMULATE_ERROR VALUES (?,?,?,?,?)"
+                    : "INSERT INTO my_rtree VALUES (?,?,?,?,?)";
             if (sqlite3_prepare_v2(m_hAsyncDBHandle, pszInsertSQL, -1, &hStmt,
                                    nullptr) != SQLITE_OK)
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
-                         "failed to prepare SQL: %s", pszInsertSQL);
-                m_oQueueRTreeEntries.clear();
+                         "failed to prepare SQL: %s: %s", pszInsertSQL,
+                         sqlite3_errmsg(m_hAsyncDBHandle));
+
                 m_bErrorDuringRTreeThread = true;
+
+                sqlite3_close(m_hAsyncDBHandle);
+                m_hAsyncDBHandle = nullptr;
+
+                m_oQueueRTreeEntries.clear();
                 return;
             }
 
@@ -4456,7 +4484,11 @@ bool OGRGeoPackageTableLayer::CreateSpatialIndex(const char *pszTableName)
             sqlite3_close(m_hAsyncDBHandle);
             m_hAsyncDBHandle = nullptr;
         }
-        if (!m_bErrorDuringRTreeThread)
+        if (m_bErrorDuringRTreeThread)
+        {
+            RemoveAsyncRTreeTempDB();
+        }
+        else
         {
             bPopulateFromThreadRTree = true;
         }
@@ -8228,7 +8260,7 @@ int OGRGeoPackageTableLayer::GetNextArrowArrayAsynchronous(
 
     if (m_poFillArrowArray)
     {
-        std::lock_guard<std::mutex> oLock(m_poFillArrowArray->oMutex);
+        std::lock_guard oLock(m_poFillArrowArray->oMutex);
         if (m_poFillArrowArray->bIsFinished)
         {
             return 0;
@@ -8309,7 +8341,7 @@ int OGRGeoPackageTableLayer::GetNextArrowArrayAsynchronous(
     }
     else
     {
-        std::lock_guard<std::mutex> oLock(m_poFillArrowArray->oMutex);
+        std::lock_guard oLock(m_poFillArrowArray->oMutex);
         if (m_poFillArrowArray->bErrorOccurred)
         {
             CPLError(CE_Failure, CPLE_AppDefined, "%s",
@@ -8482,7 +8514,7 @@ void OGRGeoPackageTableLayer::GetNextArrowArrayAsynchronousWorker()
                             -1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr,
                             nullptr, nullptr, nullptr);
 
-    std::lock_guard<std::mutex> oLock(m_poFillArrowArray->oMutex);
+    std::lock_guard oLock(m_poFillArrowArray->oMutex);
     m_poFillArrowArray->bIsFinished = true;
     if (m_poFillArrowArray->nCountRows >= 0)
     {
@@ -8593,7 +8625,7 @@ int OGRGeoPackageTableLayer::GetNextArrowArray(struct ArrowArrayStream *stream,
         const auto stopThread = [&task]()
         {
             {
-                std::lock_guard<std::mutex> oLock(task->m_oMutex);
+                std::lock_guard oLock(task->m_oMutex);
                 task->m_bStop = true;
                 task->m_oCV.notify_one();
             }
@@ -8643,7 +8675,7 @@ int OGRGeoPackageTableLayer::GetNextArrowArray(struct ArrowArrayStream *stream,
                 {
                     // Wake-up thread with new task
                     {
-                        std::lock_guard<std::mutex> oLock(task->m_oMutex);
+                        std::lock_guard oLock(task->m_oMutex);
                         task->m_bFetchRows = true;
                         task->m_oCV.notify_one();
                     }
@@ -8745,7 +8777,7 @@ int OGRGeoPackageTableLayer::GetNextArrowArray(struct ArrowArrayStream *stream,
             auto taskPtr = task.get();
             auto taskRunner = [taskPtr]()
             {
-                std::unique_lock<std::mutex> oLock(taskPtr->m_oMutex);
+                std::unique_lock oLock(taskPtr->m_oMutex);
                 do
                 {
                     taskPtr->m_bFetchRows = false;
@@ -8757,6 +8789,11 @@ int OGRGeoPackageTableLayer::GetNextArrowArray(struct ArrowArrayStream *stream,
                     if (taskPtr->m_bMemoryLimitReached)
                         break;
                     // cppcheck-suppress knownConditionTrueFalse
+                    // Coverity apparently is confused by the fact that we
+                    // use unique_lock here to guard access for m_bStop whereas
+                    // in other places we use a lock_guard, but there's nothing
+                    // wrong.
+                    // coverity[missing_lock:FALSE]
                     while (!taskPtr->m_bStop && !taskPtr->m_bFetchRows)
                     {
                         taskPtr->m_oCV.wait(oLock);

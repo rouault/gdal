@@ -7221,8 +7221,8 @@ static std::unique_ptr<GDALArgumentParser> GDALVectorTranslateOptionsGetParser(
 
     argParser->add_argument("-datelineoffset")
         .metavar("<val_in_degree>")
-        .store_into(psOptions->dfDateLineOffset)
         .default_value(psOptions->dfDateLineOffset)
+        .store_into(psOptions->dfDateLineOffset)
         .help(_("Offset from dateline in degrees."));
 
     argParser->add_argument("-clipsrc")
@@ -7395,8 +7395,7 @@ static std::unique_ptr<GDALArgumentParser> GDALVectorTranslateOptionsGetParser(
 
     argParser->add_argument("-fid")
         .metavar("<FID>")
-        .action([psOptions](const std::string &s)
-                { psOptions->nFIDToFetch = CPLAtoGIntBig(s.c_str()); })
+        .store_into(psOptions->nFIDToFetch)
         .help(_("If provided, only the feature with the specified feature id "
                 "will be processed."));
 
@@ -7445,8 +7444,7 @@ static std::unique_ptr<GDALArgumentParser> GDALVectorTranslateOptionsGetParser(
 
     argParser->add_argument("-limit")
         .metavar("<nb_features>")
-        .action([psOptions](const std::string &s)
-                { psOptions->nLimit = CPLAtoGIntBig(s.c_str()); })
+        .store_into(psOptions->nLimit)
         .help(_("Limit the number of features per layer."));
 
     argParser->add_argument("-ds_transaction")

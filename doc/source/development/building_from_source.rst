@@ -1699,7 +1699,7 @@ PROJ
     .. versionadded:: 3.9
 
     Control the mode used for find_package(PROJ).
-    Alters how the default CMake seach logic
+    Alters how the default CMake search logic
     (https://cmake.org/cmake/help/latest/command/find_package.html) applies.
     Defaults to CUSTOM, where the CONFIG mode is applied for PROJ >= 8, and
     fallbacks to default MODULE mode otherwise.
@@ -1906,6 +1906,8 @@ TileDB
 
 The `TileDB <https://github.com/TileDB-Inc/TileDB>` library is required for the :ref:`raster.tiledb` driver.
 Specify install prefix in the ``CMAKE_PREFIX_PATH`` variable.
+
+TileDB >= 2.15 is required since GDAL 3.9
 
 .. option:: GDAL_USE_TILEDB=ON/OFF
 

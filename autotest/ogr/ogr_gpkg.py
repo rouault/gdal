@@ -307,9 +307,9 @@ def validate(gpkg, quiet=False, tmpdir=None):
 # Create a fresh database.
 
 
-def test_ogr_gpkg_1(gpkg_ds):
+def test_ogr_gpkg_1(gpkg_ds, tmp_path):
 
-    assert validate(gpkg_ds), "validation failed"
+    assert validate(gpkg_ds, tmpdir=tmp_path), "validation failed"
 
 
 ###############################################################################
@@ -342,7 +342,7 @@ def test_ogr_gpkg_2bis(gpkg_ds):
     assert lyr is None, "layer creation should have failed"
 
 
-def test_ogr_gpkg_3(gpkg_ds):
+def test_ogr_gpkg_3(gpkg_ds, tmp_path):
 
     srs4326 = osr.SpatialReference()
     srs4326.ImportFromEPSG(4326)
@@ -359,7 +359,7 @@ def test_ogr_gpkg_3(gpkg_ds):
     ###############################################################################
     # Close and re-open to test the layer registration
 
-    assert validate(gpkg_ds), "validation failed"
+    assert validate(gpkg_ds, tmpdir=tmp_path), "validation failed"
 
     gpkg_ds = gdaltest.reopen(gpkg_ds)
 
@@ -422,7 +422,7 @@ def test_ogr_gpkg_5(gpkg_ds):
 # Add fields
 
 
-def test_ogr_gpkg_6(gpkg_ds):
+def test_ogr_gpkg_6(gpkg_ds, tmp_path):
 
     srs4326 = osr.SpatialReference()
     srs4326.ImportFromEPSG(4326)
@@ -438,7 +438,7 @@ def test_ogr_gpkg_6(gpkg_ds):
 
     gpkg_ds = gdaltest.reopen(gpkg_ds)
 
-    assert validate(gpkg_ds), "validation failed"
+    assert validate(gpkg_ds, tmpdir=tmp_path), "validation failed"
 
     with gdal.quiet_errors():
         gpkg_ds = gdaltest.reopen(gpkg_ds)
@@ -609,7 +609,7 @@ def test_ogr_gpkg_7(gpkg_ds):
 
 
 @pytest.mark.usefixtures("tbl_linestring")
-def test_ogr_gpkg_8(gpkg_ds):
+def test_ogr_gpkg_8(gpkg_ds, tmp_path):
 
     lyr = gpkg_ds.GetLayer("tbl_linestring")
 
@@ -621,7 +621,7 @@ def test_ogr_gpkg_8(gpkg_ds):
 
     gpkg_ds = gdaltest.reopen(gpkg_ds, update=1)
 
-    assert validate(gpkg_ds.GetDescription(), "validation failed")
+    assert validate(gpkg_ds.GetDescription(), "validation failed", tmpdir=tmp_path)
 
     lyr = gpkg_ds.GetLayerByName("tbl_linestring")
     assert lyr.GetLayerDefn().GetFieldDefn(6).GetSubType() == ogr.OFSTBoolean
@@ -1348,9 +1348,9 @@ def test_ogr_gpkg_15(gpkg_ds):
 # Test SetSRID() function
 
 
-def test_ogr_gpkg_SetSRID():
+def test_ogr_gpkg_SetSRID(tmp_vsimem):
 
-    filename = "/vsimem/test_ogr_gpkg_SetSRID.gpkg"
+    filename = tmp_vsimem / "test_ogr_gpkg_SetSRID.gpkg"
     ds = ogr.GetDriverByName("GPKG").CreateDataSource(filename)
     lyr = ds.CreateLayer("foo")
     f = ogr.Feature(lyr.GetLayerDefn())
@@ -1373,16 +1373,15 @@ def test_ogr_gpkg_SetSRID():
         ds.ReleaseResultSet(sql_lyr)
 
     ds = None
-    gdal.Unlink("/vsimem/test_ogr_gpkg_SetSRID.gpkg")
 
 
 ###############################################################################
 # Test ST_EnvIntersects() function
 
 
-def test_ogr_gpkg_ST_EnvIntersects():
+def test_ogr_gpkg_ST_EnvIntersects(tmp_vsimem):
 
-    filename = "/vsimem/test_ogr_gpkg_ST_EnvIntersects.gpkg"
+    filename = tmp_vsimem / "test_ogr_gpkg_ST_EnvIntersects.gpkg"
     ds = ogr.GetDriverByName("GPKG").CreateDataSource(filename)
     lyr = ds.CreateLayer("foo")
 
@@ -1446,7 +1445,6 @@ def test_ogr_gpkg_ST_EnvIntersects():
         ds.ReleaseResultSet(sql_lyr)
 
     ds = None
-    gdal.Unlink("/vsimem/test_ogr_gpkg_ST_EnvIntersects.gpkg")
 
 
 ###############################################################################
@@ -4670,7 +4668,7 @@ def test_ogr_gpkg_47(tmp_vsimem):
 
     gdal.ErrorReset()
     with gdal.config_option("GPKG_WARN_UNRECOGNIZED_APPLICATION_ID", "NO"):
-        ogr.Open("/vsimem/ogr_gpkg_47.gpkg")
+        ogr.Open(tmp_vsimem / "ogr_gpkg_47.gpkg")
     assert gdal.GetLastErrorMsg() == ""
 
 
@@ -5784,9 +5782,9 @@ def test_ogr_gpkg_z_or_m_geometry_in_non_zm_layer(tmp_vsimem):
 # Test fixing up wrong RTree update3 trigger from GeoPackage < 1.2.1
 
 
-def test_ogr_gpkg_fixup_wrong_rtree_trigger():
+def test_ogr_gpkg_fixup_wrong_rtree_trigger(tmp_vsimem):
 
-    filename = "/vsimem/test_ogr_gpkg_fixup_wrong_rtree_trigger.gpkg"
+    filename = tmp_vsimem / "test_ogr_gpkg_fixup_wrong_rtree_trigger.gpkg"
     ds = ogr.GetDriverByName("GPKG").CreateDataSource(filename)
     ds.CreateLayer("test-with-dash")
     ds.CreateLayer("test2")
@@ -8595,9 +8593,9 @@ def test_ogr_gpkg_arrow_stream_numpy_detailed_spatial_filter(tmp_vsimem, layer_t
 # Test reading an empty file with GetArrowStream()
 
 
-def test_ogr_gpkg_arrow_stream_empty_file():
+def test_ogr_gpkg_arrow_stream_empty_file(tmp_vsimem):
 
-    ds = ogr.GetDriverByName("GPKG").CreateDataSource("/vsimem/test.gpkg")
+    ds = ogr.GetDriverByName("GPKG").CreateDataSource(tmp_vsimem / "test.gpkg")
     lyr = ds.CreateLayer("test", geom_type=ogr.wkbPoint)
     assert lyr.TestCapability(ogr.OLCFastGetArrowStream) == 1
     stream = lyr.GetArrowStream()
@@ -8614,8 +8612,6 @@ def test_ogr_gpkg_arrow_stream_empty_file():
         assert stream.GetNextRecordBatch() is None
         del stream
     ds = None
-
-    ogr.GetDriverByName("GPKG").DeleteDataSource("/vsimem/test.gpkg")
 
 
 ###############################################################################
@@ -8907,8 +8903,15 @@ def test_ogr_gpkg_get_geometry_types(tmp_vsimem):
 
 @pytest.mark.parametrize("write_to_disk", (True, False), ids=["on_disk", "in_memory"])
 @pytest.mark.parametrize("OGR_GPKG_MAX_RAM_USAGE_RTREE", (1, 1000, None))
+@pytest.mark.parametrize(
+    "OGR_GPKG_SIMULATE_INSERT_INTO_MY_RTREE_PREPARATION_ERROR", (True, False)
+)
 def test_ogr_gpkg_background_rtree_build(
-    tmp_path, tmp_vsimem, write_to_disk, OGR_GPKG_MAX_RAM_USAGE_RTREE
+    tmp_path,
+    tmp_vsimem,
+    write_to_disk,
+    OGR_GPKG_MAX_RAM_USAGE_RTREE,
+    OGR_GPKG_SIMULATE_INSERT_INTO_MY_RTREE_PREPARATION_ERROR,
 ):
 
     if write_to_disk:
@@ -8918,13 +8921,17 @@ def test_ogr_gpkg_background_rtree_build(
 
     # Batch insertion only
     gdal.ErrorReset()
-    with gdaltest.config_option(
-        "OGR_GPKG_MAX_RAM_USAGE_RTREE",
+
+    options = {}
+    options["OGR_GPKG_MAX_RAM_USAGE_RTREE"] = (
         str(OGR_GPKG_MAX_RAM_USAGE_RTREE)
         if OGR_GPKG_MAX_RAM_USAGE_RTREE is not None
-        else None,
-        thread_local=False,
-    ):
+        else None
+    )
+    options["OGR_GPKG_SIMULATE_INSERT_INTO_MY_RTREE_PREPARATION_ERROR"] = (
+        "TRUE" if OGR_GPKG_SIMULATE_INSERT_INTO_MY_RTREE_PREPARATION_ERROR else None
+    )
+    with gdaltest.config_options(options, thread_local=False):
         ds = gdaltest.gpkg_dr.CreateDataSource(filename)
         with gdaltest.config_option("OGR_GPKG_THREADED_RTREE_AT_FIRST_FEATURE", "YES"):
             lyr = ds.CreateLayer("foo")
@@ -8964,13 +8971,7 @@ def test_ogr_gpkg_background_rtree_build(
         f = sql_lyr.GetNextFeature()
         assert f.GetField(0) == "ok"
     with ds.ExecuteSQL("SELECT * FROM rtree_foo_geom") as sql_lyr:
-        fc = sql_lyr.GetFeatureCount()
-        if fc != 1000 and gdaltest.is_travis_branch("macos_build_conda"):
-            # Fails with
-            # ERROR 1: failed to prepare SQL: INSERT INTO my_rtree VALUES (?,?,?,?,?)
-            # FAILED ogr/ogr_gpkg.py::test_ogr_gpkg_background_rtree_build[1000-in_memory] - AssertionError: assert 0 == 1000
-            pytest.xfail("fails for unknown reason on MacOS ARM64")
-        assert fc == 1000
+        assert sql_lyr.GetFeatureCount() == 1000
     foo_lyr = ds.GetLayerByName("foo")
     for i in range(1000):
         foo_lyr.SetSpatialFilterRect(10000 + i - 0.5, i - 0.5, 10000 + i + 0.5, i + 0.5)

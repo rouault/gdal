@@ -4081,11 +4081,24 @@ static int ByteCountLooksBad(TIFF *tif)
  * To evaluate the IFD data size when reading, save the offset and data size of
  * all data that does not fit into the IFD entries themselves.
  */
-static void EvaluateIFDdatasizeReading(TIFF *tif, TIFFDirEntry *dp)
+static bool EvaluateIFDdatasizeReading(TIFF *tif, TIFFDirEntry *dp)
 {
-    uint64_t datalength = dp->tdir_count * TIFFDataWidth(dp->tdir_type);
+    const uint64_t data_width = TIFFDataWidth(dp->tdir_type);
+    if (data_width != 0 && dp->tdir_count > UINT64_MAX / data_width)
+    {
+        TIFFErrorExtR(tif, "EvaluateIFDdatasizeReading",
+                      "Too large IFD data size");
+        return false;
+    }
+    const uint64_t datalength = dp->tdir_count * data_width;
     if (datalength > ((tif->tif_flags & TIFF_BIGTIFF) ? 0x8U : 0x4U))
     {
+        if (tif->tif_dir.td_dirdatasize_read > UINT64_MAX - datalength)
+        {
+            TIFFErrorExtR(tif, "EvaluateIFDdatasizeReading",
+                          "Too large IFD data size");
+            return false;
+        }
         tif->tif_dir.td_dirdatasize_read += datalength;
         if (!(tif->tif_flags & TIFF_BIGTIFF))
         {
@@ -4115,6 +4128,7 @@ static void EvaluateIFDdatasizeReading(TIFF *tif, TIFFDirEntry *dp)
             .length = datalength;
         tif->tif_dir.td_dirdatasize_Noffsets++;
     }
+    return true;
 }
 
 /*
@@ -4509,7 +4523,8 @@ int TIFFReadDirectory(TIFF *tif)
                         uint16_t value;
                         enum TIFFReadDirEntryErr err;
                         err = TIFFReadDirEntryShort(tif, dp, &value);
-                        EvaluateIFDdatasizeReading(tif, dp);
+                        if (!EvaluateIFDdatasizeReading(tif, dp))
+                            goto bad;
                         if (err == TIFFReadDirEntryErrCount)
                             err =
                                 TIFFReadDirEntryPersampleShort(tif, dp, &value);
@@ -4540,7 +4555,8 @@ int TIFFReadDirectory(TIFF *tif)
                         err = TIFFReadDirEntryErrCount;
                     else
                         err = TIFFReadDirEntryDoubleArray(tif, dp, &data);
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                        goto bad;
                     if (err != TIFFReadDirEntryErrOk)
                     {
                         fip = TIFFFieldWithTag(tif, dp->tdir_tag);
@@ -4583,7 +4599,8 @@ int TIFFReadDirectory(TIFF *tif)
                     }
                     _TIFFmemcpy(&(tif->tif_dir.td_stripoffset_entry), dp,
                                 sizeof(TIFFDirEntry));
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                        goto bad;
                 }
                 break;
                 case TIFFTAG_STRIPBYTECOUNTS:
@@ -4611,7 +4628,8 @@ int TIFFReadDirectory(TIFF *tif)
                     }
                     _TIFFmemcpy(&(tif->tif_dir.td_stripbytecount_entry), dp,
                                 sizeof(TIFFDirEntry));
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                        goto bad;
                 }
                 break;
                 case TIFFTAG_COLORMAP:
@@ -4667,7 +4685,8 @@ int TIFFReadDirectory(TIFF *tif)
                         err = TIFFReadDirEntryErrCount;
                     else
                         err = TIFFReadDirEntryShortArray(tif, dp, &value);
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                        goto bad;
                     if (err != TIFFReadDirEntryErrOk)
                     {
                         fip = TIFFFieldWithTag(tif, dp->tdir_tag);
@@ -6266,7 +6285,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                         }
                     }
                 }
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != NULL)
+                        _TIFFfreeExt(tif, data);
+                    return (0);
+                }
                 if (mb + 1 < (uint32_t)dp->tdir_count)
                     TIFFWarningExtR(
                         tif, module,
@@ -6394,7 +6418,8 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryLong8(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                    return 0;
                 if (!TIFFSetField(tif, dp->tdir_tag, data))
                     return (0);
             }
@@ -6408,7 +6433,8 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntrySlong8(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                    return 0;
                 if (!TIFFSetField(tif, dp->tdir_tag, data))
                     return (0);
             }
@@ -6422,7 +6448,8 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryFloat(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                    return 0;
                 if (!TIFFSetField(tif, dp->tdir_tag, data))
                     return (0);
             }
@@ -6436,7 +6463,8 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryDouble(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                    return 0;
                 if (!TIFFSetField(tif, dp->tdir_tag, data))
                     return (0);
             }
@@ -6450,7 +6478,8 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryIfd8(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                    return 0;
                 if (!TIFFSetField(tif, dp->tdir_tag, data))
                     return (0);
             }
@@ -6500,7 +6529,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryByteArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6530,7 +6564,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntrySbyteArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6560,7 +6599,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryShortArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6590,7 +6634,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntrySshortArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6620,7 +6669,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryLongArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6650,7 +6704,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntrySlongArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6680,7 +6739,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryLong8Array(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6710,7 +6774,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntrySlong8Array(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6740,7 +6809,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryFloatArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6772,7 +6846,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryDoubleArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag, data);
                     if (data != 0)
@@ -6795,7 +6874,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryByteArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     if (data != 0 && dp->tdir_count > 0 &&
                         data[dp->tdir_count - 1] != '\0')
@@ -6846,7 +6930,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryByteArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -6870,7 +6959,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntrySbyteArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -6894,7 +6988,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryShortArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -6918,7 +7017,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntrySshortArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -6942,7 +7046,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryLongArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -6966,7 +7075,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntrySlongArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -6990,7 +7104,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryLong8Array(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -7014,7 +7133,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntrySlong8Array(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -7038,7 +7162,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryFloatArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -7062,7 +7191,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryDoubleArray(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -7086,7 +7220,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                 err = TIFFReadDirEntryIfd8Array(tif, dp, &data);
                 if (err == TIFFReadDirEntryErrOk)
                 {
-                    EvaluateIFDdatasizeReading(tif, dp);
+                    if (!EvaluateIFDdatasizeReading(tif, dp))
+                    {
+                        if (data != 0)
+                            _TIFFfreeExt(tif, data);
+                        return 0;
+                    }
                     int m;
                     m = TIFFSetField(tif, dp->tdir_tag,
                                      (uint16_t)(dp->tdir_count), data);
@@ -7106,7 +7245,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryByteArray(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 if (data != 0 && dp->tdir_count > 0 &&
                     data[dp->tdir_count - 1] != '\0')
@@ -7177,7 +7321,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             }
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, count, data);
                 if (data != 0)
@@ -7195,7 +7344,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntrySbyteArray(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);
@@ -7214,7 +7368,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryShortArray(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);
@@ -7233,7 +7392,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntrySshortArray(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);
@@ -7252,7 +7416,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryLongArray(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);
@@ -7271,7 +7440,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntrySlongArray(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);
@@ -7290,7 +7464,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryLong8Array(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);
@@ -7309,7 +7488,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntrySlong8Array(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);
@@ -7328,7 +7512,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryFloatArray(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);
@@ -7347,7 +7536,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryDoubleArray(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);
@@ -7366,7 +7560,12 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
             err = TIFFReadDirEntryIfd8Array(tif, dp, &data);
             if (err == TIFFReadDirEntryErrOk)
             {
-                EvaluateIFDdatasizeReading(tif, dp);
+                if (!EvaluateIFDdatasizeReading(tif, dp))
+                {
+                    if (data != 0)
+                        _TIFFfreeExt(tif, data);
+                    return 0;
+                }
                 int m;
                 m = TIFFSetField(tif, dp->tdir_tag, (uint32_t)(dp->tdir_count),
                                  data);

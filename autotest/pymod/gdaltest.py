@@ -49,7 +49,7 @@ from threading import Thread
 
 import pytest
 
-from osgeo import gdal, ogr, osr
+from osgeo import gdal, osr
 
 jp2kak_drv = None
 jpeg2000_drv = None
@@ -105,6 +105,7 @@ class GDALTest(object):
         filename_absolute=0,
         chksum_after_reopening=None,
         open_options=None,
+        tmpdir=None,
     ):
         self.driver = None
         self.drivername = drivername
@@ -131,6 +132,11 @@ class GDALTest(object):
         self.ysize = ysize
         self.options = [] if options is None else options
         self.open_options = open_options
+
+        if tmpdir is None:
+            self.tmpdir = "tmp/"
+        else:
+            self.tmpdir = tmpdir
 
     def testDriver(self):
         if self.driver is None:
@@ -399,7 +405,9 @@ class GDALTest(object):
             if vsimem:
                 new_filename = "/vsimem/" + os.path.basename(self.filename) + ".tst"
             else:
-                new_filename = "tmp/" + os.path.basename(self.filename) + ".tst"
+                new_filename = os.path.join(
+                    self.tmpdir, os.path.basename(self.filename) + ".tst"
+                )
 
         if quiet_error_handler:
             gdal.PushErrorHandler("CPLQuietErrorHandler")
@@ -581,7 +589,9 @@ class GDALTest(object):
             if vsimem:
                 new_filename = "/vsimem/" + self.filename + ".tst"
             else:
-                new_filename = "tmp/" + os.path.basename(self.filename) + ".tst"
+                new_filename = os.path.join(
+                    self.tmpdir, os.path.basename(self.filename) + ".tst"
+                )
 
         new_ds = self.driver.Create(
             new_filename,
@@ -662,7 +672,9 @@ class GDALTest(object):
         xsize = src_ds.RasterXSize
         ysize = src_ds.RasterYSize
 
-        new_filename = "tmp/" + os.path.basename(self.filename) + ".tst"
+        new_filename = os.path.join(
+            self.tmpdir, os.path.basename(self.filename) + ".tst"
+        )
         new_ds = self.driver.Create(
             new_filename,
             xsize,
@@ -718,7 +730,9 @@ class GDALTest(object):
         xsize = src_ds.RasterXSize
         ysize = src_ds.RasterYSize
 
-        new_filename = "tmp/" + os.path.basename(self.filename) + ".tst"
+        new_filename = os.path.join(
+            self.tmpdir, os.path.basename(self.filename) + ".tst"
+        )
         new_ds = self.driver.Create(
             new_filename,
             xsize,
@@ -782,7 +796,9 @@ class GDALTest(object):
         xsize = src_ds.RasterXSize
         ysize = src_ds.RasterYSize
 
-        new_filename = "tmp/" + os.path.basename(self.filename) + ".tst"
+        new_filename = os.path.join(
+            self.tmpdir, os.path.basename(self.filename) + ".tst"
+        )
         new_ds = self.driver.Create(
             new_filename,
             xsize,
@@ -831,7 +847,9 @@ class GDALTest(object):
         xsize = src_ds.RasterXSize
         ysize = src_ds.RasterYSize
 
-        new_filename = "tmp/" + os.path.basename(self.filename) + ".tst"
+        new_filename = os.path.join(
+            self.tmpdir, os.path.basename(self.filename) + ".tst"
+        )
         dt = src_ds.GetRasterBand(self.band).DataType
         new_ds = self.driver.Create(
             new_filename,
@@ -901,7 +919,9 @@ class GDALTest(object):
         xsize = src_ds.RasterXSize
         ysize = src_ds.RasterYSize
 
-        new_filename = "tmp/" + os.path.basename(self.filename) + ".tst"
+        new_filename = os.path.join(
+            self.tmpdir, os.path.basename(self.filename) + ".tst"
+        )
         new_ds = self.driver.Create(
             new_filename,
             xsize,
@@ -944,7 +964,9 @@ class GDALTest(object):
         xsize = src_ds.RasterXSize
         ysize = src_ds.RasterYSize
 
-        new_filename = "tmp/" + os.path.basename(self.filename) + ".tst"
+        new_filename = os.path.join(
+            self.tmpdir, os.path.basename(self.filename) + ".tst"
+        )
         new_ds = self.driver.Create(
             new_filename,
             xsize,
@@ -1890,6 +1912,8 @@ def gdalurlopen(url, timeout=10):
 
         urllib.request.install_opener(opener)
 
+    import http.client
+
     try:
         handle = urllib.request.urlopen(url)
         socket.setdefaulttimeout(old_timeout)
@@ -1908,6 +1932,10 @@ def gdalurlopen(url, timeout=10):
         return None
     except socket.timeout:
         print(f"HTTP service for {url} timed out")
+        socket.setdefaulttimeout(old_timeout)
+        return None
+    except http.client.RemoteDisconnected as e:
+        print(f"HTTP service for {url} is not available: RemoteDisconnected : {e}")
         socket.setdefaulttimeout(old_timeout)
         return None
 
@@ -2072,9 +2100,6 @@ def reopen(ds, update=False, open_options=None):
     ds_drv = ds.GetDriver()
 
     ds.Close()
-
-    if isinstance(ds, ogr.DataSource) and open_options is None:
-        return ogr.Open(ds_loc, update)
 
     flags = 0
     if update:

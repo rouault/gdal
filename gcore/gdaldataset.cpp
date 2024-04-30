@@ -931,7 +931,7 @@ void GDALDataset::SetBand(int nNewBand, std::unique_ptr<GDALRasterBand> poBand)
 
 */
 
-int GDALDataset::GetRasterXSize()
+int GDALDataset::GetRasterXSize() const
 {
     return nRasterXSize;
 }
@@ -968,7 +968,7 @@ int CPL_STDCALL GDALGetRasterXSize(GDALDatasetH hDataset)
 
 */
 
-int GDALDataset::GetRasterYSize()
+int GDALDataset::GetRasterYSize() const
 {
     return nRasterYSize;
 }
@@ -1029,6 +1029,43 @@ GDALRasterBand *GDALDataset::GetRasterBand(int nBandId)
 }
 
 /************************************************************************/
+/*                           GetRasterBand()                            */
+/************************************************************************/
+
+/**
+
+ \brief Fetch a band object for a dataset.
+
+ See GetBands() for a C++ iterator version of this method.
+
+ Equivalent of the C function GDALGetRasterBand().
+
+ @param nBandId the index number of the band to fetch, from 1 to
+                GetRasterCount().
+
+ @return the nBandId th band object
+
+*/
+
+const GDALRasterBand *GDALDataset::GetRasterBand(int nBandId) const
+
+{
+    if (papoBands)
+    {
+        if (nBandId < 1 || nBandId > nBands)
+        {
+            ReportError(CE_Failure, CPLE_IllegalArg,
+                        "GDALDataset::GetRasterBand(%d) - Illegal band #\n",
+                        nBandId);
+            return nullptr;
+        }
+
+        return papoBands[nBandId - 1];
+    }
+    return nullptr;
+}
+
+/************************************************************************/
 /*                         GDALGetRasterBand()                          */
 /************************************************************************/
 
@@ -1058,7 +1095,7 @@ GDALRasterBandH CPL_STDCALL GDALGetRasterBand(GDALDatasetH hDS, int nBandId)
  * @return the number of raster bands.
  */
 
-int GDALDataset::GetRasterCount()
+int GDALDataset::GetRasterCount() const
 {
     return papoBands ? nBands : 0;
 }
@@ -3971,7 +4008,9 @@ retry:
                     {
                         if (VSIStat(pszGDALDriverPath, &sStat) != 0)
                         {
-                            osMsg += ". Directory '";
+                            if (osMsg.back() != '.')
+                                osMsg += ".";
+                            osMsg += " Directory '";
                             osMsg += pszGDALDriverPath;
                             osMsg +=
                                 "' pointed by GDAL_DRIVER_PATH does not exist.";
@@ -3979,10 +4018,12 @@ retry:
                     }
                     else
                     {
+                        if (osMsg.back() != '.')
+                            osMsg += ".";
 #ifdef INSTALL_PLUGIN_FULL_DIR
                         if (VSIStat(INSTALL_PLUGIN_FULL_DIR, &sStat) != 0)
                         {
-                            osMsg += ". Directory '";
+                            osMsg += " Directory '";
                             osMsg += INSTALL_PLUGIN_FULL_DIR;
                             osMsg += "' hardcoded in the GDAL library does not "
                                      "exist and the GDAL_DRIVER_PATH "
@@ -3991,7 +4032,7 @@ retry:
                         else
 #endif
                         {
-                            osMsg += ". The GDAL_DRIVER_PATH configuration "
+                            osMsg += " The GDAL_DRIVER_PATH configuration "
                                      "option is not set.";
                         }
                     }
@@ -4500,7 +4541,7 @@ int GDALDataset::CloseDependentDatasets()
  */
 
 void GDALDataset::ReportError(CPLErr eErrClass, CPLErrorNum err_no,
-                              const char *fmt, ...)
+                              const char *fmt, ...) const
 {
     va_list args;
     va_start(args, fmt);
@@ -4872,6 +4913,11 @@ OGRErr GDALDatasetDeleteLayer(GDALDatasetH hDS, int iLayer)
 
 {
     VALIDATE_POINTER1(hDS, "GDALDatasetH", OGRERR_INVALID_HANDLE);
+
+#ifdef OGRAPISPY_ENABLED
+    if (bOGRAPISpyEnabled)
+        OGRAPISpy_DS_DeleteLayer(hDS, iLayer);
+#endif
 
     return GDALDataset::FromHandle(hDS)->DeleteLayer(iLayer);
 }

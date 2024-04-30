@@ -158,7 +158,6 @@ int main(int argc, char **argv)
         .help(_("Select an input band band containing the DEM data."));
 
     argParser.add_argument("-om")
-        .default_value("NORMAL")
         .choices("NORMAL", "DEM", "GROUND")
         .metavar("NORMAL|DEM|GROUND")
         .action([&into = o.outputMode](const std::string& value)
