@@ -43,10 +43,7 @@
 /*                                main()                                */
 /************************************************************************/
 
-//ABELL
-//MAIN_START(argc, argv)
-int main(int argc, char **argv)
-
+MAIN_START(argc, argv)
 {
     using namespace gdal;
 
@@ -264,15 +261,6 @@ int main(int argc, char **argv)
 
     GDALDatasetH hDstDS = GDALDataset::FromHandle(oViewshed.output().release());
 
-    /**
-    GDALDatasetH hDstDS = GDALViewshedGenerate(
-        hBand, osFormat.c_str(), osDstFilename.c_str(),
-        aosCreationOptions.List(), dfObserverX, dfObserverY, dfObserverHeight,
-        dfTargetHeight, dfVisibleVal, dfInvisibleVal, dfOutOfRangeVal,
-        dfNoDataVal, dfCurvCoeff, GVM_Edge, dfMaxDistance, pfnProgress, nullptr,
-        outputMode, nullptr);
-    **/
-
     GDALClose(hSrcDS);
     if (GDALClose(hDstDS) != CE_None)
         bSuccess = false;
@@ -283,5 +271,4 @@ int main(int argc, char **argv)
     return bSuccess ? 0 : 1;
 }
 
-//ABELL
-//MAIN_END
+MAIN_END
