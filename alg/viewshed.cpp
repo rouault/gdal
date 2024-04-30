@@ -25,6 +25,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
+#include <array>
+
 #include "gdal_alg.h"
 #include "gdal_priv.h"
 
@@ -94,7 +96,7 @@ namespace gdal
 namespace
 {
 
-static void SetVisibility(int iPixel, double dfZ, double dfZTarget,
+void SetVisibility(int iPixel, double dfZ, double dfZTarget,
                                  double *padfZVal, std::vector<GByte> &vResult,
                                  GByte byVisibleVal, GByte byInvisibleVal)
 {
@@ -107,7 +109,7 @@ static void SetVisibility(int iPixel, double dfZ, double dfZTarget,
         padfZVal[iPixel] = dfZ;
 }
 
-static bool AdjustHeightInRange(const double *adfGeoTransform,
+bool AdjustHeightInRange(const double *adfGeoTransform,
                                        int iPixel, int iLine, double &dfHeight,
                                        double dfDistance2, double dfCurvCoeff,
                                        double dfSphereDiameter)
@@ -130,7 +132,7 @@ static bool AdjustHeightInRange(const double *adfGeoTransform,
     return true;
 }
 
-static double CalcHeightLine(int i, double Za, double Zo)
+double CalcHeightLine(int i, double Za, double Zo)
 {
     if (i == 1)
         return Za;
@@ -138,14 +140,12 @@ static double CalcHeightLine(int i, double Za, double Zo)
         return (Za - Zo) / (i - 1) + Za;
 }
 
-static double CalcHeightDiagonal(int i, int j, double Za, double Zb,
-                                        double Zo)
+double CalcHeightDiagonal(int i, int j, double Za, double Zb, double Zo)
 {
     return ((Za - Zo) * i + (Zb - Zo) * j) / (i + j - 1) + Zo;
 }
 
-static double CalcHeightEdge(int i, int j, double Za, double Zb,
-                                    double Zo)
+double CalcHeightEdge(int i, int j, double Za, double Zb, double Zo)
 {
     if (i == j)
         return CalcHeightLine(i, Za, Zo);
@@ -153,7 +153,7 @@ static double CalcHeightEdge(int i, int j, double Za, double Zb,
         return ((Za - Zo) * i + (Zb - Zo) * (j - i)) / (j - 1) + Zo;
 }
 
-static double CalcHeight(double dfZ, double dfZ2, Viewshed::CellMode eMode)
+double CalcHeight(double dfZ, double dfZ2, Viewshed::CellMode eMode)
 {
     double dfHeight;
 

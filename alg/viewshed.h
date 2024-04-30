@@ -76,7 +76,7 @@ public:
         CellMode cellMode = CellMode::Edge;
     };
 
-    CPL_DLL Viewshed(const Options& oOpts) : oOpts(oOpts)
+    CPL_DLL Viewshed(const Options& opts) : oOpts{opts}, poDstDS{}
     {}
 
     CPL_DLL bool run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress);
