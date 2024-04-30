@@ -707,7 +707,7 @@ public:
       }
       catch (...)
       {
-        var = std::any_cast<int>(m_default_value);
+        var = static_cast<T>(std::any_cast<int>(m_default_value));
       }
     }
     action([&var](const auto &s) {

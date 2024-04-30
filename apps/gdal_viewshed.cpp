@@ -201,16 +201,10 @@ MAIN_START(argc, argv)
     }
 
     // For double values that are out of range for byte raster output,
-    // set to zero.
-    if (o.outputMode == Viewshed::OutputMode::Normal)
-    {
-        // Values less than zero are sentinel to not have nodata.
-        if (o.nodataVal > std::numeric_limits<uint8_t>::max())
+    // set to zero.  Values less than zero are sentinel as NULL nodata.
+    if (o.outputMode == Viewshed::OutputMode::Normal &&
+        o.nodataVal > std::numeric_limits<uint8_t>::max())
             o.nodataVal = 0;
-
-        if (o.outOfRangeVal < 0 || o.outOfRangeVal > std::numeric_limits<uint8_t>::max())
-            o.outOfRangeVal = 0;
-    }
 
     /* -------------------------------------------------------------------- */
     /*      Open source raster file.                                        */
