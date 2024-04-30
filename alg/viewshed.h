@@ -30,6 +30,7 @@
 #include <string>
 
 #include "cpl_progress.h"
+#include "gdal_priv.h"
 
 namespace gdal
 {

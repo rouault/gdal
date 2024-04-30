@@ -25,16 +25,10 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "cpl_conv.h"
-#include "cpl_string.h"
-#include "gdal_version.h"
-#include "gdal.h"
-#include "gdal_alg.h"
-#include "gdal_priv.h"
-#include "ogr_api.h"
-#include "ogr_srs_api.h"
-#include "ogr_spatialref.h"
+#include <limits>
+
 #include "commonutils.h"
+#include "gdal.h"
 #include "gdalargumentparser.h"
 
 #include "viewshed.h"
