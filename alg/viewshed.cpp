@@ -91,16 +91,15 @@ GDALDatasetH GDALViewshedGenerate(
     return GDALDataset::FromHandle(v.output().release());
 }
 
-
 namespace gdal
 {
 
 namespace
 {
 
-void SetVisibility(int iPixel, double dfZ, double dfZTarget,
-                                 double *padfZVal, std::vector<GByte> &vResult,
-                                 GByte byVisibleVal, GByte byInvisibleVal)
+void SetVisibility(int iPixel, double dfZ, double dfZTarget, double *padfZVal,
+                   std::vector<GByte> &vResult, GByte byVisibleVal,
+                   GByte byInvisibleVal)
 {
     if (padfZVal[iPixel] + dfZTarget < dfZ)
         vResult[iPixel] = byInvisibleVal;
@@ -111,8 +110,9 @@ void SetVisibility(int iPixel, double dfZ, double dfZTarget,
         padfZVal[iPixel] = dfZ;
 }
 
-bool AdjustHeightInRange(const double *adfGeoTransform, int iPixel, int iLine, double &dfHeight,
-                         double dfDistance2, double dfCurvCoeff, double dfSphereDiameter)
+bool AdjustHeightInRange(const double *adfGeoTransform, int iPixel, int iLine,
+                         double &dfHeight, double dfDistance2,
+                         double dfCurvCoeff, double dfSphereDiameter)
 {
     if (dfDistance2 <= 0 && dfCurvCoeff == 0)
         return true;
@@ -159,23 +159,23 @@ double CalcHeight(double dfZ, double dfZ2, Viewshed::CellMode eMode)
 
     switch (eMode)
     {
-    case Viewshed::CellMode::Edge:
-        dfHeight = dfZ2;
-        break;
-    case Viewshed::CellMode::Max:
-        dfHeight = std::max(dfZ, dfZ2);
-        break;
-    case Viewshed::CellMode::Min:
-        dfHeight = std::min(dfZ, dfZ2);
-        break;
-    case Viewshed::CellMode::Diagonal:
-        dfHeight = dfZ;
-        break;
+        case Viewshed::CellMode::Edge:
+            dfHeight = dfZ2;
+            break;
+        case Viewshed::CellMode::Max:
+            dfHeight = std::max(dfZ, dfZ2);
+            break;
+        case Viewshed::CellMode::Min:
+            dfHeight = std::min(dfZ, dfZ2);
+            break;
+        case Viewshed::CellMode::Diagonal:
+            dfHeight = dfZ;
+            break;
     }
     return dfHeight;
 }
 
-} // unnamed namespace
+}  // unnamed namespace
 
 bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
 {
@@ -204,7 +204,7 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
     /* calculate observer position */
     double dfX, dfY;
     GDALApplyGeoTransform(adfInvGeoTransform, oOpts.observer.x,
-        oOpts.observer.y, &dfX, &dfY);
+                          oOpts.observer.y, &dfX, &dfY);
     int nX = static_cast<int>(dfX);
     int nY = static_cast<int>(dfY);
 
@@ -228,20 +228,22 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
     int nYStop = nYSize;
     if (oOpts.maxDistance > 0)
     {
-        nXStart = static_cast<int>(
-            std::floor(nX - adfInvGeoTransform[1] * oOpts.maxDistance +
-                       EPSILON));
+        nXStart = static_cast<int>(std::floor(
+            nX - adfInvGeoTransform[1] * oOpts.maxDistance + EPSILON));
         nXStop = static_cast<int>(
             std::ceil(nX + adfInvGeoTransform[1] * oOpts.maxDistance -
-                      EPSILON) + 1);
-        nYStart = static_cast<int>(
-            std::floor(nY - std::fabs(adfInvGeoTransform[5]) *
-                       oOpts.maxDistance + EPSILON)) -
-                       (adfInvGeoTransform[5] > 0 ? 1 : 0);
+                      EPSILON) +
+            1);
+        nYStart =
+            static_cast<int>(std::floor(
+                nY - std::fabs(adfInvGeoTransform[5]) * oOpts.maxDistance +
+                EPSILON)) -
+            (adfInvGeoTransform[5] > 0 ? 1 : 0);
         nYStop = static_cast<int>(
-            std::ceil(nY + std::fabs(adfInvGeoTransform[5]) *
-                      oOpts.maxDistance - EPSILON) +
-                      (adfInvGeoTransform[5] < 0 ? 1 : 0));
+            std::ceil(nY +
+                      std::fabs(adfInvGeoTransform[5]) * oOpts.maxDistance -
+                      EPSILON) +
+            (adfInvGeoTransform[5] < 0 ? 1 : 0));
     }
     nXStart = std::max(nXStart, 0);
     nYStart = std::max(nYStart, 0);
@@ -298,10 +300,10 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
     }
 
     /* create output raster */
-    poDstDS.reset(
-        hDriver->Create(oOpts.outputFilename.c_str(), nXSize, nYSize, 1,
-            oOpts.outputMode == OutputMode::Normal ? GDT_Byte : GDT_Float64,
-            const_cast<char **>(oOpts.creationOpts.List())));
+    poDstDS.reset(hDriver->Create(
+        oOpts.outputFilename.c_str(), nXSize, nYSize, 1,
+        oOpts.outputMode == OutputMode::Normal ? GDT_Byte : GDT_Float64,
+        const_cast<char **>(oOpts.creationOpts.List())));
     if (!poDstDS)
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Cannot create dataset for %s",
@@ -333,7 +335,7 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
     }
 
     if (oOpts.nodataVal >= 0)
-        GDALSetRasterNoDataValue( hTargetBand, oOpts.nodataVal);
+        GDALSetRasterNoDataValue(hTargetBand, oOpts.nodataVal);
 
     /* process first line */
     if (GDALRasterIO(hBand, GF_Read, nXStart, nY, nXSize, 1, padfFirstLineVal,
@@ -394,7 +396,7 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
     if (nX < nXSize - 1)
     {
         if (oOpts.outputMode == OutputMode::DEM)
-        dfGroundLevel = padfFirstLineVal[nX + 1];
+            dfGroundLevel = padfFirstLineVal[nX + 1];
         CPL_IGNORE_RET_VAL(AdjustHeightInRange(
             adfGeoTransform.data(), 1, 0, padfFirstLineVal[nX + 1], dfDistance2,
             oOpts.curveCoeff, dfSphereDiameter));
@@ -411,8 +413,8 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
             dfGroundLevel = padfFirstLineVal[iPixel];
 
         if (AdjustHeightInRange(adfGeoTransform.data(), nX - iPixel, 0,
-            padfFirstLineVal[iPixel], dfDistance2, oOpts.curveCoeff,
-            dfSphereDiameter))
+                                padfFirstLineVal[iPixel], dfDistance2,
+                                oOpts.curveCoeff, dfSphereDiameter))
         {
             dfZ = CalcHeightLine(nX - iPixel, padfFirstLineVal[iPixel + 1],
                                  dfZObserver);
@@ -441,8 +443,8 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
         if (oOpts.outputMode == OutputMode::DEM)
             dfGroundLevel = padfFirstLineVal[iPixel];
         if (AdjustHeightInRange(adfGeoTransform.data(), iPixel - nX, 0,
-            padfFirstLineVal[iPixel], dfDistance2, oOpts.curveCoeff,
-            dfSphereDiameter))
+                                padfFirstLineVal[iPixel], dfDistance2,
+                                oOpts.curveCoeff, dfSphereDiameter))
         {
             dfZ = CalcHeightLine(iPixel - nX, padfFirstLineVal[iPixel - 1],
                                  dfZObserver);
@@ -478,8 +480,8 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
         data = static_cast<void *>(dfHeightResult);
         dataType = GDT_Float64;
     }
-    if (GDALRasterIO(hTargetBand, GF_Write, 0, nY - nYStart, nXSize, 1,
-                     data, nXSize, 1, dataType, 0, 0))
+    if (GDALRasterIO(hTargetBand, GF_Write, 0, nY - nYStart, nXSize, 1, data,
+                     nXSize, 1, dataType, 0, 0))
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "RasterIO error when writing target raster at position "
@@ -507,8 +509,8 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
         if (oOpts.outputMode == OutputMode::DEM)
             dfGroundLevel = padfThisLineVal[nX];
         if (AdjustHeightInRange(adfGeoTransform.data(), 0, nY - iLine,
-            padfThisLineVal[nX], dfDistance2, oOpts.curveCoeff,
-            dfSphereDiameter))
+                                padfThisLineVal[nX], dfDistance2,
+                                oOpts.curveCoeff, dfSphereDiameter))
         {
             dfZ = CalcHeightLine(nY - iLine, padfLastLineVal[nX], dfZObserver);
 
@@ -516,8 +518,8 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
                 dfHeightResult[nX] =
                     std::max(0.0, (dfZ - padfThisLineVal[nX] + dfGroundLevel));
 
-            SetVisibility(nX, dfZ, oOpts.targetHeight, padfThisLineVal,
-                vResult, oOpts.visibleVal, oOpts.invisibleVal);
+            SetVisibility(nX, dfZ, oOpts.targetHeight, padfThisLineVal, vResult,
+                          oOpts.visibleVal, oOpts.invisibleVal);
         }
         else
         {
@@ -533,8 +535,9 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
             if (oOpts.outputMode == OutputMode::DEM)
                 dfGroundLevel = padfThisLineVal[iPixel];
             if (AdjustHeightInRange(adfGeoTransform.data(), nX - iPixel,
-                nY - iLine, padfThisLineVal[iPixel],
-                dfDistance2, oOpts.curveCoeff, dfSphereDiameter))
+                                    nY - iLine, padfThisLineVal[iPixel],
+                                    dfDistance2, oOpts.curveCoeff,
+                                    dfSphereDiameter))
             {
                 if (oOpts.cellMode != CellMode::Edge)
                     dfZ = CalcHeightDiagonal(
@@ -581,8 +584,9 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
                 dfGroundLevel = padfThisLineVal[iPixel];
 
             if (AdjustHeightInRange(adfGeoTransform.data(), iPixel - nX,
-                nY - iLine, padfThisLineVal[iPixel], dfDistance2,
-                oOpts.curveCoeff, dfSphereDiameter))
+                                    nY - iLine, padfThisLineVal[iPixel],
+                                    dfDistance2, oOpts.curveCoeff,
+                                    dfSphereDiameter))
             {
                 if (oOpts.cellMode != CellMode::Edge)
                     dfZ = CalcHeightDiagonal(
@@ -622,9 +626,8 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
         }
 
         /* write result line */
-        if (GDALRasterIO(
-                hTargetBand, GF_Write, 0, iLine - nYStart, nXSize, 1,
-                data, nXSize, 1, dataType, 0, 0))
+        if (GDALRasterIO(hTargetBand, GF_Write, 0, iLine - nYStart, nXSize, 1,
+                         data, nXSize, 1, dataType, 0, 0))
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "RasterIO error when writing target raster at position "
@@ -648,8 +651,7 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
     for (int iLine = nY + 1; iLine < nYStop; iLine++)
     {
         if (GDALRasterIO(hBand, GF_Read, nXStart, iLine, nXSize, 1,
-                         padfThisLineVal, nXSize, 1, GDT_Float64, 0,
-                         0))
+                         padfThisLineVal, nXSize, 1, GDT_Float64, 0, 0))
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "RasterIO error when reading DEM at position (%d,%d), "
@@ -664,8 +666,8 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
             dfGroundLevel = padfThisLineVal[nX];
 
         if (AdjustHeightInRange(adfGeoTransform.data(), 0, iLine - nY,
-            padfThisLineVal[nX], dfDistance2, oOpts.curveCoeff,
-            dfSphereDiameter))
+                                padfThisLineVal[nX], dfDistance2,
+                                oOpts.curveCoeff, dfSphereDiameter))
         {
             dfZ = CalcHeightLine(iLine - nY, padfLastLineVal[nX], dfZObserver);
 
@@ -691,8 +693,9 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
                 dfGroundLevel = padfThisLineVal[iPixel];
 
             if (AdjustHeightInRange(adfGeoTransform.data(), nX - iPixel,
-                iLine - nY, padfThisLineVal[iPixel], dfDistance2,
-                oOpts.curveCoeff, dfSphereDiameter))
+                                    iLine - nY, padfThisLineVal[iPixel],
+                                    dfDistance2, oOpts.curveCoeff,
+                                    dfSphereDiameter))
             {
                 if (oOpts.cellMode != CellMode::Edge)
                     dfZ = CalcHeightDiagonal(
@@ -739,8 +742,9 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
                 dfGroundLevel = padfThisLineVal[iPixel];
 
             if (AdjustHeightInRange(adfGeoTransform.data(), iPixel - nX,
-               iLine - nY, padfThisLineVal[iPixel],
-               dfDistance2, oOpts.curveCoeff, dfSphereDiameter))
+                                    iLine - nY, padfThisLineVal[iPixel],
+                                    dfDistance2, oOpts.curveCoeff,
+                                    dfSphereDiameter))
             {
                 if (oOpts.cellMode != CellMode::Edge)
                     dfZ = CalcHeightDiagonal(
@@ -781,9 +785,8 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
         }
 
         /* write result line */
-        if (GDALRasterIO(
-                hTargetBand, GF_Write, 0, iLine - nYStart, nXSize, 1,
-                data, nXSize, 1, dataType, 0, 0))
+        if (GDALRasterIO(hTargetBand, GF_Write, 0, iLine - nYStart, nXSize, 1,
+                         data, nXSize, 1, dataType, 0, 0))
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "RasterIO error when writing target raster at position "
@@ -811,4 +814,4 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
     return true;
 }
 
-} // namespace gdal
+}  // namespace gdal

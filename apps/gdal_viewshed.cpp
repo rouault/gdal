@@ -151,7 +151,8 @@ MAIN_START(argc, argv)
     argParser.add_argument("-om")
         .choices("NORMAL", "DEM", "GROUND")
         .metavar("NORMAL|DEM|GROUND")
-        .action([&into = o.outputMode](const std::string& value)
+        .action(
+            [&into = o.outputMode](const std::string &value)
             {
                 if (EQUAL(value.c_str(), "DEM"))
                     into = Viewshed::OutputMode::DEM;
@@ -187,7 +188,8 @@ MAIN_START(argc, argv)
 
     if (o.maxDistance < 0)
     {
-        CPLError(CE_Failure, CPLE_AppDefined, "Max distance must be non-negative.");
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Max distance must be non-negative.");
         exit(2);
     }
 
@@ -204,7 +206,7 @@ MAIN_START(argc, argv)
     // set to zero.  Values less than zero are sentinel as NULL nodata.
     if (o.outputMode == Viewshed::OutputMode::Normal &&
         o.nodataVal > std::numeric_limits<uint8_t>::max())
-            o.nodataVal = 0;
+        o.nodataVal = 0;
 
     /* -------------------------------------------------------------------- */
     /*      Open source raster file.                                        */
@@ -245,7 +247,8 @@ MAIN_START(argc, argv)
     /* -------------------------------------------------------------------- */
     Viewshed oViewshed(o);
 
-    bool bSuccess = oViewshed.run(hBand, bQuiet ? GDALDummyProgress : GDALTermProgress);
+    bool bSuccess =
+        oViewshed.run(hBand, bQuiet ? GDALDummyProgress : GDALTermProgress);
 
     GDALDatasetH hDstDS = GDALDataset::FromHandle(oViewshed.output().release());
 
