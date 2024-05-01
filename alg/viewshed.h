@@ -62,27 +62,49 @@ class Viewshed
 
     struct Options
     {
-        Point observer{0, 0, 0};
-        uint8_t visibleVal{0};
-        uint8_t invisibleVal{0};
-        uint8_t outOfRangeVal{0};
-        double nodataVal{0.0};
-        double targetHeight{0.0};
-        double maxDistance{0.0};
-        double curveCoeff{0.0};
-        OutputMode outputMode{OutputMode::Normal};
-        std::string outputFormat{};
-        std::string outputFilename{};
-        CPLStringList creationOpts{};
-        CellMode cellMode{CellMode::Edge};
+        Point observer{0, 0, 0};  //!< x, y, and z of the observer
+        uint8_t visibleVal{0};    //!< raster output value for visible pixels.
+        uint8_t invisibleVal{
+            0};  //!< raster output value for non-visible pixels.
+        uint8_t outOfRangeVal{
+            0};  //!< raster output value for pixels outside of max distance.
+        double nodataVal{0.0};  //!< raster output value for pixels with no data
+        double targetHeight{0.0};  //!< target height above the DEM surface
+        double maxDistance{
+            0.0};  //!< maximum distance from observer to compute value
+        double curveCoeff{0.0};  //!< coefficient for atmospheric refraction
+        OutputMode outputMode{OutputMode::Normal};  //!< Output information.
+            //!< Normal, Height from DEM or Height from ground
+        std::string outputFormat{};    //!< output raster format
+        std::string outputFilename{};  //!< output raster filename
+        CPLStringList creationOpts{};  //!< options for output raster creation
+        CellMode cellMode{CellMode::Edge};  // Mode of viewshed calculation.
     };
 
+    /**
+     * Constructor.
+     *
+     * @param opts Options to use when calculating viewshed.
+    */
     CPL_DLL explicit Viewshed(const Options &opts) : oOpts{opts}, poDstDS{}
     {
     }
 
-    CPL_DLL bool run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress);
+    /**
+     * Create the viewshed for the provided raster band.
+     *
+     * @param hBand  Handle to the raster band.
+     * @param pfnProgress  Progress reporting callback function.
+     * @param pProgressArg  Argument to pass to the progress callback.
+    */
+    CPL_DLL bool run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress,
+                     void *pProgressArg = nullptr);
 
+    /**
+     * Fetch a pointer to the created raster band.
+     *
+     * @return  Unique pointer to the viewshed dataset.
+    */
     CPL_DLL std::unique_ptr<GDALDataset> output()
     {
         return std::move(poDstDS);

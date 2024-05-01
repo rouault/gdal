@@ -59,24 +59,24 @@ MAIN_START(argc, argv)
     argParser.add_epilog(_("For more details, consult "
                            "https://gdal.org/programs/gdal_viewshed.html"));
 
-    Viewshed::Options o;
+    Viewshed::Options opts;
 
-    argParser.add_output_format_argument(o.outputFormat);
+    argParser.add_output_format_argument(opts.outputFormat);
     argParser.add_argument("-ox")
-        .store_into(o.observer.x)
+        .store_into(opts.observer.x)
         .required()
         .metavar("<value>")
         .help(_("The X position of the observer (in SRS units)."));
 
     argParser.add_argument("-oy")
-        .store_into(o.observer.y)
+        .store_into(opts.observer.y)
         .required()
         .metavar("<value>")
         .help(_("The Y position of the observer (in SRS units)."));
 
     argParser.add_argument("-oz")
         .default_value(2)
-        .store_into(o.observer.z)
+        .store_into(opts.observer.z)
         .metavar("<value>")
         .nargs(1)
         .help(_("The height of the observer above the DEM surface in the "
@@ -84,32 +84,32 @@ MAIN_START(argc, argv)
 
     argParser.add_argument("-vv")
         .default_value(255)
-        .store_into(o.visibleVal)
+        .store_into(opts.visibleVal)
         .metavar("<value>")
         .nargs(1)
         .help(_("Pixel value to set for visible areas."));
 
     argParser.add_argument("-iv")
         .default_value(0)
-        .store_into(o.invisibleVal)
+        .store_into(opts.invisibleVal)
         .metavar("<value>")
         .nargs(1)
         .help(_("Pixel value to set for invisible areas."));
 
     argParser.add_argument("-ov")
         .default_value(0)
-        .store_into(o.outOfRangeVal)
+        .store_into(opts.outOfRangeVal)
         .metavar("<value>")
         .nargs(1)
         .help(
             _("Pixel value to set for the cells that fall outside of the range "
               "specified by the observer location and the maximum distance."));
 
-    argParser.add_creation_options_argument(o.creationOpts);
+    argParser.add_creation_options_argument(opts.creationOpts);
 
     argParser.add_argument("-a_nodata")
         .default_value(-1.0)
-        .store_into(o.nodataVal)
+        .store_into(opts.nodataVal)
         .metavar("<value>")
         .nargs(1)
         .help(_("The value to be set for the cells in the output raster that "
@@ -117,7 +117,7 @@ MAIN_START(argc, argv)
 
     argParser.add_argument("-tz")
         .default_value(0.0)
-        .store_into(o.targetHeight)
+        .store_into(opts.targetHeight)
         .metavar("<value>")
         .nargs(1)
         .help(_("The height of the target above the DEM surface in the height "
@@ -125,7 +125,7 @@ MAIN_START(argc, argv)
 
     argParser.add_argument("-md")
         .default_value(0)
-        .store_into(o.maxDistance)
+        .store_into(opts.maxDistance)
         .metavar("<value>")
         .nargs(1)
         .help(_("Maximum distance from observer to compute visibility."));
@@ -134,7 +134,7 @@ MAIN_START(argc, argv)
     // doc/source/programs/gdal_viewshed.rst
     argParser.add_argument("-cc")
         .default_value(0.85714)
-        .store_into(o.curveCoeff)
+        .store_into(opts.curveCoeff)
         .metavar("<value>")
         .nargs(1)
         .help(_("Coefficient to consider the effect of the curvature and "
@@ -152,7 +152,7 @@ MAIN_START(argc, argv)
         .choices("NORMAL", "DEM", "GROUND")
         .metavar("NORMAL|DEM|GROUND")
         .action(
-            [&into = o.outputMode](const std::string &value)
+            [&into = opts.outputMode](const std::string &value)
             {
                 if (EQUAL(value.c_str(), "DEM"))
                     into = Viewshed::OutputMode::DEM;
@@ -173,7 +173,7 @@ MAIN_START(argc, argv)
         .metavar("<src_filename>");
 
     argParser.add_argument("dst_filename")
-        .store_into(o.outputFilename)
+        .store_into(opts.outputFilename)
         .metavar("<dst_filename>");
 
     try
@@ -186,17 +186,18 @@ MAIN_START(argc, argv)
         std::exit(1);
     }
 
-    if (o.maxDistance < 0)
+    if (opts.maxDistance < 0)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Max distance must be non-negative.");
         exit(2);
     }
 
-    if (o.outputFormat.empty())
+    if (opts.outputFormat.empty())
     {
-        o.outputFormat = GetOutputDriverForRaster(o.outputFilename.c_str());
-        if (o.outputFormat.empty())
+        opts.outputFormat =
+            GetOutputDriverForRaster(opts.outputFilename.c_str());
+        if (opts.outputFormat.empty())
         {
             exit(2);
         }
@@ -204,9 +205,9 @@ MAIN_START(argc, argv)
 
     // For double values that are out of range for byte raster output,
     // set to zero.  Values less than zero are sentinel as NULL nodata.
-    if (o.outputMode == Viewshed::OutputMode::Normal &&
-        o.nodataVal > std::numeric_limits<uint8_t>::max())
-        o.nodataVal = 0;
+    if (opts.outputMode == Viewshed::OutputMode::Normal &&
+        opts.nodataVal > std::numeric_limits<uint8_t>::max())
+        opts.nodataVal = 0;
 
     /* -------------------------------------------------------------------- */
     /*      Open source raster file.                                        */
@@ -235,7 +236,7 @@ MAIN_START(argc, argv)
                 fabs(dfSemiMajor - SRS_WGS84_SEMIMAJOR) >
                     0.05 * SRS_WGS84_SEMIMAJOR)
             {
-                o.curveCoeff = 1.0;
+                opts.curveCoeff = 1.0;
                 CPLDebug("gdal_viewshed",
                          "Using -cc=1.0 as a non-Earth CRS has been detected");
             }
@@ -245,7 +246,7 @@ MAIN_START(argc, argv)
     /* -------------------------------------------------------------------- */
     /*      Invoke.                                                         */
     /* -------------------------------------------------------------------- */
-    Viewshed oViewshed(o);
+    Viewshed oViewshed(opts);
 
     bool bSuccess =
         oViewshed.run(hBand, bQuiet ? GDALDummyProgress : GDALTermProgress);

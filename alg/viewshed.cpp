@@ -31,6 +31,7 @@
 
 #include "gdal_alg.h"
 #include "gdal_priv.h"
+#include "gdal_priv_templates.hpp"
 
 #include "viewshed.h"
 
@@ -45,7 +46,7 @@ GDALDatasetH GDALViewshedGenerate(
     double dfTargetHeight, double dfVisibleVal, double dfInvisibleVal,
     double dfOutOfRangeVal, double dfNoDataVal, double dfCurvCoeff,
     GDALViewshedMode eMode, double dfMaxDistance, GDALProgressFunc pfnProgress,
-    [[maybe_unused]] void *pProgressArg, GDALViewshedOutputType heightMode,
+    void *pProgressArg, GDALViewshedOutputType heightMode,
     [[maybe_unused]] CSLConstList papszExtraOptions)
 {
     using namespace gdal;
@@ -62,23 +63,53 @@ GDALDatasetH GDALViewshedGenerate(
     oOpts.maxDistance = dfMaxDistance;
     oOpts.nodataVal = dfNoDataVal;
 
-    if (eMode == GVM_Edge)
-        oOpts.cellMode = Viewshed::CellMode::Edge;
-    else if (eMode == GVM_Diagonal)
-        oOpts.cellMode = Viewshed::CellMode::Diagonal;
-    if (eMode == GVM_Min)
-        oOpts.cellMode = Viewshed::CellMode::Min;
-    if (eMode == GVM_Max)
-        oOpts.cellMode = Viewshed::CellMode::Max;
+    switch (eMode)
+    {
+        case GVM_Edge:
+            oOpts.cellMode = Viewshed::CellMode::Edge;
+            break;
+        case GVM_Diagonal:
+            oOpts.cellMode = Viewshed::CellMode::Diagonal;
+            break;
+        case GVM_Min:
+            oOpts.cellMode = Viewshed::CellMode::Min;
+            break;
+        case GVM_Max:
+            oOpts.cellMode = Viewshed::CellMode::Max;
+            break;
+    }
 
-    if (heightMode == GVOT_MIN_TARGET_HEIGHT_FROM_DEM)
-        oOpts.outputMode = Viewshed::OutputMode::DEM;
-    else if (heightMode == GVOT_MIN_TARGET_HEIGHT_FROM_GROUND)
-        oOpts.outputMode = Viewshed::OutputMode::Ground;
-    else
-        oOpts.outputMode = Viewshed::OutputMode::Normal;
+    switch (heightMode)
+    {
+        case GVOT_MIN_TARGET_HEIGHT_FROM_DEM:
+            oOpts.outputMode = Viewshed::OutputMode::DEM;
+            break;
+        case GVOT_MIN_TARGET_HEIGHT_FROM_GROUND:
+            oOpts.outputMode = Viewshed::OutputMode::Ground;
+            break;
+        case GVOT_NORMAL:
+            oOpts.outputMode = Viewshed::OutputMode::Normal;
+            break;
+    }
 
-    //ABELL - Perhaps assert these for range.
+    if (!GDALIsValueInRange<uint8_t>(dfVisibleVal))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "dfVisibleVal out of range. Must be [0, 255].");
+        return nullptr;
+    }
+    if (!GDALIsValueInRange<uint8_t>(dfInvisibleVal))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "dfInvisibleVal out of range. Must be [0, 255].");
+        return nullptr;
+    }
+    if (!GDALIsValueInRange<uint8_t>(dfOutOfRangeVal))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "dfOutOfRangeVal out of range. Must be [0, 255].");
+        return nullptr;
+    }
     oOpts.visibleVal = static_cast<uint8_t>(dfVisibleVal);
     oOpts.invisibleVal = static_cast<uint8_t>(dfInvisibleVal);
     oOpts.outOfRangeVal = static_cast<uint8_t>(dfOutOfRangeVal);
@@ -86,7 +117,7 @@ GDALDatasetH GDALViewshedGenerate(
     gdal::Viewshed v(oOpts);
 
     //ABELL - Make a function for progress that captures the progress argument.
-    v.run(hBand, pfnProgress);
+    v.run(hBand, pfnProgress, pProgressArg);
 
     return GDALDataset::FromHandle(v.output().release());
 }
@@ -177,12 +208,13 @@ double CalcHeight(double dfZ, double dfZ2, Viewshed::CellMode eMode)
 
 }  // unnamed namespace
 
-bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
+bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress,
+                   void *pProgressArg)
 {
     if (!pfnProgress)
         pfnProgress = GDALDummyProgress;
 
-    if (!pfnProgress(0.0, "", nullptr))
+    if (!pfnProgress(0.0, "", pProgressArg))
     {
         CPLError(CE_Failure, CPLE_UserInterrupt, "User terminated");
         return false;
@@ -221,7 +253,6 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
     /* calculate the area of interest */
     constexpr double EPSILON = 1e-8;
 
-    //ABELL - Do we care about overflow?
     int nXStart = 0;
     int nYStart = 0;
     int nXStop = nXSize;
@@ -639,7 +670,7 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
         std::swap(padfLastLineVal, padfThisLineVal);
 
         if (!pfnProgress((nY - iLine) / static_cast<double>(nYSize), "",
-                         nullptr))
+                         pProgressArg))
         {
             CPLError(CE_Failure, CPLE_UserInterrupt, "User terminated");
             return false;
@@ -798,14 +829,14 @@ bool Viewshed::run(GDALRasterBandH hBand, GDALProgressFunc pfnProgress)
         std::swap(padfLastLineVal, padfThisLineVal);
 
         if (!pfnProgress((iLine - nYStart) / static_cast<double>(nYSize), "",
-                         nullptr))
+                         pProgressArg))
         {
             CPLError(CE_Failure, CPLE_UserInterrupt, "User terminated");
             return false;
         }
     }
 
-    if (!pfnProgress(1.0, "", nullptr))
+    if (!pfnProgress(1.0, "", pProgressArg))
     {
         CPLError(CE_Failure, CPLE_UserInterrupt, "User terminated");
         return false;
