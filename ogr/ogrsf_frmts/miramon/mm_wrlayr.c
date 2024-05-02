@@ -97,7 +97,8 @@ int MMCheckVersionForFID(struct MiraMonVectLayerInfo *hMiraMonLayer,
                          MM_INTERNAL_FID FID);
 
 // Extended DBF functions
-int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer);
+int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
+                 struct MM_POINT_2D *pFirstCoord);
 int MMAddDBFRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                          struct MiraMonFeature *hMMFeature);
 int MMAddPointRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
@@ -153,18 +154,6 @@ void MMCPLDebug(int code, const char *fmt, ...)
     vsnprintf(szBigEnoughBuffer, sizeof(szBigEnoughBuffer), fmt, args);
     printf(szBigEnoughBuffer); /*ok*/
     va_end(args);
-}
-
-int snprintf(char *str, size_t size, const char *format, ...)
-{
-    int result;
-    va_list args;
-
-    va_start(args, format);
-    result = vsnprintf(str, size, format, args);
-    va_end(args);
-
-    return result;
 }
 #endif
 
@@ -2806,7 +2795,7 @@ int MMAppendIntegerDependingOnVersion(
 /* -------------------------------------------------------------------- */
 /*      Layer: Reading and writing layer sections                       */
 /*      This code follows the specifications of the following document: */
-/*             https://www.miramon.cat/new_note/usa/notes/   \          */
+/*             https://www.miramon.cat/new_note/eng/notes/   \          */
 /*              FormatFitxersTopologicsMiraMon.pdf                      */
 /* -------------------------------------------------------------------- */
 int MMReadAHArcSection(struct MiraMonVectLayerInfo *hMiraMonLayer)
@@ -3818,7 +3807,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if (hMiraMonLayer->TopHeader.nElemCount == 0)
         {
             MMCPLDebug("MiraMon", "Creating MiraMon database");
-            if (MMCreateMMDB(hMiraMonLayer))
+            if (MMCreateMMDB(hMiraMonLayer, hMMFeature->pCoord))
                 return MM_FATAL_ERROR_WRITING_FEATURES;
             MMCPLDebug("MiraMon", "MiraMon database created. "
                                   "Creating features...");
@@ -3829,7 +3818,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if (hMiraMonLayer->TopHeader.nElemCount == 1)
         {
             MMCPLDebug("MiraMon", "Creating MiraMon database");
-            if (MMCreateMMDB(hMiraMonLayer))
+            if (MMCreateMMDB(hMiraMonLayer, hMMFeature->pCoord))
                 return MM_FATAL_ERROR_WRITING_FEATURES;
             MMCPLDebug("MiraMon", "MiraMon database created. "
                                   "Creating features...");
@@ -4348,7 +4337,7 @@ static int MMCreateRecordDBF(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
     if (hMiraMonLayer->TopHeader.nElemCount == 0)
     {
-        if (MMCreateMMDB(hMiraMonLayer))
+        if (MMCreateMMDB(hMiraMonLayer, nullptr))
             return MM_FATAL_ERROR_WRITING_FEATURES;
     }
 
@@ -4514,7 +4503,7 @@ static int MMCreateFeaturePoint(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
         if (hMiraMonLayer->TopHeader.nElemCount == 0)
         {
-            if (MMCreateMMDB(hMiraMonLayer))
+            if (MMCreateMMDB(hMiraMonLayer, hMMFeature->pCoord))
                 return MM_FATAL_ERROR_WRITING_FEATURES;
         }
 
@@ -4617,7 +4606,7 @@ int MMAddFeature(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
     if (hMiraMonLayer->bIsPoint)
     {
-        re = LOG_ACTION(MMCreateFeaturePoint(hMiraMonLayer, hMiraMonFeature));
+        re = MMCreateFeaturePoint(hMiraMonLayer, hMiraMonFeature);
         if (hMiraMonFeature)
         {
             hMiraMonFeature->nReadFeatures =
@@ -4627,8 +4616,7 @@ int MMAddFeature(struct MiraMonVectLayerInfo *hMiraMonLayer,
     }
     if (hMiraMonLayer->bIsArc || hMiraMonLayer->bIsPolygon)
     {
-        re =
-            LOG_ACTION(MMCreateFeaturePolOrArc(hMiraMonLayer, hMiraMonFeature));
+        re = MMCreateFeaturePolOrArc(hMiraMonLayer, hMiraMonFeature);
         if (hMiraMonFeature)
         {
             hMiraMonFeature->nReadFeatures =
@@ -4639,7 +4627,7 @@ int MMAddFeature(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (hMiraMonLayer->bIsDBF)
     {
         // Adding a record to DBF file
-        re = LOG_ACTION(MMCreateRecordDBF(hMiraMonLayer, hMiraMonFeature));
+        re = MMCreateRecordDBF(hMiraMonLayer, hMiraMonFeature);
         if (hMiraMonFeature)
         {
             hMiraMonFeature->nReadFeatures =
@@ -5135,6 +5123,7 @@ char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
 #ifndef GDAL_COMPILATION
     char line[10000];
 #endif
+    char *pszString;
     const char *pszLine;
     char *section_header = nullptr;
     size_t key_len = 0;
@@ -5151,14 +5140,15 @@ char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
         key_len = strlen(key);
 
 #ifndef GDAL_COMPILATION
-    while (fgets(line, (int)sizeof(line), file))
+    while (fgets_function(line, (int)sizeof(line), file) && !feof_64(file) &&
+           *line != '\0')
     {
         pszLine = line;
 #else
     while ((pszLine = CPLReadLine2L(file, 10000, nullptr)) != nullptr)
     {
 #endif
-        char *pszString =
+        pszString =
             CPLRecode_function(pszLine, CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
 
         // Skip comments and empty lines
@@ -5256,6 +5246,10 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
     const char *pszLine;
     size_t nLong;
     char *id_geodes, *psidgeodes, *epsg;
+#ifndef GDAL_COMPILATION
+    char line[10000];
+    char *pszString;
+#endif
 
     if (!pMMSRS_or_pSRS)
     {
@@ -5289,8 +5283,17 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
     }
     free_function(aMMIDDBFFile);
 
-    // Checking the header of the csv file
-    pszLine = CPLReadLine2L(pfMMSRS, 1024, nullptr);
+// Checking the header of the csv file
+#ifndef GDAL_COMPILATION
+    fgets_function(line, (int)sizeof(line), pfMMSRS);
+    if (!feof_64(pfMMSRS))
+        pszLine = line;
+    else
+        pszLine = nullptr;
+#else
+    pszLine = CPLReadLine2L(pfMMSRS, 10000, nullptr);
+#endif
+
     if (!pszLine)
 
     {
@@ -5336,9 +5339,16 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
         return 1;
     }
 
-    // Looking for the information.
-    while ((pszLine = CPLReadLine2L(pfMMSRS, 1024, nullptr)) != nullptr)
+// Looking for the information.
+#ifndef GDAL_COMPILATION
+    while (fgets_function(line, (int)sizeof(line), pfMMSRS) &&
+           !feof_64(pfMMSRS) && *line != '\0')
     {
+        pszLine = line;
+#else
+    while ((pszLine = CPLReadLine2L(pfMMSRS, 10000, nullptr)) != nullptr)
+    {
+#endif
         id_geodes = strstr(pszLine, ";");
         if (!id_geodes)
         {
@@ -5805,21 +5815,35 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         // For each field of the databes
         for (nIField = 0; nIField < hMMMD->pLayerDB->nNFields; nIField++)
         {
+            fprintf_function(pF, LineReturn "[%s:%s]" LineReturn,
+                             SECTION_TAULA_PRINCIPAL,
+                             hMMMD->pLayerDB->pFields[nIField].pszFieldName);
+
             if (!MMIsEmptyString(
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription) &&
                 !MMIsEmptyString(
                     hMMMD->pLayerDB->pFields[nIField].pszFieldName))
             {
-                fprintf_function(
-                    pF, LineReturn "[%s:%s]" LineReturn,
-                    SECTION_TAULA_PRINCIPAL,
-                    hMMMD->pLayerDB->pFields[nIField].pszFieldName);
-
                 MMWrite_ANSI_MetadataKeyDescriptor(
                     hMMMD, pF,
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription,
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription,
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription);
+            }
+
+            // Exception in a particular case: "altura" is a catalan word that means
+            // "height". Its unit by default will be "m" instead of "unknown".
+            // The same goes for "z", which easily means height.
+            if (EQUAL("altura",
+                      hMMMD->pLayerDB->pFields[nIField].pszFieldName) ||
+                EQUAL("z", hMMMD->pLayerDB->pFields[nIField].pszFieldName))
+            {
+                fprintf_function(pF, "unitats=m" LineReturn);
+            }
+            else
+            {
+                // By default units of field values will not be shown.
+                fprintf_function(pF, "MostrarUnitats=0" LineReturn);
             }
         }
     }
@@ -6138,7 +6162,8 @@ static int MMInitMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
 // accordingly. Depending on the layer type (point, arc, polygon, or generic),
 // it defines the fields and initializes the corresponding MiraMon database
 // structures.
-int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
+int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
+                 struct MM_POINT_2D *pFirstCoord)
 {
     struct MM_DATA_BASE_XP *pBD_XP = nullptr, *pBD_XP_Aux = nullptr;
     struct MM_FIELD MMField;
@@ -6148,6 +6173,18 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     if (!hMiraMonLayer)
         return 1;
+
+    // If the SRS is unknown, we attempt to deduce the appropriate number
+    // of decimals to be used in the reserved fields as LONG_ARC, PERIMETRE,
+    // or AREA using the coordinate values. It's not 100% reliable, but it's a
+    // good approximation.
+    if (hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_UNKNOWN_TYPE && pFirstCoord)
+    {
+        if (pFirstCoord->dfX < -360 || pFirstCoord->dfX > 360)
+            hMiraMonLayer->nSRSType = MM_SRS_LAYER_IS_PROJECTED_TYPE;
+        else
+            hMiraMonLayer->nSRSType = MM_SRS_LAYER_IS_GEOGRAPHIC_TYPE;
+    }
 
     if (hMiraMonLayer->bIsPoint)
     {
@@ -6181,7 +6218,10 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
             return 1;
 
         if (0 == (nIField = (MM_EXT_DBF_N_FIELDS)MM_DefineFirstArcFieldsDB_XP(
-                      pBD_XP)))
+                      pBD_XP,
+                      hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_PROJECTED_TYPE
+                          ? 3
+                          : 9)))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMArc.MMNode.MMAdmDB.pMMBDXP =
@@ -6208,8 +6248,13 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
             return 1;
 
         if (0 ==
-            (nIField =
-                 (MM_EXT_DBF_N_FIELDS)MM_DefineFirstPolygonFieldsDB_XP(pBD_XP)))
+            (nIField = (MM_EXT_DBF_N_FIELDS)MM_DefineFirstPolygonFieldsDB_XP(
+                 pBD_XP,
+                 hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_PROJECTED_TYPE ? 3
+                                                                           : 9,
+                 hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_PROJECTED_TYPE
+                     ? 3
+                     : 12)))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMPolygon.MMArc.MMAdmDB.pMMBDXP =
@@ -6218,7 +6263,11 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
         if (!pBD_XP_Aux)
             return 1;
 
-        if (0 == MM_DefineFirstArcFieldsDB_XP(pBD_XP_Aux))
+        if (0 == MM_DefineFirstArcFieldsDB_XP(
+                     pBD_XP_Aux,
+                     hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_PROJECTED_TYPE
+                         ? 3
+                         : 9))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMPolygon.MMArc.MMNode.MMAdmDB.pMMBDXP =
@@ -6458,6 +6507,34 @@ MMWriteValueToszStringToOperate(struct MiraMonVectLayerInfo *hMiraMonLayer,
     return 0;
 }
 
+int MMWritePreformatedNumberValueToRecordDBXP(
+    struct MiraMonVectLayerInfo *hMiraMonLayer, char *registre,
+    const struct MM_FIELD *camp, const char *valor)
+{
+    if (!hMiraMonLayer)
+        return 1;
+
+    if (!camp)
+        return 0;
+
+    if (MMResizeStringToOperateIfNeeded(hMiraMonLayer,
+                                        camp->BytesPerField + 10))
+        return 1;
+
+    if (!valor)
+        memset(hMiraMonLayer->szStringToOperate, 0, camp->BytesPerField);
+    else
+    {
+        snprintf(hMiraMonLayer->szStringToOperate,
+                 (size_t)hMiraMonLayer->nNumStringToOperate, "%*s",
+                 camp->BytesPerField, valor);
+    }
+
+    memcpy(registre + camp->AccumulatedBytes, hMiraMonLayer->szStringToOperate,
+           camp->BytesPerField);
+    return 0;
+}
+
 int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              char *registre, const struct MM_FIELD *camp,
                              const void *valor, MM_BOOLEAN is_64)
@@ -6512,7 +6589,9 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
                 continue;
             }
-            if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'C')
+            if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'C' ||
+                pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'L' ||
+                pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'D')
             {
                 if (MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse,
                                              pBD_XP->pField + nIField +
@@ -6521,6 +6600,18 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                                  .pField[nIField]
                                                  .pDinValue,
                                              FALSE))
+                    return 1;
+            }
+            else if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType ==
+                         'N' &&
+                     !pBD_XP->pField[nIField + nNumPrivateMMField].Is64)
+            {
+                if (MMWritePreformatedNumberValueToRecordDBXP(
+                        hMiraMonLayer, pszRecordOnCourse,
+                        pBD_XP->pField + nIField + nNumPrivateMMField,
+                        hMMFeature->pRecords[nIRecord]
+                            .pField[nIField]
+                            .pDinValue))
                     return 1;
             }
             else if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType ==
@@ -6537,29 +6628,6 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                             TRUE))
                         return 1;
                 }
-                else
-                {
-                    if (MMWriteValueToRecordDBXP(
-                            hMiraMonLayer, pszRecordOnCourse,
-                            pBD_XP->pField + nIField + nNumPrivateMMField,
-                            &hMMFeature->pRecords[nIRecord]
-                                 .pField[nIField]
-                                 .dValue,
-                            FALSE))
-                        return 1;
-                }
-            }
-            else if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType ==
-                     'D')
-            {
-                if (MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse,
-                                             pBD_XP->pField + nIField +
-                                                 nNumPrivateMMField,
-                                             hMMFeature->pRecords[nIRecord]
-                                                 .pField[nIField]
-                                                 .pDinValue,
-                                             FALSE))
-                    return 1;
             }
         }
 
@@ -7160,7 +7228,7 @@ static int MMCloseMMBD_XPFile(struct MiraMonVectLayerInfo *hMiraMonLayer,
             {
                 if (hMiraMonLayer->TopHeader.nElemCount <= 1)
                 {
-                    if (MMCreateMMDB(hMiraMonLayer))
+                    if (MMCreateMMDB(hMiraMonLayer, nullptr))
                     {
                         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                                    "Memory error in MiraMon "
@@ -7173,7 +7241,7 @@ static int MMCloseMMBD_XPFile(struct MiraMonVectLayerInfo *hMiraMonLayer,
             {
                 if (hMiraMonLayer->TopHeader.nElemCount == 0)
                 {
-                    if (MMCreateMMDB(hMiraMonLayer))
+                    if (MMCreateMMDB(hMiraMonLayer, nullptr))
                     {
                         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                                    "Memory error in MiraMon "

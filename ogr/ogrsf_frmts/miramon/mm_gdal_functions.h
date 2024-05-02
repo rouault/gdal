@@ -20,11 +20,6 @@ CPL_C_START                          // Necessary for compiling in GDAL project
     // Log. It should be temporal
     extern const char *MM_pszLogFilename;
 
-#define LOG_STR(str) (MMLog((str), __LINE__))
-#define LOG_ACTION(action) ((void)MMLog(#action, __LINE__), (action))
-
-const char *MMLog(const char *pszMsg, int nLineNumber);
-
 void fclose_and_nullify(FILE_TYPE **pFunc);
 
 // MiraMon feature table descriptors
@@ -98,9 +93,6 @@ extern char szNumberOfElementaryPolygonsEng[];
 extern char szNumberOfElementaryPolygonsCat[];
 extern char szNumberOfElementaryPolygonsSpa[];
 
-#ifndef GDAL_COMPILATION
-char *CPLStrlcpy(char *dest, const char *src, size_t maxlen);
-#endif
 char *MM_oemansi(char *szcadena);
 char *MM_oemansi_n(char *szcadena, size_t n_bytes);
 void MM_InitializeField(struct MM_FIELD *camp);
@@ -117,14 +109,22 @@ int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
                           const struct MM_FIELD *camp_inicial);
 int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB);
 
-size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
-size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
+size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
+                                        MM_BYTE n_perimeter_decimals,
+                                        MM_BYTE n_area_decimals_decimals);
+size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
+                                    MM_BYTE n_decimals);
 size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
 size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
+int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
+                                  int nSignifFigures, double nRealValue);
 int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
     struct MM_FIELD *camp, struct MM_DATA_BASE_XP *bd_xp,
     MM_BOOLEAN no_modifica_descriptor, size_t mida_nom);
 
+int MMWritePreformatedNumberValueToRecordDBXP(
+    struct MiraMonVectLayerInfo *hMiraMonLayer, char *registre,
+    const struct MM_FIELD *camp, const char *valor);
 int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              char *registre, const struct MM_FIELD *camp,
                              const void *valor, MM_BOOLEAN is_64);
