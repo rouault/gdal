@@ -35,50 +35,66 @@
 namespace gdal
 {
 
+/**
+ * Class to support viewshed raster generation.
+ */
 class Viewshed
 {
   public:
+    /**
+     * Raster output mode.
+     */
     enum class OutputMode
     {
-        Normal,
-        DEM,
-        Ground
+        Normal,  //!< Normal output mode (visibility only)
+        DEM,     //!< Output height from DEM
+        Ground   //!< Output height from ground
     };
 
+    /**
+     * Cell height calculation mode.
+     */
     enum class CellMode
     {
-        Diagonal,
-        Edge,
-        Max,
-        Min
+        Diagonal,  //!< Diagonal Mode
+        Edge,      //!< Edge Mode
+        Max,       //!< Maximum value produced by Diagonal and Edge mode
+        Min        //!< Minimum value produced by Diagonal and Edge mode
     };
 
+    /**
+     * A point.
+     */
     struct Point
     {
-        double x;
-        double y;
-        double z;
+        double x;  //!< X value
+        double y;  //!< Y value
+        double z;  //!< Z value
     };
 
+    /**
+     * Options for viewshed generation.
+     */
     struct Options
     {
         Point observer{0, 0, 0};  //!< x, y, and z of the observer
-        uint8_t visibleVal{0};    //!< raster output value for visible pixels.
+        uint8_t visibleVal{255};  //!< raster output value for visible pixels.
         uint8_t invisibleVal{
             0};  //!< raster output value for non-visible pixels.
         uint8_t outOfRangeVal{
             0};  //!< raster output value for pixels outside of max distance.
-        double nodataVal{0.0};  //!< raster output value for pixels with no data
+        double nodataVal{-1};  //!< raster output value for pixels with no data
         double targetHeight{0.0};  //!< target height above the DEM surface
         double maxDistance{
             0.0};  //!< maximum distance from observer to compute value
-        double curveCoeff{0.0};  //!< coefficient for atmospheric refraction
+        double curveCoeff{.85714};  //!< coefficient for atmospheric refraction
         OutputMode outputMode{OutputMode::Normal};  //!< Output information.
             //!< Normal, Height from DEM or Height from ground
         std::string outputFormat{};    //!< output raster format
         std::string outputFilename{};  //!< output raster filename
         CPLStringList creationOpts{};  //!< options for output raster creation
-        CellMode cellMode{CellMode::Edge};  // Mode of viewshed calculation.
+        CellMode cellMode{
+            CellMode::Edge};  //!< Mode of cell height calculation.
     };
 
     /**
