@@ -51,14 +51,6 @@ void GDALVRTRegisterDefaultProcessedDatasetFuncs();
 CPLString VRTSerializeNoData(double dfVal, GDALDataType eDataType,
                              int nPrecision);
 
-#if 0
-int VRTWarpedOverviewTransform( void *pTransformArg, int bDstToSrc,
-                                int nPointCount,
-                                double *padfX, double *padfY, double *padfZ,
-                                int *panSuccess );
-void* VRTDeserializeWarpedOverviewTransformer( CPLXMLNode *psTree );
-#endif
-
 /************************************************************************/
 /*                          VRTOverviewInfo()                           */
 /************************************************************************/
