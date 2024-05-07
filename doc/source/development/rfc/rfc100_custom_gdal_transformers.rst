@@ -125,11 +125,6 @@ In :file:`gdal_alg.h`, a new function GDALRegisterTransformer() is added.
      *                         instantiate a transformer from its XML serialization,
      *                         and must thus be a valid XML element name (possibly
      *                         namespaced)
-     * @param pfnTransformerFunc Transformation function. Must not be NULL.
-     *                           It must also be the same value as the
-     *                           GDALTransformerInfo::pfnTransform member of the
-     *                           transformer instances returned by pfnDeserializeFunc
-     *                           and pfnTransformerCreateForGenImgTransformerFunc.
      * @param pfnDeserializeFunc XML deserizaliation function. For example used to
      *                           instantiate a transformer instance from a warped VRT.
      * @param pfnTransformerCreateForGenImgTransformerFunc Function to instantiate
@@ -142,7 +137,6 @@ In :file:`gdal_alg.h`, a new function GDALRegisterTransformer() is added.
      */
     void CPL_DLL *
     GDALRegisterTransformer(const char *pszTransformName,
-                            GDALTransformerFunc pfnTransformerFunc,
                             GDALTransformDeserializeFunc pfnDeserializeFunc,
                             GDALTransformerCreateForGenImgTransformer
                                 pfnTransformerCreateForGenImgTransformerFunc);
