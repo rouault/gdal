@@ -47,9 +47,10 @@
 #include "gdal_priv.h"
 #include "gdalgenericinverse.h"
 
+static CPLXMLNode *GDALSerializeTPSTransformer(void *pTransformArg);
+
 CPL_C_START
-CPLXMLNode *GDALSerializeTPSTransformer(void *pTransformArg);
-void *GDALDeserializeTPSTransformer(CPLXMLNode *psTree);
+void *GDALDeserializeTPSTransformer(const CPLXMLNode *psTree);
 CPL_C_END
 
 struct TPSTransformInfo
@@ -438,13 +439,13 @@ CPLXMLNode *GDALSerializeTPSTransformer(void *pTransformArg)
 /*                   GDALDeserializeTPSTransformer()                    */
 /************************************************************************/
 
-void *GDALDeserializeTPSTransformer(CPLXMLNode *psTree)
+void *GDALDeserializeTPSTransformer(const CPLXMLNode *psTree)
 
 {
     /* -------------------------------------------------------------------- */
     /*      Check for GCPs.                                                 */
     /* -------------------------------------------------------------------- */
-    CPLXMLNode *psGCPList = CPLGetXMLNode(psTree, "GCPList");
+    const CPLXMLNode *psGCPList = CPLGetXMLNode(psTree, "GCPList");
 
     std::vector<gdal::GCP> asGCPs;
     if (psGCPList != nullptr)

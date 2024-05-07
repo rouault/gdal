@@ -176,14 +176,7 @@ constexpr const char *GDAL_GEN_IMG_TRANSFORMER_CLASS_NAME =
 
 bool GDALIsTransformer(void *hTransformerArg, const char *pszClassName);
 
-typedef void *(*GDALTransformDeserializeFunc)(CPLXMLNode *psTree);
-
-void CPL_DLL *GDALRegisterTransformDeserializer(
-    const char *pszTransformName, GDALTransformerFunc pfnTransformerFunc,
-    GDALTransformDeserializeFunc pfnDeserializeFunc);
-void CPL_DLL GDALUnregisterTransformDeserializer(void *pData);
-
-void GDALCleanupTransformDeserializerMutex();
+void GDALCleanupTransformers();
 
 /* Transformer cloning */
 
