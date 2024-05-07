@@ -85,7 +85,6 @@ struct GDALTransformerRegistrationEntry
 {
     std::string osKey{};
     int nRegistrationOrder = 0;
-    GDALTransformerFunc pfnTransformerFunc = nullptr;
     GDALTransformerCreateForGenImgTransformer
         pfnTransformerCreateForGenImgTransformerFunc = nullptr;
     GDALTransformDeserializeFunc pfnDeserializeFunc = nullptr;
@@ -2312,7 +2311,18 @@ void *GDALCreateGenImgProjTransformer2(GDALDatasetH hSrcDS, GDALDatasetH hDstDS,
                     CPLDebug("WARP", "Using source %s transformer",
                              poEntry->osKey.c_str());
                 }
-                psInfo->pSrcTransformer = poEntry->pfnTransformerFunc;
+                GDALTransformerInfo *psSubInfo =
+                    static_cast<GDALTransformerInfo *>(
+                        psInfo->pSrcTransformArg);
+                if (memcmp(psSubInfo->abySignature, GDAL_GTI2_SIGNATURE,
+                           strlen(GDAL_GTI2_SIGNATURE)) != 0)
+                {
+                    CPLError(CE_Failure, CPLE_AppDefined,
+                             "Attempt to use non-GTI2 transformer with %s.",
+                             poEntry->osKey.c_str());
+                    return nullptr;
+                }
+                psInfo->pSrcTransformer = psSubInfo->pfnTransform;
                 break;
             }
         }
@@ -2431,7 +2441,18 @@ void *GDALCreateGenImgProjTransformer2(GDALDatasetH hSrcDS, GDALDatasetH hDstDS,
                     CPLDebug("WARP", "Using target %s transformer",
                              poEntry->osKey.c_str());
                 }
-                psInfo->pDstTransformer = poEntry->pfnTransformerFunc;
+                GDALTransformerInfo *psSubInfo =
+                    static_cast<GDALTransformerInfo *>(
+                        psInfo->pDstTransformArg);
+                if (memcmp(psSubInfo->abySignature, GDAL_GTI2_SIGNATURE,
+                           strlen(GDAL_GTI2_SIGNATURE)) != 0)
+                {
+                    CPLError(CE_Failure, CPLE_AppDefined,
+                             "Attempt to use non-GTI2 transformer with %s.",
+                             poEntry->osKey.c_str());
+                    return nullptr;
+                }
+                psInfo->pDstTransformer = psSubInfo->pfnTransform;
                 break;
             }
         }
@@ -4532,11 +4553,6 @@ CPLXMLNode *GDALSerializeTransformer(GDALTransformerFunc /* pfnFunc */,
  *                         instanciate a transformer from its XML serialization,
  *                         and must thus be a valid XML element name (possibly
  *                         namespaced)
- * @param pfnTransformerFunc Transformation function. Must not be NULL.
- *                           It must also be the same value as the
- *                           GDALTransformerInfo::pfnTransform member of the
- *                           transformer instances returned by pfnDeserializeFunc
- *                           and pfnTransformerCreateForGenImgTransformerFunc.
  * @param pfnDeserializeFunc XML deserizaliation function. For example used to
  *                           instantiate a transformer instance from a warped VRT.
  * @param pfnTransformerCreateForGenImgTransformerFunc Function to instantiate
@@ -4548,13 +4564,11 @@ CPLXMLNode *GDALSerializeTransformer(GDALTransformerFunc /* pfnFunc */,
  * or NULL in case of error.
  */
 void *GDALRegisterTransformer(const char *pszTransformName,
-                              GDALTransformerFunc pfnTransformerFunc,
                               GDALTransformDeserializeFunc pfnDeserializeFunc,
                               GDALTransformerCreateForGenImgTransformer
                                   pfnTransformerCreateForGenImgTransformerFunc)
 {
     VALIDATE_POINTER1(pszTransformName, __func__, nullptr);
-    VALIDATE_POINTER1(pfnTransformerFunc, __func__, nullptr);
 
     std::lock_guard oLock(oTransformerRegistrationMutex);
 
@@ -4575,7 +4589,6 @@ void *GDALRegisterTransformer(const char *pszTransformName,
     poRegistrationEntry->osKey = osKey;
     poRegistrationEntry->nRegistrationOrder =
         static_cast<int>(oMapRegisteredTransformers.size());
-    poRegistrationEntry->pfnTransformerFunc = pfnTransformerFunc;
     poRegistrationEntry->pfnTransformerCreateForGenImgTransformerFunc =
         pfnTransformerCreateForGenImgTransformerFunc;
     poRegistrationEntry->pfnDeserializeFunc = pfnDeserializeFunc;
@@ -4631,33 +4644,29 @@ void GDALRegisterBuiltinTransformersUnderLock()
     if (oMapRegisteredTransformers.empty())
     {
         // Transformers that can be used as source/target transformer for GDALGenImgProjTransform
-        GDALRegisterTransformer("GCPTransformer", GDALGCPTransform,
-                                GDALDeserializeGCPTransformer,
+        GDALRegisterTransformer("GCPTransformer", GDALDeserializeGCPTransformer,
                                 GDALGCPTransformCreateForGenImgTransformer);
 
-        GDALRegisterTransformer("TPSTransformer", GDALTPSTransform,
-                                GDALDeserializeTPSTransformer,
+        GDALRegisterTransformer("TPSTransformer", GDALDeserializeTPSTransformer,
                                 GDALTPSTransformCreateForGenImgTransformer);
 
-        GDALRegisterTransformer("RPCTransformer", GDALRPCTransform,
-                                GDALDeserializeRPCTransformer,
+        GDALRegisterTransformer("RPCTransformer", GDALDeserializeRPCTransformer,
                                 GDALRPCTransformCreateForGenImgTransformer);
 
-        GDALRegisterTransformer("GeoLocTransformer", GDALGeoLocTransform,
+        GDALRegisterTransformer("GeoLocTransformer",
                                 GDALDeserializeGeoLocTransformer,
                                 GDALGeoLocTransformCreateForGenImgTransformer);
 
         // Below ones cannot be used as source/target transformer for GDALGenImgProjTransform
 
         GDALRegisterTransformer("GenImgProjTransformer",
-                                GDALGenImgProjTransform,
                                 GDALDeserializeGenImgProjTransformer, nullptr);
 
-        GDALRegisterTransformer(
-            "ReprojectionTransformer", GDALReprojectionTransform,
-            GDALDeserializeReprojectionTransformer, nullptr);
+        GDALRegisterTransformer("ReprojectionTransformer",
+                                GDALDeserializeReprojectionTransformer,
+                                nullptr);
 
-        GDALRegisterTransformer("ApproxTransformer", GDALApproxTransform,
+        GDALRegisterTransformer("ApproxTransformer",
                                 GDALDeserializeApproxTransformer, nullptr);
     }
 }
@@ -4696,8 +4705,6 @@ CPLErr GDALDeserializeTransformer(CPLXMLNode *psTree,
             return CE_Failure;
         }
         pfnDeserializeFunc = oIter->second->pfnDeserializeFunc;
-        if (pfnDeserializeFunc)
-            *ppfnFunc = oIter->second->pfnTransformerFunc;
     }
     if (!pfnDeserializeFunc)
     {
@@ -4710,6 +4717,20 @@ CPLErr GDALDeserializeTransformer(CPLXMLNode *psTree,
 
     CPLErrorReset();
     *ppTransformArg = pfnDeserializeFunc(psTree);
+
+    if (*ppTransformArg)
+    {
+        GDALTransformerInfo *psInfo =
+            static_cast<GDALTransformerInfo *>(*ppTransformArg);
+        if (memcmp(psInfo->abySignature, GDAL_GTI2_SIGNATURE,
+                   strlen(GDAL_GTI2_SIGNATURE)) != 0)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Attempt to use non-GTI2 transformer.");
+            return CE_Failure;
+        }
+        *ppfnFunc = psInfo->pfnTransform;
+    }
     return CPLGetLastErrorType();
 }
 

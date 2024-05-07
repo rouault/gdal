@@ -167,7 +167,6 @@ typedef void *(*GDALTransformDeserializeFunc)(const CPLXMLNode *psTree);
 
 void CPL_DLL *
 GDALRegisterTransformer(const char *pszTransformName,
-                        GDALTransformerFunc pfnTransformerFunc,
                         GDALTransformDeserializeFunc pfnDeserializeFunc,
                         GDALTransformerCreateForGenImgTransformer
                             pfnTransformerCreateForGenImgTransformerFunc);
