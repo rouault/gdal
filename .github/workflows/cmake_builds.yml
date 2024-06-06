@@ -399,6 +399,35 @@ jobs:
         generator: Ninja
         cache-name: cmake-msvc
     steps:
+
+    - name: Check vcruntime140
+      shell: pwsh
+      run: |
+        echo ((Get-Command vcruntime140.dll).Path)
+        echo ((Get-Command vcruntime140.dll).Version)
+
+    - name: Remove conflicting libraries
+      shell: bash -l {0}
+      run: |
+          mv C:/Strawberry C:/Strawberry.disabled || /bin/true
+          mv "C:/Program Files/OpenSSL/lib" "C:/Program Files/OpenSSL/lib.disabled" || /bin/true
+          # Avoid outdated vcruntime140.dll to be used. Cf https://github.com/actions/runner-images/issues/10004#issuecomment-2153091255
+          #find "C:/hostedtoolcache" -name "vcruntime140.dll" -exec rm {} \;
+          mkdir c:/vcruntime
+          cp C:/Windows/system32/vcruntime140.dll c:/vcruntime
+
+    - name: Set environment
+      shell: pwsh
+      run: |
+          $env:PATH="c:/vcruntime;$env:PATH"
+          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
+
+    - name: Check vcruntime140
+      shell: pwsh
+      run: |
+        echo ((Get-Command vcruntime140.dll).Path)
+        echo ((Get-Command vcruntime140.dll).Version)
+
     # To avoid git clone to mess with the line endings of GDAL autotest data
     # files that look like text, but should be handled as binary content
     - name: Set git core.autocrlf to false
@@ -440,12 +469,6 @@ jobs:
         curl -LOs https://github.com/rouault/pdfium_build_gdal_3_9/releases/download/pdfium_6309_v1/install-win10-vs2019-x64-rev6309.zip
         unzip install-win10-vs2019-x64-rev6309.zip
         mv install install-pdfium
-
-    - name: Remove conflicting libraries
-      shell: bash -l {0}
-      run: |
-          rm -rf C:/Strawberry || /bin/true
-          rm -rf "C:/Program Files/OpenSSL/lib" || /bin/true
 
     - name: Configure
       shell: bash -l {0}
@@ -501,6 +524,35 @@ jobs:
         generator: Visual Studio 17 2022
         GDAL_PYTHON_BINDINGS_WITHOUT_NUMPY: YES
     steps:
+
+    - name: Check vcruntime140
+      shell: pwsh
+      run: |
+        echo ((Get-Command vcruntime140.dll).Path)
+        echo ((Get-Command vcruntime140.dll).Version)
+
+    - name: Remove conflicting libraries
+      shell: bash -l {0}
+      run: |
+          mv C:/Strawberry C:/Strawberry.disabled || /bin/true
+          mv "C:/Program Files/OpenSSL/lib" "C:/Program Files/OpenSSL/lib.disabled" || /bin/true
+          # Avoid outdated vcruntime140.dll to be used. Cf https://github.com/actions/runner-images/issues/10004#issuecomment-2153091255
+          #find "C:/hostedtoolcache" -name "vcruntime140.dll" -exec rm {} \;
+          mkdir c:/vcruntime
+          cp C:/Windows/system32/vcruntime140.dll c:/vcruntime
+
+    - name: Set environment
+      shell: pwsh
+      run: |
+          $env:PATH="c:/vcruntime;$env:PATH"
+          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
+
+    - name: Check vcruntime140
+      shell: pwsh
+      run: |
+        echo ((Get-Command vcruntime140.dll).Path)
+        echo ((Get-Command vcruntime140.dll).Version)
+
     # To avoid git clone to mess with the line endings of GDAL autotest data
     # files that look like text, but should be handled as binary content
     - name: Set git core.autocrlf to false
