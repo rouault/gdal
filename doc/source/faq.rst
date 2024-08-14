@@ -98,3 +98,4 @@ How do I cite GDAL ?
 See `CITATION`_
 
 .. _`CITATION`: https://github.com/OSGeo/gdal/blob/master/CITATION
+
