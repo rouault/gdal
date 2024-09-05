@@ -33,17 +33,6 @@
 #include "ogr_api.h"
 
 /************************************************************************/
-/*                        OGRTriangulatedSurface()                      */
-/************************************************************************/
-
-/**
- * \brief Constructor.
- *
- */
-
-OGRTriangulatedSurface::OGRTriangulatedSurface() = default;
-
-/************************************************************************/
 /*        OGRTriangulatedSurface( const OGRTriangulatedSurface& )       */
 /************************************************************************/
 
@@ -58,17 +47,6 @@ OGRTriangulatedSurface::OGRTriangulatedSurface(
 {
     *this = other;
 }
-
-/************************************************************************/
-/*                        ~OGRTriangulatedSurface()                     */
-/************************************************************************/
-
-/**
- * \brief Destructor
- *
- */
-
-OGRTriangulatedSurface::~OGRTriangulatedSurface() = default;
 
 /************************************************************************/
 /*                 operator=( const OGRTriangulatedSurface&)            */

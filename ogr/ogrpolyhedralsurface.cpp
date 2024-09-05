@@ -37,16 +37,6 @@
 #include <new>
 
 /************************************************************************/
-/*                         OGRPolyhedralSurface()                       */
-/************************************************************************/
-
-/**
- * \brief Create an empty PolyhedralSurface
- */
-
-OGRPolyhedralSurface::OGRPolyhedralSurface() = default;
-
-/************************************************************************/
 /*         OGRPolyhedralSurface( const OGRPolyhedralSurface& )          */
 /************************************************************************/
 
@@ -57,17 +47,6 @@ OGRPolyhedralSurface::OGRPolyhedralSurface() = default;
 
 OGRPolyhedralSurface::OGRPolyhedralSurface(const OGRPolyhedralSurface &) =
     default;
-
-/************************************************************************/
-/*                        ~OGRPolyhedralSurface()                       */
-/************************************************************************/
-
-/**
- * \brief Destructor
- *
- */
-
-OGRPolyhedralSurface::~OGRPolyhedralSurface() = default;
 
 /************************************************************************/
 /*                 operator=( const OGRPolyhedralSurface&)              */

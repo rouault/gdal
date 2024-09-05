@@ -37,16 +37,6 @@
 #include "ogr_p.h"
 
 /************************************************************************/
-/*                            OGRMultiCurve()                           */
-/************************************************************************/
-
-/**
- * \brief Create an empty multi curve collection.
- */
-
-OGRMultiCurve::OGRMultiCurve() = default;
-
-/************************************************************************/
 /*                OGRMultiCurve( const OGRMultiCurve& )                 */
 /************************************************************************/
 
@@ -60,12 +50,6 @@ OGRMultiCurve::OGRMultiCurve() = default;
  */
 
 OGRMultiCurve::OGRMultiCurve(const OGRMultiCurve &) = default;
-
-/************************************************************************/
-/*                           ~OGRMultiCurve()                           */
-/************************************************************************/
-
-OGRMultiCurve::~OGRMultiCurve() = default;
 
 /************************************************************************/
 /*                  operator=( const OGRMultiCurve&)                    */

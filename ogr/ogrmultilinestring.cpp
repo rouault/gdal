@@ -37,16 +37,6 @@
 #include "ogr_p.h"
 
 /************************************************************************/
-/*                        OGRMultiLineString()                          */
-/************************************************************************/
-
-/**
- * \brief Create an empty multi line string collection.
- */
-
-OGRMultiLineString::OGRMultiLineString() = default;
-
-/************************************************************************/
 /*           OGRMultiLineString( const OGRMultiLineString& )            */
 /************************************************************************/
 
@@ -60,12 +50,6 @@ OGRMultiLineString::OGRMultiLineString() = default;
  */
 
 OGRMultiLineString::OGRMultiLineString(const OGRMultiLineString &) = default;
-
-/************************************************************************/
-/*                       ~OGRMultiLineString()                          */
-/************************************************************************/
-
-OGRMultiLineString::~OGRMultiLineString() = default;
 
 /************************************************************************/
 /*                  operator=( const OGRMultiCurve&)                    */
