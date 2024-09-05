@@ -2462,7 +2462,8 @@ class CPL_DLL OGRCurvePolygon : public OGRSurface
   private:
     OGRBoolean IntersectsPoint(const OGRPoint *p) const;
     OGRBoolean ContainsPoint(const OGRPoint *p) const;
-    virtual int checkRing(OGRCurve *poNewRing) const;
+    virtual bool checkRing(const OGRCurve *poNewRing,
+                           bool bOnlyType = false) const;
     OGRErr addRingDirectlyInternal(OGRCurve *poCurve, int bNeedRealloc);
     static OGRErr addCurveDirectlyFromWkt(OGRGeometry *poSelf,
                                           OGRCurve *poCurve);
@@ -2677,7 +2678,8 @@ class CPL_DLL OGRPolygon : public OGRCurvePolygon
     friend class OGRPolyhedralSurface;
     friend class OGRTriangulatedSurface;
 
-    virtual int checkRing(OGRCurve *poNewRing) const override;
+    virtual bool checkRing(const OGRCurve *poNewRing,
+                           bool bOnlyType = false) const override;
     virtual OGRErr importFromWKTListOnly(const char **ppszInput, int bHasZ,
                                          int bHasM, OGRRawPoint *&paoPoints,
                                          int &nMaxPoints, double *&padfZ);
