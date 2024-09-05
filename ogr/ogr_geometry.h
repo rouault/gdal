@@ -1147,7 +1147,7 @@ typedef std::unique_ptr<OGRGeometry, OGRGeometryUniquePtrDeleter>
  * Implements SFCOM IPoint methods.
  */
 
-class CPL_DLL OGRPoint : public OGRGeometry
+class CPL_DLL OGRPoint CPL_NON_FINAL : public OGRGeometry
 {
     double x;
     double y;
@@ -1328,7 +1328,7 @@ class CPL_DLL OGRPointIterator
  * OGRCompoundCurve
  */
 
-class CPL_DLL OGRCurve : public OGRGeometry
+class CPL_DLL OGRCurve CPL_NON_FINAL : public OGRGeometry
 {
   protected:
     //! @cond Doxygen_Suppress
@@ -1478,7 +1478,7 @@ inline OGRCurve::ConstIterator end(const OGRCurve *poCurve)
 
  @since GDAL 3.6
  */
-class CPL_DLL OGRIteratedPoint : public OGRPoint
+class CPL_DLL OGRIteratedPoint final : public OGRPoint
 {
   private:
     friend class OGRSimpleCurve;
@@ -1513,6 +1513,14 @@ class CPL_DLL OGRIteratedPoint : public OGRPoint
 /*                             OGRSimpleCurve                           */
 /************************************************************************/
 
+//! @cond Doxygen_Suppress
+namespace OpenFileGDB
+{
+class FileGDBOGRGeometryConverterImpl;
+}
+
+//! @endcond
+
 /**
  * Abstract curve base class for OGRLineString and OGRCircularString
  *
@@ -1522,7 +1530,7 @@ class CPL_DLL OGRIteratedPoint : public OGRPoint
  * @since GDAL 2.0
  */
 
-class CPL_DLL OGRSimpleCurve : public OGRCurve
+class CPL_DLL OGRSimpleCurve CPL_NON_FINAL : public OGRCurve
 {
   protected:
     //! @cond Doxygen_Suppress
@@ -1542,6 +1550,14 @@ class CPL_DLL OGRSimpleCurve : public OGRCurve
     OGRErr importFromWKTListOnly(const char **ppszInput, int bHasZ, int bHasM,
                                  OGRRawPoint *&paoPointsIn, int &nMaxPoints,
                                  double *&padfZIn);
+
+    friend class OpenFileGDB::FileGDBOGRGeometryConverterImpl;
+
+    inline OGRRawPoint *&GetPoints()
+    {
+        return paoPoints;
+    }
+
     //! @endcond
 
     virtual double get_LinearArea() const;
@@ -1771,7 +1787,7 @@ inline OGRSimpleCurve::ConstIterator end(const OGRSimpleCurve *poCurve)
  * whereas SFSQL and SQL/MM only make it inherits from OGRCurve.
  */
 
-class CPL_DLL OGRLineString : public OGRSimpleCurve
+class CPL_DLL OGRLineString CPL_NON_FINAL : public OGRSimpleCurve
 {
     // cppcheck-suppress unusedPrivateFunction
     static OGRLinearRing *CasterToLinearRing(OGRCurve *poCurve);
@@ -1863,7 +1879,7 @@ class CPL_DLL OGRLineString : public OGRSimpleCurve
  * Note: this class exists in SFSQL 1.2, but not in ISO SQL/MM Part 3.
  */
 
-class CPL_DLL OGRLinearRing : public OGRLineString
+class CPL_DLL OGRLinearRing final : public OGRLineString
 {
     static OGRLineString *CasterToLineString(OGRCurve *poCurve);
 
@@ -1961,7 +1977,7 @@ class CPL_DLL OGRLinearRing : public OGRLineString
  * @since GDAL 2.0
  */
 
-class CPL_DLL OGRCircularString : public OGRSimpleCurve
+class CPL_DLL OGRCircularString final : public OGRSimpleCurve
 {
   private:
     void ExtendEnvelopeWithCircular(OGREnvelope *psEnvelope) const;
@@ -2190,7 +2206,7 @@ class CPL_DLL OGRCurveCollection
  * @since GDAL 2.0
  */
 
-class CPL_DLL OGRCompoundCurve : public OGRCurve
+class CPL_DLL OGRCompoundCurve final : public OGRCurve
 {
   private:
     OGRCurveCollection oCC{};
@@ -2404,7 +2420,7 @@ inline OGRCompoundCurve::ChildType **end(OGRCompoundCurve *poCurve)
  * polygons.
  */
 
-class CPL_DLL OGRSurface : public OGRGeometry
+class CPL_DLL OGRSurface CPL_NON_FINAL : public OGRGeometry
 {
   protected:
     //! @cond Doxygen_Suppress
@@ -2455,7 +2471,7 @@ class CPL_DLL OGRSurface : public OGRGeometry
  * @since GDAL 2.0
  */
 
-class CPL_DLL OGRCurvePolygon : public OGRSurface
+class CPL_DLL OGRCurvePolygon CPL_NON_FINAL : public OGRSurface
 {
     static OGRPolygon *CasterToPolygon(OGRSurface *poSurface);
 
@@ -2668,7 +2684,7 @@ inline OGRCurvePolygon::ChildType **end(OGRCurvePolygon *poGeom)
  * OGRMultiPolygon must be used for this.
  */
 
-class CPL_DLL OGRPolygon : public OGRCurvePolygon
+class CPL_DLL OGRPolygon CPL_NON_FINAL : public OGRCurvePolygon
 {
     static OGRCurvePolygon *CasterToCurvePolygon(OGRSurface *poSurface);
 
@@ -2845,7 +2861,7 @@ inline OGRPolygon::ChildType **end(OGRPolygon *poGeom)
  * @since GDAL 2.2
  */
 
-class CPL_DLL OGRTriangle : public OGRPolygon
+class CPL_DLL OGRTriangle final : public OGRPolygon
 {
   private:
     // cppcheck-suppress unusedPrivateFunction
@@ -2920,7 +2936,7 @@ class CPL_DLL OGRTriangle : public OGRPolygon
  * Subclasses may impose additional restrictions on the contents.
  */
 
-class CPL_DLL OGRGeometryCollection : public OGRGeometry
+class CPL_DLL OGRGeometryCollection CPL_NON_FINAL : public OGRGeometry
 {
     OGRErr importFromWktInternal(const char **ppszInput, int nRecLevel);
 
@@ -3118,7 +3134,7 @@ inline OGRGeometryCollection::ChildType **end(OGRGeometryCollection *poGeom)
  * @since GDAL 2.0
  */
 
-class CPL_DLL OGRMultiSurface : public OGRGeometryCollection
+class CPL_DLL OGRMultiSurface CPL_NON_FINAL : public OGRGeometryCollection
 {
   protected:
     virtual OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const override;
@@ -3275,7 +3291,7 @@ inline OGRMultiSurface::ChildType **end(OGRMultiSurface *poGeom)
  * A collection of non-overlapping OGRPolygon.
  */
 
-class CPL_DLL OGRMultiPolygon : public OGRMultiSurface
+class CPL_DLL OGRMultiPolygon final : public OGRMultiSurface
 {
   protected:
     virtual OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const override;
@@ -3432,7 +3448,7 @@ inline OGRMultiPolygon::ChildType **end(OGRMultiPolygon *poGeom)
  * @since GDAL 2.2
  */
 
-class CPL_DLL OGRPolyhedralSurface : public OGRSurface
+class CPL_DLL OGRPolyhedralSurface CPL_NON_FINAL : public OGRSurface
 {
   protected:
     //! @cond Doxygen_Suppress
@@ -3613,7 +3629,7 @@ inline OGRPolyhedralSurface::ChildType **end(OGRPolyhedralSurface *poGeom)
  * @since GDAL 2.2
  */
 
-class CPL_DLL OGRTriangulatedSurface : public OGRPolyhedralSurface
+class CPL_DLL OGRTriangulatedSurface final : public OGRPolyhedralSurface
 {
   protected:
     //! @cond Doxygen_Suppress
@@ -3752,7 +3768,7 @@ inline OGRTriangulatedSurface::ChildType **end(OGRTriangulatedSurface *poGeom)
  * A collection of OGRPoint.
  */
 
-class CPL_DLL OGRMultiPoint : public OGRGeometryCollection
+class CPL_DLL OGRMultiPoint final : public OGRGeometryCollection
 {
   private:
     OGRErr importFromWkt_Bracketed(const char **, int bHasM, int bHasZ);
@@ -3908,7 +3924,7 @@ inline OGRMultiPoint::ChildType **end(OGRMultiPoint *poGeom)
  * @since GDAL 2.0
  */
 
-class CPL_DLL OGRMultiCurve : public OGRGeometryCollection
+class CPL_DLL OGRMultiCurve CPL_NON_FINAL : public OGRGeometryCollection
 {
   protected:
     //! @cond Doxygen_Suppress
@@ -4064,7 +4080,7 @@ inline OGRMultiCurve::ChildType **end(OGRMultiCurve *poGeom)
  * A collection of OGRLineString.
  */
 
-class CPL_DLL OGRMultiLineString : public OGRMultiCurve
+class CPL_DLL OGRMultiLineString final : public OGRMultiCurve
 {
   protected:
     virtual OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const override;

@@ -3297,32 +3297,6 @@ bool FileGDBOGRGeometryConverterImpl::ReadPartDefs(
 /*                         XYLineStringSetter                           */
 /************************************************************************/
 
-class FileGDBOGRLineString : public OGRLineString
-{
-  public:
-    FileGDBOGRLineString()
-    {
-    }
-
-    OGRRawPoint *GetPoints() const
-    {
-        return paoPoints;
-    }
-};
-
-class FileGDBOGRLinearRing : public OGRLinearRing
-{
-  public:
-    FileGDBOGRLinearRing()
-    {
-    }
-
-    OGRRawPoint *GetPoints() const
-    {
-        return paoPoints;
-    }
-};
-
 class XYLineStringSetter
 {
     OGRRawPoint *paoPoints;
@@ -3956,7 +3930,7 @@ FileGDBOGRGeometryConverterImpl::GetAsGeometry(const OGRField *psField)
             }
 
             OGRMultiLineString *poMLS = nullptr;
-            FileGDBOGRLineString *poLS = nullptr;
+            OGRLineString *poLS = nullptr;
             if (nParts > 1)
             {
                 poMLS = new OGRMultiLineString();
@@ -3969,7 +3943,7 @@ FileGDBOGRGeometryConverterImpl::GetAsGeometry(const OGRField *psField)
             dx = dy = dz = 0;
             for (i = 0; i < nParts; i++)
             {
-                poLS = new FileGDBOGRLineString();
+                poLS = new OGRLineString();
                 poLS->setNumPoints(panPointCount[i], FALSE);
                 if (nParts > 1)
                     poMLS->addGeometryDirectly(poLS);
@@ -3991,7 +3965,7 @@ FileGDBOGRGeometryConverterImpl::GetAsGeometry(const OGRField *psField)
                 for (i = 0; i < nParts; i++)
                 {
                     if (nParts > 1)
-                        poLS = cpl::down_cast<FileGDBOGRLineString *>(
+                        poLS = cpl::down_cast<OGRLineString *>(
                             poMLS->getGeometryRef(i));
 
                     ZLineStringSetter lszSetter(poLS);
@@ -4013,7 +3987,7 @@ FileGDBOGRGeometryConverterImpl::GetAsGeometry(const OGRField *psField)
                 for (i = 0; i < nParts; i++)
                 {
                     if (nParts > 1)
-                        poLS = cpl::down_cast<FileGDBOGRLineString *>(
+                        poLS = cpl::down_cast<OGRLineString *>(
                             poMLS->getGeometryRef(i));
 
                     // It seems that absence of M is marked with a single byte
@@ -4090,7 +4064,7 @@ FileGDBOGRGeometryConverterImpl::GetAsGeometry(const OGRField *psField)
             dx = dy = dz = 0;
             for (i = 0; i < nParts; i++)
             {
-                FileGDBOGRLinearRing *poRing = new FileGDBOGRLinearRing();
+                OGRLinearRing *poRing = new OGRLinearRing();
                 papoRings[i] = poRing;
                 poRing->setNumPoints(panPointCount[i], FALSE);
 
