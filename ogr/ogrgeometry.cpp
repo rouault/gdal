@@ -153,6 +153,7 @@ OGRGeometry &OGRGeometry::operator=(const OGRGeometry &other)
 {
     if (this != &other)
     {
+        empty();
         assignSpatialReference(other.getSpatialReference());
         flags = other.flags;
     }
