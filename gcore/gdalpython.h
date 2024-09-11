@@ -33,7 +33,7 @@
 #include "cpl_string.h"
 #include <cwchar>
 
-bool GDALPythonInitialize();
+bool CPL_DLL GDALPythonInitialize();
 
 void GDALPythonFinalize();
 
@@ -46,61 +46,69 @@ namespace GDALPy
 typedef struct _object PyObject;
 typedef size_t Py_ssize_t;
 
-extern int (*Py_IsInitialized)(void);
-extern void (*Py_SetProgramName)(const wchar_t *);
-extern void (*Py_SetPythonHome)(const wchar_t *);
-extern PyObject *(*PyObject_Type)(PyObject *);
-extern int (*PyObject_IsInstance)(PyObject *, PyObject *);
-extern PyObject *(*PyTuple_New)(size_t);
-extern PyObject *(*PyBool_FromLong)(long);
-extern PyObject *(*PyLong_FromLong)(long);
-extern long (*PyLong_AsLong)(PyObject *);
-extern PyObject *(*PyLong_FromLongLong)(GIntBig);
-extern GIntBig (*PyLong_AsLongLong)(PyObject *);
-extern PyObject *(*PyFloat_FromDouble)(double);
-extern double (*PyFloat_AsDouble)(PyObject *);
-extern PyObject *(*PyObject_Call)(PyObject *, PyObject *, PyObject *);
-extern PyObject *(*PyObject_GetIter)(PyObject *);
-extern PyObject *(*PyIter_Next)(PyObject *);
-extern void (*Py_IncRef)(PyObject *);
-extern void (*Py_DecRef)(PyObject *);
-extern PyObject *(*PyErr_Occurred)(void);
-extern void (*PyErr_Print)(void);
+extern int CPL_DLL (*Py_IsInitialized)(void);
+extern void CPL_DLL (*Py_SetProgramName)(const wchar_t *);
+extern void CPL_DLL (*Py_SetPythonHome)(const wchar_t *);
+extern PyObject CPL_DLL *(*PyObject_Type)(PyObject *);
+extern int CPL_DLL (*PyObject_IsInstance)(PyObject *, PyObject *);
+extern PyObject CPL_DLL *(*PyTuple_New)(size_t);
+// extern size_t CPL_DLL (*PyTuple_Size)(PyObject*);
+// extern PyObject CPL_DLL *(*PyTuple_GetItem)(PyObject*, size_t);
+extern PyObject CPL_DLL *(*PyBool_FromLong)(long);
+extern PyObject CPL_DLL *(*PyLong_FromLong)(long);
+extern long CPL_DLL (*PyLong_AsLong)(PyObject *);
+extern PyObject CPL_DLL *(*PyLong_FromLongLong)(GIntBig);
+extern GIntBig CPL_DLL (*PyLong_AsLongLong)(PyObject *);
+extern PyObject CPL_DLL *(*PyFloat_FromDouble)(double);
+extern double CPL_DLL (*PyFloat_AsDouble)(PyObject *);
+extern PyObject CPL_DLL *(*PyObject_Call)(PyObject *, PyObject *, PyObject *);
+extern PyObject CPL_DLL *(*PyObject_GetIter)(PyObject *);
+extern PyObject CPL_DLL *(*PyIter_Next)(PyObject *);
+extern void CPL_DLL (*Py_IncRef)(PyObject *);
+extern void CPL_DLL (*Py_DecRef)(PyObject *);
+extern PyObject CPL_DLL *(*PyErr_Occurred)(void);
+extern void CPL_DLL (*PyErr_Print)(void);
 
-extern PyObject *(*Py_CompileString)(const char *, const char *, int);
-extern PyObject *(*PyImport_ExecCodeModule)(const char *, PyObject *);
-extern int (*PyObject_HasAttrString)(PyObject *, const char *);
-extern PyObject *(*PyObject_GetAttrString)(PyObject *, const char *);
-extern int (*PyObject_SetAttrString)(PyObject *, const char *, PyObject *);
-extern int (*PyTuple_SetItem)(PyObject *, size_t, PyObject *);
-extern void (*PyObject_Print)(PyObject *, FILE *, int);
+extern PyObject CPL_DLL *(*Py_CompileString)(const char *, const char *, int);
+extern PyObject CPL_DLL *(*PyImport_ExecCodeModule)(const char *, PyObject *);
+extern int CPL_DLL (*PyObject_HasAttrString)(PyObject *, const char *);
+extern PyObject CPL_DLL *(*PyObject_GetAttrString)(PyObject *, const char *);
+extern int CPL_DLL (*PyObject_SetAttrString)(PyObject *, const char *,
+                                             PyObject *);
+extern int CPL_DLL (*PyTuple_SetItem)(PyObject *, size_t, PyObject *);
+extern void CPL_DLL (*PyObject_Print)(PyObject *, FILE *, int);
 
-extern Py_ssize_t (*PyBytes_Size)(PyObject *);
-extern const char *(*PyBytes_AsString)(PyObject *);
-extern int *(*PyBytes_AsStringAndSize)(PyObject *, char **, Py_ssize_t *);
-extern PyObject *(*PyBytes_FromObject)(PyObject *);
-extern PyObject *(*PyBytes_FromStringAndSize)(const void *, size_t);
+extern Py_ssize_t CPL_DLL (*PyBytes_Size)(PyObject *);
+extern const char CPL_DLL *(*PyBytes_AsString)(PyObject *);
+extern int CPL_DLL *(*PyBytes_AsStringAndSize)(PyObject *, char **,
+                                               Py_ssize_t *);
+extern PyObject CPL_DLL *(*PyBytes_FromObject)(PyObject *);
+extern PyObject CPL_DLL *(*PyBytes_FromStringAndSize)(const void *, size_t);
 
-extern PyObject *(*PyUnicode_FromString)(const char *);
-extern PyObject *(*PyUnicode_AsUTF8String)(PyObject *);
-extern PyObject *(*PyImport_ImportModule)(const char *);
-extern int (*PyCallable_Check)(PyObject *);
-extern PyObject *(*PyDict_New)(void);
-extern int (*PyDict_SetItemString)(PyObject *p, const char *key, PyObject *val);
-extern int (*PyDict_Next)(PyObject *p, size_t *, PyObject **, PyObject **);
-extern PyObject *(*PyDict_GetItemString)(PyObject *p, const char *key);
-extern PyObject *(*PyList_New)(Py_ssize_t);
-extern int (*PyList_SetItem)(PyObject *, Py_ssize_t, PyObject *);
-extern int (*PyArg_ParseTuple)(PyObject *, const char *, ...);
+extern PyObject CPL_DLL *(*PyUnicode_FromString)(const char *);
+extern PyObject CPL_DLL *(*PyUnicode_AsUTF8String)(PyObject *);
+extern PyObject CPL_DLL *(*PyImport_ImportModule)(const char *);
+extern int CPL_DLL (*PyCallable_Check)(PyObject *);
+extern PyObject CPL_DLL *(*PyDict_New)(void);
+extern int CPL_DLL (*PyDict_SetItemString)(PyObject *p, const char *key,
+                                           PyObject *val);
+extern int CPL_DLL (*PyDict_Next)(PyObject *p, size_t *, PyObject **,
+                                  PyObject **);
+extern PyObject CPL_DLL *(*PyDict_GetItemString)(PyObject *p, const char *key);
+extern PyObject CPL_DLL *(*PyList_New)(Py_ssize_t);
+extern int CPL_DLL (*PyList_SetItem)(PyObject *, Py_ssize_t, PyObject *);
+extern int CPL_DLL (*PyArg_ParseTuple)(PyObject *, const char *, ...);
 
-extern int (*PySequence_Check)(PyObject *o);
-extern Py_ssize_t (*PySequence_Size)(PyObject *o);
-extern PyObject *(*PySequence_GetItem)(PyObject *o, Py_ssize_t i);
+extern int CPL_DLL (*PySequence_Check)(PyObject *o);
+extern Py_ssize_t CPL_DLL (*PySequence_Size)(PyObject *o);
+extern PyObject CPL_DLL *(*PySequence_GetItem)(PyObject *o, Py_ssize_t i);
 
-extern void (*PyErr_Fetch)(PyObject **poPyType, PyObject **poPyValue,
-                           PyObject **poPyTraceback);
-extern void (*PyErr_Clear)(void);
-extern const char *(*Py_GetVersion)(void);
+extern void CPL_DLL (*PyErr_Fetch)(PyObject **poPyType, PyObject **poPyValue,
+                                   PyObject **poPyTraceback);
+extern void CPL_DLL (*PyErr_Clear)(void);
+extern const char CPL_DLL *(*Py_GetVersion)(void);
+
+extern void CPL_DLL *(*PyCapsule_GetPointer)(PyObject *, const char *);
 
 typedef struct
 {
@@ -108,9 +116,10 @@ typedef struct
     char big_enough[256];
 } Py_buffer;
 
-extern int (*PyBuffer_FillInfo)(Py_buffer *view, PyObject *obj, void *buf,
-                                size_t len, int readonly, int infoflags);
-extern PyObject *(*PyMemoryView_FromBuffer)(Py_buffer *view);
+extern int CPL_DLL (*PyBuffer_FillInfo)(Py_buffer *view, PyObject *obj,
+                                        void *buf, size_t len, int readonly,
+                                        int infoflags);
+extern PyObject CPL_DLL *(*PyMemoryView_FromBuffer)(Py_buffer *view);
 
 typedef PyObject *(*PyCFunction)(PyObject *, PyObject *, PyObject *);
 
@@ -124,7 +133,7 @@ struct PyMethodDef
     const char *help;
 };
 
-extern PyObject *(*PyModule_Create2)(struct PyModuleDef *, int);
+extern PyObject CPL_DLL *(*PyModule_Create2)(struct PyModuleDef *, int);
 
 #define PYTHON_API_VERSION 1013
 
@@ -181,9 +190,9 @@ typedef struct PyModuleDef
 
 typedef int PyGILState_STATE;
 
-class GIL_Holder
+class CPL_DLL GIL_Holder
 {
-    bool m_bExclusiveLock;
+    const bool m_bExclusiveLock;
     PyGILState_STATE m_eState = 0;
 
   public:
@@ -191,9 +200,9 @@ class GIL_Holder
     virtual ~GIL_Holder();
 };
 
-CPLString GetString(PyObject *obj, bool bEmitError = true);
-CPLString GetPyExceptionString();
-bool ErrOccurredEmitCPLError();
+CPLString CPL_DLL GetString(PyObject *obj, bool bEmitError = true);
+CPLString CPL_DLL GetPyExceptionString();
+bool CPL_DLL ErrOccurredEmitCPLError();
 
 }  // namespace GDALPy
 

@@ -73,6 +73,8 @@ void (*Py_SetPythonHome)(const wchar_t *) = nullptr;
 PyObject *(*PyObject_Type)(PyObject *) = nullptr;
 int (*PyObject_IsInstance)(PyObject *, PyObject *) = nullptr;
 PyObject *(*PyTuple_New)(size_t) = nullptr;
+// size_t (*PyTuple_Size)(PyObject*) = nullptr;
+// PyObject *(*PyTuple_GetItem)(PyObject*, size_t) = nullptr;
 PyObject *(*PyBool_FromLong)(long) = nullptr;
 PyObject *(*PyLong_FromLong)(long) = nullptr;
 long (*PyLong_AsLong)(PyObject *) = nullptr;
@@ -127,6 +129,8 @@ int (*PyBuffer_FillInfo)(Py_buffer *view, PyObject *obj, void *buf, size_t len,
 PyObject *(*PyMemoryView_FromBuffer)(Py_buffer *view) = nullptr;
 
 PyObject *(*PyModule_Create2)(struct PyModuleDef *, int) = nullptr;
+
+void *(*PyCapsule_GetPointer)(PyObject *, const char *) = nullptr;
 }  // namespace GDALPy
 
 /* MinGW32 might define HAVE_DLFCN_H, so skip the unix implementation */
@@ -715,6 +719,8 @@ static bool LoadPythonAPI()
     LOAD(libHandle, PyObject_Type);
     LOAD(libHandle, PyObject_IsInstance);
     LOAD(libHandle, PyTuple_New);
+    //LOAD(libHandle, PyTuple_Size);
+    //LOAD(libHandle, PyTuple_GetItem);
     LOAD(libHandle, PyBool_FromLong);
     LOAD(libHandle, PyLong_FromLong);
     LOAD(libHandle, PyLong_AsLong);
@@ -727,6 +733,8 @@ static bool LoadPythonAPI()
     LOAD(libHandle, PyBytes_FromStringAndSize);
 
     LOAD(libHandle, PyModule_Create2);
+
+    LOAD(libHandle, PyCapsule_GetPointer);
 
     LOAD_NOCHECK_WITH_NAME(libHandle, PyUnicode_FromString,
                            "PyUnicode_FromString");
