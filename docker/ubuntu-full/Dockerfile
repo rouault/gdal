@@ -8,7 +8,7 @@
 ARG BASE_IMAGE=ubuntu:24.04
 ARG TARGET_BASE_IMAGE=ubuntu:24.04
 
-FROM $BASE_IMAGE as builder
+FROM $BASE_IMAGE AS builder
 
 # Derived from osgeo/proj by Howard Butler <howard@hobu.co>
 LABEL maintainer="Even Rouault <even.rouault@spatialys.com>"
@@ -41,7 +41,7 @@ RUN . /buildscripts/bh-set-envvars.sh \
     && apt-get update -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --fix-missing --no-install-recommends \
             build-essential ca-certificates \
-            git make cmake wget unzip libtool automake \
+            git make ninja-build cmake wget unzip libtool automake \
             zlib1g-dev${APT_ARCH_SUFFIX} libsqlite3-dev${APT_ARCH_SUFFIX} pkg-config sqlite3 libcurl4-openssl-dev${APT_ARCH_SUFFIX} \
             libtiff-dev${APT_ARCH_SUFFIX} \
     && rm -rf /var/lib/apt/lists/*
@@ -74,16 +74,16 @@ RUN . /buildscripts/bh-set-envvars.sh \
 # Build likbkea
 ARG KEA_VERSION=1.5.2
 RUN . /buildscripts/bh-set-envvars.sh \
-    && wget -q https://github.com/ubarsc/kealib/archive/kealib-${KEA_VERSION}.zip \
+    && curl -LO -fsS https://github.com/ubarsc/kealib/archive/kealib-${KEA_VERSION}.zip \
     && unzip -q kealib-${KEA_VERSION}.zip \
     && rm -f kealib-${KEA_VERSION}.zip \
     && cd kealib-kealib-${KEA_VERSION} \
-    && cmake . -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release \
+    && cmake . -G Ninja -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr -DHDF5_INCLUDE_DIR=/usr/include/hdf5/serial \
         -DHDF5_LIB_PATH=/usr/lib/${GCC_ARCH}-linux-gnu/hdf5/serial -DLIBKEA_WITH_GDAL=OFF \
-    && make -j$(nproc) \
-    && make install DESTDIR="/build_thirdparty" \
-    && make install \
+    && ninja \
+    && DESTDIR="/build_thirdparty" ninja install \
+    && ninja install \
     && cd .. \
     && rm -rf kealib-kealib-${KEA_VERSION} \
     && for i in /build_thirdparty/usr/lib/*; do strip -s $i 2>/dev/null || /bin/true; done \
@@ -93,15 +93,15 @@ RUN . /buildscripts/bh-set-envvars.sh \
 ARG MONGO_C_DRIVER_VERSION=1.24.4
 RUN . /buildscripts/bh-set-envvars.sh \
     && mkdir mongo-c-driver \
-    && wget -q https://github.com/mongodb/mongo-c-driver/releases/download/${MONGO_C_DRIVER_VERSION}/mongo-c-driver-${MONGO_C_DRIVER_VERSION}.tar.gz -O - \
+    && curl -L -fsS https://github.com/mongodb/mongo-c-driver/releases/download/${MONGO_C_DRIVER_VERSION}/mongo-c-driver-${MONGO_C_DRIVER_VERSION}.tar.gz \
         | tar xz -C mongo-c-driver --strip-components=1 \
     && cd mongo-c-driver \
     && mkdir build_cmake \
     && cd build_cmake \
-    && cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_TESTS=NO -DCMAKE_BUILD_TYPE=Release \
-    && make -j$(nproc) \
-    && make install DESTDIR="/build_thirdparty" \
-    && make install \
+    && cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_TESTS=NO -DCMAKE_BUILD_TYPE=Release \
+    && ninja \
+    && DESTDIR="/build_thirdparty" ninja install \
+    && ninja install \
     && cd ../.. \
     && rm -rf mongo-c-driver \
     && rm /build_thirdparty/usr/lib/${GCC_ARCH}-linux-gnu/*.a \
@@ -112,15 +112,15 @@ RUN . /buildscripts/bh-set-envvars.sh \
 ARG MONGOCXX_VERSION=3.8.1
 RUN . /buildscripts/bh-set-envvars.sh \
     && mkdir mongocxx \
-    && wget -q https://github.com/mongodb/mongo-cxx-driver/archive/r${MONGOCXX_VERSION}.tar.gz -O - \
+    && curl -L -fsS https://github.com/mongodb/mongo-cxx-driver/archive/r${MONGOCXX_VERSION}.tar.gz \
         | tar xz -C mongocxx --strip-components=1 \
     && cd mongocxx \
     && mkdir build_cmake \
     && cd build_cmake \
-    && cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DBSONCXX_POLY_USE_BOOST=ON -DENABLE_TESTS=OFF -DMONGOCXX_ENABLE_SLOW_TESTS=NO -DCMAKE_BUILD_TYPE=Release -DBUILD_VERSION=${MONGOCXX_VERSION} \
-    && make -j$(nproc) \
-    && make install DESTDIR="/build_thirdparty" \
-    && make install \
+    && cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DBSONCXX_POLY_USE_BOOST=ON -DENABLE_TESTS=OFF -DMONGOCXX_ENABLE_SLOW_TESTS=NO -DCMAKE_BUILD_TYPE=Release -DBUILD_VERSION=${MONGOCXX_VERSION} \
+    && ninja \
+    && DESTDIR="/build_thirdparty" ninja install \
+    && ninja install \
     && cd ../.. \
     && rm -rf mongocxx \
     && for i in /build_thirdparty/usr/lib/${GCC_ARCH}-linux-gnu/*; do strip -s $i 2>/dev/null || /bin/true; done \
@@ -136,17 +136,17 @@ RUN . /buildscripts/bh-set-envvars.sh \
         libspdlog-dev${APT_ARCH_SUFFIX} libmagic-dev${APT_ARCH_SUFFIX} \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir tiledb \
-    && wget -q https://github.com/TileDB-Inc/TileDB/archive/${TILEDB_VERSION}.tar.gz -O - \
+    && curl -L -fsS https://github.com/TileDB-Inc/TileDB/archive/${TILEDB_VERSION}.tar.gz \
         | tar xz -C tiledb --strip-components=1 \
     && cd tiledb \
     && patch -p0 < /buildscripts/tiledb-FindLZ4_EP.cmake.patch \
     && patch -p0 < /buildscripts/tiledb-FindOpenSSL_EP.cmake.patch \
     && mkdir build_cmake \
     && cd build_cmake \
-    && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DTILEDB_WERROR=OFF -DTILEDB_SUPERBUILD=OFF  -DTILEDB_TESTS=OFF -DCOMPILER_SUPPORTS_AVX2=FALSE  -DOPENSSL_INCLUDE_DIR=/usr/include -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/${GCC_ARCH}-linux-gnu/libcrypto.so -DOPENSSL_SSL_LIBRARY=/usr/lib/${GCC_ARCH}-linux-gnu/libssl.so \
-    && make -j$(nproc) \
-    && make -j$(nproc) install DESTDIR="/build_thirdparty" \
-    && make -j$(nproc) install \
+    && cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DTILEDB_WERROR=OFF -DTILEDB_SUPERBUILD=OFF  -DTILEDB_TESTS=OFF -DCOMPILER_SUPPORTS_AVX2=FALSE  -DOPENSSL_INCLUDE_DIR=/usr/include -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/${GCC_ARCH}-linux-gnu/libcrypto.so -DOPENSSL_SSL_LIBRARY=/usr/lib/${GCC_ARCH}-linux-gnu/libssl.so \
+    && ninja \
+    && DESTDIR="/build_thirdparty" ninja install \
+    && ninja install \
     && cd ../.. \
     && rm -rf tiledb \
     && for i in /build_thirdparty/usr/lib/${GCC_ARCH}-linux-gnu/*; do strip -s $i 2>/dev/null || /bin/true; done \
@@ -156,14 +156,14 @@ RUN . /buildscripts/bh-set-envvars.sh \
 ARG OPENJPEG_VERSION=
 RUN . /buildscripts/bh-set-envvars.sh \
     && if test "${OPENJPEG_VERSION}" != ""; then ( \
-    wget -q https://github.com/uclouvain/openjpeg/archive/v${OPENJPEG_VERSION}.tar.gz \
+    curl -LO -fsS https://github.com/uclouvain/openjpeg/archive/v${OPENJPEG_VERSION}.tar.gz \
     && tar xzf v${OPENJPEG_VERSION}.tar.gz \
     && rm -f v${OPENJPEG_VERSION}.tar.gz \
     && cd openjpeg-${OPENJPEG_VERSION} \
-    && cmake . -DBUILD_SHARED_LIBS=ON  -DBUILD_STATIC_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+    && cmake . -G Ninja -DBUILD_SHARED_LIBS=ON  -DBUILD_STATIC_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
-    && make -j$(nproc) \
-    && make install \
+    && ninja \
+    && ninja install \
     && mkdir -p /build_thirdparty/usr/lib/${GCC_ARCH}-linux-gnu \
     && rm -f /usr/lib/${GCC_ARCH}-linux-gnu/libopenjp2.so* \
     && mv /usr/lib/libopenjp2.so* /usr/lib/${GCC_ARCH}-linux-gnu \
@@ -177,14 +177,14 @@ RUN . /buildscripts/bh-set-envvars.sh \
 ARG OPENDRIVE_VERSION=0.6.0-gdal
 RUN . /buildscripts/bh-set-envvars.sh \
     && if test "${OPENDRIVE_VERSION}" != ""; then ( \
-    wget -q https://github.com/DLR-TS/libOpenDRIVE/archive/refs/tags/${OPENDRIVE_VERSION}.tar.gz \
+    curl -LO -fsS https://github.com/DLR-TS/libOpenDRIVE/archive/refs/tags/${OPENDRIVE_VERSION}.tar.gz \
     && tar xzf ${OPENDRIVE_VERSION}.tar.gz \
     && rm -f ${OPENDRIVE_VERSION}.tar.gz \
     && cd libOpenDRIVE-${OPENDRIVE_VERSION} \
-    && cmake . -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release \
+    && cmake . -G Ninja -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr/ \
-    && make -j$(nproc) \
-    && make install \
+    && ninja \
+    && ninja install \
     && mkdir -p /build_thirdparty/usr/lib \
     && cp -P /usr/lib/libOpenDrive*.so* /build_thirdparty/usr/lib \
     && for i in /build_thirdparty/usr/lib/*; do strip -s $i 2>/dev/null || /bin/true; done \
@@ -197,7 +197,7 @@ RUN . /buildscripts/bh-set-envvars.sh \
 ARG WITH_FILEGDB=
 RUN . /buildscripts/bh-set-envvars.sh \
   && if echo "$WITH_FILEGDB" | grep -Eiq "^(y(es)?|1|true)$"  ; then ( \
-  wget -q https://github.com/Esri/file-geodatabase-api/raw/master/FileGDB_API_1.5.2/FileGDB_API-RHEL7-64gcc83.tar.gz \
+  curl -LO -fsS https://github.com/Esri/file-geodatabase-api/raw/master/FileGDB_API_1.5.2/FileGDB_API-RHEL7-64gcc83.tar.gz \
   && tar -xzf FileGDB_API-RHEL7-64gcc83.tar.gz \
   && chown -R root:root FileGDB_API-RHEL7-64gcc83 \
   && mv FileGDB_API-RHEL7-64gcc83 /usr/local/FileGDB_API \
@@ -213,16 +213,16 @@ RUN . /buildscripts/bh-set-envvars.sh \
     && cd QB3/QB3lib \
     && mkdir build \
     && cd build \
-    && cmake .. ${CMAKE_EXTRA_ARGS} -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release \
-    && make -j$(nproc) \
-    && make -j$(nproc) install \
-    && make install DESTDIR="/build_thirdparty" \
+    && cmake .. -G Ninja ${CMAKE_EXTRA_ARGS} -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release \
+    && ninja \
+    && ninja install \
+    && DESTDIR="/build_thirdparty" ninja install \
     && cd ../../.. \
     && rm -rf QB3
 
 ARG WITH_PDFIUM=yes
 RUN if echo "$WITH_PDFIUM" | grep -Eiq "^(y(es)?|1|true)$"  ; then ( \
-  wget -q https://github.com/rouault/pdfium_build_gdal_3_10/releases/download/pdfium_6677_v1/install-ubuntu2004-rev6677.tar.gz \
+  curl -LO -fsS https://github.com/rouault/pdfium_build_gdal_3_10/releases/download/pdfium_6677_v1/install-ubuntu2004-rev6677.tar.gz \
   && tar -xzf install-ubuntu2004-rev6677.tar.gz \
   && chown -R root:root install \
   && mv install/lib/* /usr/lib/ \
@@ -241,10 +241,10 @@ RUN . /buildscripts/bh-set-envvars.sh \
     && cd libjxl \
     && mkdir build \
     && cd build \
-    && cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF -DBUILD_TESTING=OFF -DJPEGXL_ENABLE_TOOLS=OFF -DJPEGXL_ENABLE_BENCHMARK=OFF .. \
-    && make -j$(nproc) \
-    && make -j$(nproc) install \
-    && make install DESTDIR="/build_thirdparty" \
+    && cmake -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF -DBUILD_TESTING=OFF -DJPEGXL_ENABLE_TOOLS=OFF -DJPEGXL_ENABLE_BENCHMARK=OFF .. \
+    && ninja \
+    && ninja install \
+    && DESTDIR="/build_thirdparty" ninja install \
     && rm -f /lib/${GCC_ARCH}-linux-gnu/libjxl*.a \
     && rm -f /build_thirdparty/lib/${GCC_ARCH}-linux-gnu/libjxl*.a \
     && cd ../.. \
@@ -258,7 +258,7 @@ ARG ARROW_SOVERSION=1600
 RUN . /buildscripts/bh-set-envvars.sh \
     && apt-get update -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -V ca-certificates lsb-release wget \
-    && wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
+    && curl -LO -fsS https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -V libarrow${ARROW_SOVERSION}${APT_ARCH_SUFFIX} \
@@ -309,7 +309,7 @@ RUN . /buildscripts/bh-set-envvars.sh \
     && /buildscripts/bh-gdal.sh
 
 # Build final image
-FROM $TARGET_BASE_IMAGE as runner
+FROM $TARGET_BASE_IMAGE AS runner
 
 USER root
 RUN date
@@ -353,7 +353,7 @@ RUN apt-get update \
     && ln -s /usr/lib/$(uname -p)-linux-gnu/ogdi/4.1/libvrf.so /usr/lib/$(uname -p)-linux-gnu \
     # Install Arrow C++
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -V ca-certificates lsb-release wget \
-    && wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
+    && curl -LO -fsS https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -V libarrow${ARROW_SOVERSION} \

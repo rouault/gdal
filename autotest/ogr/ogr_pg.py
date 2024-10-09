@@ -4849,6 +4849,13 @@ def test_ogr_pg_84(pg_ds):
 def test_ogr_pg_metadata(pg_ds, run_number):
 
     pg_ds = reconnect(pg_ds, update=1)
+
+    if run_number == 1:
+        pg_ds.ExecuteSQL(
+            "DROP EVENT TRIGGER IF EXISTS ogr_system_tables_event_trigger_for_metadata"
+        )
+        pg_ds.ExecuteSQL("DROP SCHEMA ogr_system_tables CASCADE")
+
     pg_ds.StartTransaction()
     lyr = pg_ds.CreateLayer(
         "test_ogr_pg_metadata", geom_type=ogr.wkbPoint, options=["OVERWRITE=YES"]
@@ -4903,7 +4910,6 @@ def test_ogr_pg_metadata_restricted_user(pg_ds):
     pg_ds = reconnect(pg_ds, update=1)
 
     try:
-
         pg_ds.ExecuteSQL("CREATE ROLE test_ogr_pg_metadata_restricted_user")
         with pg_ds.ExecuteSQL("SELECT current_schema()") as lyr:
             f = lyr.GetNextFeature()
@@ -4923,6 +4929,7 @@ def test_ogr_pg_metadata_restricted_user(pg_ds):
         )
 
         pg_ds = reconnect(pg_ds, update=1)
+        pg_ds.ExecuteSQL("DROP SCHEMA ogr_system_tables CASCADE")
         pg_ds.ExecuteSQL("SET ROLE test_ogr_pg_metadata_restricted_user")
 
         lyr = pg_ds.CreateLayer(
@@ -4933,9 +4940,12 @@ def test_ogr_pg_metadata_restricted_user(pg_ds):
         with gdal.quiet_errors():
             lyr.SetMetadata({"foo": "bar"})
 
-        gdal.ErrorReset()
-        pg_ds = reconnect(pg_ds, update=1)
-        assert gdal.GetLastErrorMsg() == ""
+            gdal.ErrorReset()
+            pg_ds = reconnect(pg_ds, update=1)
+        assert (
+            gdal.GetLastErrorMsg()
+            == "User lacks super user privilege to be able to create event trigger ogr_system_tables_event_trigger_for_metadata"
+        )
 
     finally:
         pg_ds = reconnect(pg_ds, update=1)
@@ -5910,6 +5920,27 @@ def test_ogr_pg_long_identifiers(pg_ds):
     assert lyr.CreateFeature(f) == ogr.OGRERR_NONE
     assert lyr.SyncToDisk() == ogr.OGRERR_NONE
 
+    long_name3 = "test_" + ("X" * (64 - len("test_")))
+    assert len(long_name3) == 64
+    short_name3 = "test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_b7ebb17c"
+    assert len(short_name3) == 63
+    with gdal.quiet_errors():
+        lyr = pg_ds.CreateLayer(long_name3)
+    assert lyr.GetName() == short_name3
+    f = ogr.Feature(lyr.GetLayerDefn())
+    assert lyr.CreateFeature(f) == ogr.OGRERR_NONE
+    assert lyr.SyncToDisk() == ogr.OGRERR_NONE
+
+    long_name4 = "test_" + ("X" * (63 - len("test_")))
+    assert len(long_name4) == 63
+    short_name4 = "test_" + ("x" * (63 - len("test_")))
+    with gdal.quiet_errors():
+        lyr = pg_ds.CreateLayer(long_name4)
+    assert lyr.GetName() == short_name4
+    f = ogr.Feature(lyr.GetLayerDefn())
+    assert lyr.CreateFeature(f) == ogr.OGRERR_NONE
+    assert lyr.SyncToDisk() == ogr.OGRERR_NONE
+
     pg_ds = reconnect(pg_ds, update=1)
 
     got_lyr = pg_ds.GetLayerByName(short_name)
@@ -5919,6 +5950,14 @@ def test_ogr_pg_long_identifiers(pg_ds):
     got_lyr = pg_ds.GetLayerByName(short_name2)
     assert got_lyr
     assert got_lyr.GetName() == short_name2
+
+    got_lyr = pg_ds.GetLayerByName(short_name3)
+    assert got_lyr
+    assert got_lyr.GetName() == short_name3
+
+    got_lyr = pg_ds.GetLayerByName(short_name4)
+    assert got_lyr
+    assert got_lyr.GetName() == short_name4
 
 
 ###############################################################################

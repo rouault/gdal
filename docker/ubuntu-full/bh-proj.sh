@@ -13,15 +13,16 @@ fi
 set -eu
 
 mkdir proj
-wget -q "https://github.com/OSGeo/PROJ/archive/${PROJ_VERSION}.tar.gz" \
-    -O - | tar xz -C proj --strip-components=1
+curl -L -fsS "https://github.com/OSGeo/PROJ/archive/${PROJ_VERSION}.tar.gz" \
+    | tar xz -C proj --strip-components=1
 
 (
     cd proj
 
     if [ -n "${RSYNC_REMOTE:-}" ]; then
         echo "Downloading cache..."
-        rsync -ra "${RSYNC_REMOTE}/proj/${GCC_ARCH}/" "$HOME/"
+        mkdir -p "$HOME/.cache"
+        rsync -ra "${RSYNC_REMOTE}/proj/${GCC_ARCH}/" "$HOME/.cache/"
         echo "Finished"
 
         export CC="ccache ${GCC_ARCH}-linux-gnu-gcc"
@@ -35,18 +36,19 @@ wget -q "https://github.com/OSGeo/PROJ/archive/${PROJ_VERSION}.tar.gz" \
     export CXXFLAGS="-DPROJ_RENAME_SYMBOLS -DPROJ_INTERNAL_CPP_NAMESPACE -O2 -g"
 
     cmake . \
+        -G Ninja \
         -DBUILD_SHARED_LIBS=ON \
         -DCMAKE_INSTALL_PREFIX=${PROJ_INSTALL_PREFIX:-/usr/local} \
         -DBUILD_TESTING=OFF
 
-    make "-j$(nproc)"
-    make install DESTDIR="${DESTDIR}"
+    ninja
+    DESTDIR="${DESTDIR}" ninja install
 
     if [ -n "${RSYNC_REMOTE:-}" ]; then
         ccache -s
 
         echo "Uploading cache..."
-        rsync -ra --delete "$HOME/.cache" "${RSYNC_REMOTE}/proj/${GCC_ARCH}/"
+        rsync -ra --delete "$HOME/.cache/" "${RSYNC_REMOTE}/proj/${GCC_ARCH}/"
         echo "Finished"
 
         rm -rf "$HOME/.cache"
