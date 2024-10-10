@@ -4256,4 +4256,91 @@ TEST_F(test_ogr, OGRCurve_reversePoints)
     }
 }
 
+// Test OGRCurvePolygon::addRingDirectly
+TEST_F(test_ogr, OGRCurvePolygon_addRingDirectly)
+{
+    OGRCurvePolygon cp;
+    OGRGeometry *ring;
+
+    // closed CircularString
+    OGRGeometryFactory::createFromWkt(
+        "CIRCULARSTRING (0 0, 1 1, 2 0, 1 -1, 0 0)", nullptr, &ring);
+    ASSERT_TRUE(ring);
+    EXPECT_EQ(cp.addRingDirectly(ring->toCurve()), OGRERR_NONE);
+
+    // open CircularString
+    OGRGeometryFactory::createFromWkt("CIRCULARSTRING (0 0, 1 1, 2 0)", nullptr,
+                                      &ring);
+    ASSERT_TRUE(ring);
+    {
+        CPLConfigOptionSetter oSetter("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO",
+                                      false);
+        ASSERT_EQ(cp.addRingDirectly(ring->toCurve()),
+                  OGRERR_UNSUPPORTED_GEOMETRY_TYPE);
+    }
+    EXPECT_EQ(cp.addRingDirectly(ring->toCurve()), OGRERR_NONE);
+
+    // closed CompoundCurve
+    OGRGeometryFactory::createFromWkt(
+        "COMPOUNDCURVE( CIRCULARSTRING (0 0, 1 1, 2 0), (2 0, 0 0))", nullptr,
+        &ring);
+    ASSERT_TRUE(ring);
+    EXPECT_EQ(cp.addRingDirectly(ring->toCurve()), OGRERR_NONE);
+
+    // closed LineString
+    OGRGeometryFactory::createFromWkt("LINESTRING (0 0, 1 0, 1 1, 0 1, 0 0)",
+                                      nullptr, &ring);
+    ASSERT_TRUE(ring);
+    EXPECT_EQ(cp.addRingDirectly(ring->toCurve()), OGRERR_NONE);
+
+    // LinearRing
+    auto lr = std::make_unique<OGRLinearRing>();
+    lr->addPoint(0, 0);
+    lr->addPoint(1, 0);
+    lr->addPoint(1, 1);
+    lr->addPoint(0, 1);
+    lr->addPoint(0, 0);
+    ASSERT_TRUE(ring);
+    ASSERT_EQ(cp.addRingDirectly(lr.get()), OGRERR_UNSUPPORTED_GEOMETRY_TYPE);
+}
+
+// Test OGRPolygon::addRingDirectly
+TEST_F(test_ogr, OGRPolygon_addRingDirectly)
+{
+    OGRPolygon p;
+    OGRGeometry *ring;
+
+    // closed CircularString
+    OGRGeometryFactory::createFromWkt(
+        "CIRCULARSTRING (0 0, 1 1, 2 0, 1 -1, 0 0)", nullptr, &ring);
+    ASSERT_TRUE(ring);
+    EXPECT_EQ(p.addRingDirectly(ring->toCurve()),
+              OGRERR_UNSUPPORTED_GEOMETRY_TYPE);
+    delete ring;
+
+    // closed LineString
+    OGRGeometryFactory::createFromWkt("LINESTRING (0 0, 1 0, 1 1, 0 1, 0 0)",
+                                      nullptr, &ring);
+    ASSERT_TRUE(ring);
+    EXPECT_EQ(p.addRingDirectly(ring->toCurve()),
+              OGRERR_UNSUPPORTED_GEOMETRY_TYPE);
+    delete ring;
+
+    // open LineString
+    OGRGeometryFactory::createFromWkt("LINESTRING (0 0, 1 0)", nullptr, &ring);
+    ASSERT_TRUE(ring);
+    EXPECT_EQ(p.addRingDirectly(ring->toCurve()),
+              OGRERR_UNSUPPORTED_GEOMETRY_TYPE);
+    delete ring;
+
+    // LinearRing
+    auto lr = std::make_unique<OGRLinearRing>();
+    lr->addPoint(0, 0);
+    lr->addPoint(1, 0);
+    lr->addPoint(1, 1);
+    lr->addPoint(0, 1);
+    lr->addPoint(0, 0);
+    ASSERT_EQ(p.addRingDirectly(lr.release()), OGRERR_NONE);
+}
+
 }  // namespace
