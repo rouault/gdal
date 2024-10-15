@@ -43,412 +43,6 @@
 namespace gdal
 {
 
-/** Trait accepting a C++ type ([u]int[8/16/32/64], float, double,
- * std::complex<float>, std::complex<double> or std::string)
- * and mapping it to GDALDataType / OGRFieldType.
- *
- * Each specialization has the following members:
- * static constexpr GDALDataType gdal_type;
- * static constexpr size_t size;
- * static constexpr OGRFieldType ogr_type;
- * static constexpr OGRFieldSubType ogr_subtype;
- *
- * @since 3.11
- */
-template <typename T> struct CXXTypeTraits
-{
-};
-
-//! @cond Doxygen_Suppress
-template <> struct CXXTypeTraits<int8_t>
-{
-    static constexpr GDALDataType gdal_type = GDT_Int8;
-    static constexpr size_t size = sizeof(int8_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Int8);
-    }
-};
-
-template <> struct CXXTypeTraits<uint8_t>
-{
-    static constexpr GDALDataType gdal_type = GDT_Byte;
-    static constexpr size_t size = sizeof(uint8_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Byte);
-    }
-};
-
-template <> struct CXXTypeTraits<int16_t>
-{
-    static constexpr GDALDataType gdal_type = GDT_Int16;
-    static constexpr size_t size = sizeof(int16_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTInt16;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Int16);
-    }
-};
-
-template <> struct CXXTypeTraits<uint16_t>
-{
-    static constexpr GDALDataType gdal_type = GDT_UInt16;
-    static constexpr size_t size = sizeof(uint16_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_UInt16);
-    }
-};
-
-template <> struct CXXTypeTraits<int32_t>
-{
-    static constexpr GDALDataType gdal_type = GDT_Int32;
-    static constexpr size_t size = sizeof(int32_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Int32);
-    }
-};
-
-template <> struct CXXTypeTraits<uint32_t>
-{
-    static constexpr GDALDataType gdal_type = GDT_UInt32;
-    static constexpr size_t size = sizeof(uint32_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger64;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_UInt32);
-    }
-};
-
-template <> struct CXXTypeTraits<int64_t>
-{
-    static constexpr GDALDataType gdal_type = GDT_Int64;
-    static constexpr size_t size = sizeof(int64_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger64;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Int64);
-    }
-};
-
-template <> struct CXXTypeTraits<uint64_t>
-{
-    static constexpr GDALDataType gdal_type = GDT_UInt64;
-    static constexpr size_t size = sizeof(uint64_t);
-    // Mapping to Real is questionable...
-    static constexpr OGRFieldType ogr_type = OFTReal;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_UInt64);
-    }
-};
-
-template <> struct CXXTypeTraits<float>
-{
-    static constexpr GDALDataType gdal_type = GDT_Float32;
-    static constexpr size_t size = sizeof(float);
-    static constexpr OGRFieldType ogr_type = OFTReal;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTFloat32;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Float32);
-    }
-};
-
-template <> struct CXXTypeTraits<double>
-{
-    static constexpr GDALDataType gdal_type = GDT_Float64;
-    static constexpr size_t size = sizeof(double);
-    static constexpr OGRFieldType ogr_type = OFTReal;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Float64);
-    }
-};
-
-template <> struct CXXTypeTraits<std::complex<float>>
-{
-    static constexpr GDALDataType gdal_type = GDT_CFloat32;
-    static constexpr size_t size = sizeof(float) * 2;
-    static constexpr OGRFieldType ogr_type = OFTMaxType;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_CFloat32);
-    }
-};
-
-template <> struct CXXTypeTraits<std::complex<double>>
-{
-    static constexpr GDALDataType gdal_type = GDT_CFloat64;
-    static constexpr size_t size = sizeof(double) * 2;
-    static constexpr OGRFieldType ogr_type = OFTMaxType;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_CFloat64);
-    }
-};
-
-#if defined(GDAL_ENABLE_FLOAT16) && defined(FLT16_MAX) && defined(FLT16_MIN)
-template <> struct CXXTypeTraits<_Float16>
-{
-    static constexpr GDALDataType gdal_type = GDT_Float16;
-    static constexpr size_t size = sizeof(_Float16);
-    static constexpr OGRFieldType ogr_type = OFTReal;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Float16);
-    }
-};
-#endif
-
-template <> struct CXXTypeTraits<std::string>
-{
-    static constexpr GDALDataType gdal_type = GDT_Unknown;
-    static constexpr size_t size = 0;
-    static constexpr OGRFieldType ogr_type = OFTString;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::CreateString();
-    }
-};
-
-//! @endcond
-
-/** Trait accepting a GDALDataType and mapping it to corresponding C++ type and
- * OGRFieldType
- *
- * Each specialization has the following members:
- * typedef T type; (except for GDT_CInt16 and GDT_CInt32)
- * static constexpr size_t size;
- * static constexpr OGRFieldType ogr_type;
- * static constexpr OGRFieldSubType ogr_subtype;
- * static inline GDALExtendedDataType GetExtendedDataType();
- *
- * @since 3.11
- */
-template <GDALDataType T> struct GDALDataTypeTraits
-{
-};
-
-//! @cond Doxygen_Suppress
-template <> struct GDALDataTypeTraits<GDT_Int8>
-{
-    typedef int8_t type;
-    static constexpr size_t size = sizeof(int8_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Int8);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_Byte>
-{
-    typedef uint8_t type;
-    static constexpr size_t size = sizeof(uint8_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Byte);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_Int16>
-{
-    typedef int16_t type;
-    static constexpr size_t size = sizeof(int16_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTInt16;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Int16);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_UInt16>
-{
-    typedef uint16_t type;
-    static constexpr size_t size = sizeof(uint16_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_UInt16);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_Int32>
-{
-    typedef int32_t type;
-    static constexpr size_t size = sizeof(int32_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Int32);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_UInt32>
-{
-    typedef uint32_t type;
-    static constexpr size_t size = sizeof(uint32_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger64;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_UInt32);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_Int64>
-{
-    typedef int64_t type;
-    static constexpr size_t size = sizeof(int64_t);
-    static constexpr OGRFieldType ogr_type = OFTInteger64;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Int64);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_UInt64>
-{
-    typedef uint64_t type;
-    static constexpr size_t size = sizeof(uint64_t);
-    // Mapping to Real is questionable...
-    static constexpr OGRFieldType ogr_type = OFTReal;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_UInt64);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_Float32>
-{
-    typedef float type;
-    static constexpr size_t size = sizeof(float);
-    static constexpr OGRFieldType ogr_type = OFTReal;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTFloat32;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Float32);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_Float64>
-{
-    typedef double type;
-    static constexpr size_t size = sizeof(double);
-    static constexpr OGRFieldType ogr_type = OFTReal;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_Float64);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_CInt16>
-{
-    // typedef type not available !
-    static constexpr size_t size = sizeof(int16_t) * 2;
-    static constexpr OGRFieldType ogr_type = OFTMaxType;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_CInt16);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_CInt32>
-{
-    // typedef type not available !
-    static constexpr size_t size = sizeof(int32_t) * 2;
-    static constexpr OGRFieldType ogr_type = OFTMaxType;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_CInt32);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_CFloat32>
-{
-    typedef std::complex<float> type;
-    static constexpr size_t size = sizeof(float) * 2;
-    static constexpr OGRFieldType ogr_type = OFTMaxType;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_CFloat32);
-    }
-};
-
-template <> struct GDALDataTypeTraits<GDT_CFloat64>
-{
-    typedef std::complex<double> type;
-    static constexpr size_t size = sizeof(double) * 2;
-    static constexpr OGRFieldType ogr_type = OFTMaxType;
-    static constexpr OGRFieldSubType ogr_subtype = OFSTNone;
-
-    static inline GDALExtendedDataType GetExtendedDataType()
-    {
-        return GDALExtendedDataType::Create(GDT_CFloat64);
-    }
-};
-
-//! @endcond
-
 /** Map a GDALDataType to the most suitable OGRFieldType.
  *
  * Note that GDT_UInt32 is mapped to OFTInteger64 to avoid data losses.
@@ -459,7 +53,7 @@ template <> struct GDALDataTypeTraits<GDT_CFloat64>
  *
  * @since 3.11
  */
-inline OGRFieldType GetOGRFieldType(const GDALDataType gdal_type)
+constexpr inline OGRFieldType GetOGRFieldType(const GDALDataType gdal_type)
 {
     switch (gdal_type)
     {
@@ -486,6 +80,317 @@ inline OGRFieldType GetOGRFieldType(const GDALDataType gdal_type)
     }
     return OFTMaxType;
 }
+
+/** Map a GDALDataType to the most suitable OGRFieldSubType.
+ *
+ * @since 3.11
+ */
+constexpr inline OGRFieldSubType
+GetOGRFieldSubType(const GDALDataType gdal_type)
+{
+    switch (gdal_type)
+    {
+        case GDT_Byte:
+            break;
+        case GDT_Int8:
+            break;
+        case GDT_Int16:
+            return OFSTInt16;
+        case GDT_Int32:
+            break;
+        case GDT_UInt16:
+            break;
+        case GDT_UInt32:
+            break;
+        case GDT_Int64:
+            break;
+        case GDT_UInt64:
+            break;
+        case GDT_Float32:
+            return OFSTFloat32;
+        case GDT_Float64:
+            break;
+        case GDT_CInt16:
+            break;
+        case GDT_CInt32:
+            break;
+        case GDT_CFloat32:
+            break;
+        case GDT_CFloat64:
+            break;
+        case GDT_Unknown:
+            break;
+        case GDT_TypeCount:
+            break;
+    }
+    return OFSTNone;
+}
+
+/** Trait accepting a C++ type ([u]int[8/16/32/64], float, double,
+ * std::complex<float>, std::complex<double> or std::string)
+ * and mapping it to GDALDataType / OGRFieldType.
+ *
+ * Each specialization has the following members:
+ * static constexpr GDALDataType gdal_type;
+ * static constexpr size_t size;
+ * static constexpr OGRFieldType ogr_type;
+ * static constexpr OGRFieldSubType ogr_subtype;
+ *
+ * @since 3.11
+ */
+template <typename T> struct CXXTypeTraits
+{
+};
+
+namespace detail
+{
+template <typename T> struct CXXTypeTraitsBase
+{
+    static constexpr GDALDataType gdal_type = GDT_Unknown;
+    static constexpr size_t size = sizeof(T);
+    static constexpr OGRFieldType ogr_type =
+        GetOGRFieldType(CXXTypeTraits<T>::gdal_type);
+    static constexpr OGRFieldSubType ogr_subtype =
+        GetOGRFieldSubType(CXXTypeTraits<T>::gdal_type);
+
+    static inline GDALExtendedDataType GetExtendedDataType()
+    {
+        return GDALExtendedDataType::Create(CXXTypeTraits<T>::gdal_type);
+    }
+};
+}  // namespace detail
+
+//! @cond Doxygen_Suppress
+template <>
+struct CXXTypeTraits<int8_t> : public detail::CXXTypeTraitsBase<int8_t>
+{
+    static constexpr GDALDataType gdal_type = GDT_Int8;
+};
+
+template <>
+struct CXXTypeTraits<uint8_t> : public detail::CXXTypeTraitsBase<uint8_t>
+{
+    static constexpr GDALDataType gdal_type = GDT_Byte;
+};
+
+template <>
+struct CXXTypeTraits<int16_t> : public detail::CXXTypeTraitsBase<int16_t>
+{
+    static constexpr GDALDataType gdal_type = GDT_Int16;
+};
+
+template <>
+struct CXXTypeTraits<uint16_t> : public detail::CXXTypeTraitsBase<uint16_t>
+{
+    static constexpr GDALDataType gdal_type = GDT_UInt16;
+};
+
+template <>
+struct CXXTypeTraits<int32_t> : public detail::CXXTypeTraitsBase<int32_t>
+{
+    static constexpr GDALDataType gdal_type = GDT_Int32;
+};
+
+template <>
+struct CXXTypeTraits<uint32_t> : public detail::CXXTypeTraitsBase<uint32_t>
+{
+    static constexpr GDALDataType gdal_type = GDT_UInt32;
+};
+
+template <>
+struct CXXTypeTraits<int64_t> : public detail::CXXTypeTraitsBase<int64_t>
+{
+    static constexpr GDALDataType gdal_type = GDT_Int64;
+};
+
+template <>
+struct CXXTypeTraits<uint64_t> : public detail::CXXTypeTraitsBase<uint64_t>
+{
+    static constexpr GDALDataType gdal_type = GDT_UInt64;
+};
+
+template <>
+struct CXXTypeTraits<float> : public detail::CXXTypeTraitsBase<float>
+{
+    static constexpr GDALDataType gdal_type = GDT_Float32;
+};
+
+template <>
+struct CXXTypeTraits<double> : public detail::CXXTypeTraitsBase<double>
+{
+    static constexpr GDALDataType gdal_type = GDT_Float64;
+};
+
+template <>
+struct CXXTypeTraits<std::complex<float>>
+    : public detail::CXXTypeTraitsBase<std::complex<float>>
+{
+    static constexpr GDALDataType gdal_type = GDT_CFloat32;
+};
+
+template <>
+struct CXXTypeTraits<std::complex<double>>
+    : public detail::CXXTypeTraitsBase<std::complex<double>>
+{
+    static constexpr GDALDataType gdal_type = GDT_CFloat64;
+};
+
+#if defined(GDAL_ENABLE_FLOAT16) && defined(FLT16_MAX) && defined(FLT16_MIN)
+template <> struct CXXTypeTraits<_Float16>
+{
+    static constexpr GDALDataType gdal_type = GDT_Float16;
+};
+#endif
+
+template <>
+struct CXXTypeTraits<std::string>
+    : public detail::CXXTypeTraitsBase<std::string>
+{
+    static constexpr size_t size = 0;
+    static constexpr OGRFieldType ogr_type = OFTString;
+
+    static inline GDALExtendedDataType GetExtendedDataType()
+    {
+        return GDALExtendedDataType::CreateString();
+    }
+};
+
+//! @endcond
+
+/** Trait accepting a GDALDataType and mapping it to corresponding C++ type and
+ * OGRFieldType
+ *
+ * Each specialization has the following members:
+ * typedef T type; (except for GDT_CInt16 and GDT_CInt32)
+ * static constexpr size_t size;
+ * static constexpr OGRFieldType ogr_type;
+ * static constexpr OGRFieldSubType ogr_subtype;
+ * static inline GDALExtendedDataType GetExtendedDataType();
+ *
+ * @since 3.11
+ */
+template <GDALDataType T> struct GDALDataTypeTraits
+{
+};
+
+namespace detail
+{
+template <GDALDataType T> struct GDALDataTypeTraitsBase
+{
+
+    static constexpr size_t size = sizeof(typename GDALDataTypeTraits<T>::type);
+    static constexpr OGRFieldType ogr_type = GetOGRFieldType(T);
+    static constexpr OGRFieldSubType ogr_subtype = GetOGRFieldSubType(T);
+
+    static inline GDALExtendedDataType GetExtendedDataType()
+    {
+        return GDALExtendedDataType::Create(T);
+    }
+};
+}  // namespace detail
+
+//! @cond Doxygen_Suppress
+template <>
+struct GDALDataTypeTraits<GDT_Int8>
+    : public detail::GDALDataTypeTraitsBase<GDT_Int8>
+{
+    typedef int8_t type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_Byte>
+    : public detail::GDALDataTypeTraitsBase<GDT_Byte>
+{
+    typedef uint8_t type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_Int16>
+    : public detail::GDALDataTypeTraitsBase<GDT_Int16>
+{
+    typedef int16_t type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_UInt16>
+    : public detail::GDALDataTypeTraitsBase<GDT_UInt16>
+{
+    typedef uint16_t type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_Int32>
+    : public detail::GDALDataTypeTraitsBase<GDT_Int32>
+{
+    typedef int32_t type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_UInt32>
+    : public detail::GDALDataTypeTraitsBase<GDT_UInt32>
+{
+    typedef uint32_t type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_Int64>
+    : public detail::GDALDataTypeTraitsBase<GDT_Int64>
+{
+    typedef int64_t type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_UInt64>
+    : public detail::GDALDataTypeTraitsBase<GDT_UInt64>
+{
+    typedef uint64_t type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_Float32>
+    : public detail::GDALDataTypeTraitsBase<GDT_Float32>
+{
+    typedef float type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_Float64>
+    : public detail::GDALDataTypeTraitsBase<GDT_Float64>
+{
+    typedef double type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_CInt16>
+    : public detail::GDALDataTypeTraitsBase<GDT_CInt16>
+{
+    // typedef type not available !
+    static constexpr size_t size = sizeof(int16_t) * 2;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_CInt32>
+    : public detail::GDALDataTypeTraitsBase<GDT_CInt32>
+{
+    // typedef type not available !
+    static constexpr size_t size = sizeof(int32_t) * 2;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_CFloat32>
+    : public detail::GDALDataTypeTraitsBase<GDT_CFloat32>
+{
+    typedef std::complex<float> type;
+};
+
+template <>
+struct GDALDataTypeTraits<GDT_CFloat64>
+    : public detail::GDALDataTypeTraitsBase<GDT_CFloat64>
+{
+    typedef std::complex<double> type;
+};
+
+//! @endcond
 
 /** Map a GDALExtendedDataType to the most suitable OGRFieldType.
  *

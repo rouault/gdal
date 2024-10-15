@@ -21,26 +21,32 @@ TEST_F(test_gdal_typetraits, CXXTypeTraits)
     EXPECT_EQ(
         gdal::CXXTypeTraits<int8_t>::GetExtendedDataType().GetNumericDataType(),
         GDT_Int8);
+
     static_assert(gdal::CXXTypeTraits<uint8_t>::gdal_type == GDT_Byte);
     static_assert(gdal::CXXTypeTraits<uint8_t>::size == 1);
     EXPECT_EQ(gdal::CXXTypeTraits<uint8_t>::GetExtendedDataType()
                   .GetNumericDataType(),
               GDT_Byte);
+
     static_assert(gdal::CXXTypeTraits<int16_t>::gdal_type == GDT_Int16);
     static_assert(gdal::CXXTypeTraits<int16_t>::size == 2);
     EXPECT_EQ(gdal::CXXTypeTraits<int16_t>::GetExtendedDataType()
                   .GetNumericDataType(),
               GDT_Int16);
+
     static_assert(gdal::CXXTypeTraits<uint16_t>::gdal_type == GDT_UInt16);
     static_assert(gdal::CXXTypeTraits<uint16_t>::size == 2);
     EXPECT_EQ(gdal::CXXTypeTraits<uint16_t>::GetExtendedDataType()
                   .GetNumericDataType(),
               GDT_UInt16);
+
     static_assert(gdal::CXXTypeTraits<int32_t>::gdal_type == GDT_Int32);
     static_assert(gdal::CXXTypeTraits<int32_t>::size == 4);
     EXPECT_EQ(gdal::CXXTypeTraits<int32_t>::GetExtendedDataType()
                   .GetNumericDataType(),
               GDT_Int32);
+    static_assert(gdal::CXXTypeTraits<int32_t>::ogr_type == OFTInteger);
+
     static_assert(gdal::CXXTypeTraits<uint32_t>::gdal_type == GDT_UInt32);
     static_assert(gdal::CXXTypeTraits<uint32_t>::size == 4);
     EXPECT_EQ(gdal::CXXTypeTraits<uint32_t>::GetExtendedDataType()
