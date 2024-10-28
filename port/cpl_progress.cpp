@@ -174,6 +174,27 @@ void CPL_STDCALL GDALDestroyScaledProgress(void *pData)
 /*                          GDALTermProgress()                          */
 /************************************************************************/
 
+static constexpr int GDALTermProgressWidth(int nMaxTicks, int nMajorTickSpacing)
+{
+    int nWidth = 0;
+    for (int i = 0; i <= nMaxTicks; i++)
+    {
+        if (i % nMajorTickSpacing == 0)
+        {
+            int nPercent = (i * 100) / nMaxTicks;
+            do
+            {
+                nWidth++;
+            } while (nPercent /= 10);
+        }
+        else
+        {
+            nWidth += 1;
+        }
+    }
+    return nWidth;
+}
+
 /**
  * \fn GDALTermProgress(double, const char*, void*)
  * \brief Simple progress report to terminal.
@@ -213,6 +234,10 @@ int CPL_STDCALL GDALTermProgress(double dfComplete,
                                  CPL_UNUSED void *pProgressArg)
 {
     constexpr int MAX_TICKS = 40;
+    constexpr int MAJOR_TICK_SPACING = 4;
+    constexpr int LENGTH_OF_0_TO_100_PROGRESS =
+        GDALTermProgressWidth(MAX_TICKS, MAJOR_TICK_SPACING);
+
     const int nThisTick = std::min(
         MAX_TICKS, std::max(0, static_cast<int>(dfComplete * MAX_TICKS)));
 
@@ -249,10 +274,11 @@ int CPL_STDCALL GDALTermProgress(double dfComplete,
     while (nThisTick > nLastTick)
     {
         ++nLastTick;
-        if (nLastTick % 4 == 0)
+        if (nLastTick % MAJOR_TICK_SPACING == 0)
         {
-            nChars += (nLastTick == MAX_TICKS) ? 3 : (nLastTick > 0) ? 2 : 1;
-            fprintf(stdout, "%d", (nLastTick / 4) * 10);
+            int nPercent = (nLastTick * 100) / MAX_TICKS;
+            nChars += nPercent < 10 ? 1 : nPercent >= 100 ? 3 : 2;
+            fprintf(stdout, "%d", nPercent);
         }
         else
         {
@@ -284,7 +310,6 @@ int CPL_STDCALL GDALTermProgress(double dfComplete,
         {
             const double dfETA =
                 (nCurTime - nStartTime) * (1.0 / dfComplete - 1);
-            constexpr int LENGTH_OF_0_TO_100_PROGRESS = 52;
             for (int i = nChars; i < LENGTH_OF_0_TO_100_PROGRESS; ++i)
                 fprintf(stdout, " ");
             const int nETA = static_cast<int>(dfETA + 0.5);
