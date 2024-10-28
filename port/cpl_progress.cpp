@@ -14,8 +14,15 @@
 
 #include <cmath>
 #include <cstdio>
+#include <ctime>
 
 #include <algorithm>
+
+#ifdef _WIN32
+#include <io.h>  // isatty
+#else
+#include <unistd.h>  // isatty
+#endif
 
 #include "cpl_conv.h"
 
@@ -179,6 +186,11 @@ void CPL_STDCALL GDALDestroyScaledProgress(void *pData)
 0...10...20...30...40...50...60...70...80...90...100 - done.
 \endverbatim
 
+ * Starting with GDAL 3.11, for tasks estimated to take more than 10 seconds,
+ * an estimated remaining time is also displayed at the end. And for tasks
+ * taking more than 5 seconds to complete, the total time is displayed upon
+ * completion.
+ *
  * Every 2.5% of progress another number or period is emitted.  Note that
  * GDALTermProgress() uses internal static data to keep track of the last
  * percentage reported and will get confused if two terminal based progress
@@ -200,30 +212,91 @@ int CPL_STDCALL GDALTermProgress(double dfComplete,
                                  CPL_UNUSED const char *pszMessage,
                                  CPL_UNUSED void *pProgressArg)
 {
-    const int nThisTick =
-        std::min(40, std::max(0, static_cast<int>(dfComplete * 40.0)));
+    constexpr int MAX_TICKS = 40;
+    const int nThisTick = std::min(
+        MAX_TICKS, std::max(0, static_cast<int>(dfComplete * MAX_TICKS)));
 
     // Have we started a new progress run?
     static int nLastTick = -1;
-    if (nThisTick < nLastTick && nLastTick >= 39)
+    static time_t nStartTime = 0;
+    static bool bETADisplayed = false;
+    if (nThisTick < nLastTick && nLastTick >= MAX_TICKS - 1)
+    {
+        bETADisplayed = false;
         nLastTick = -1;
+    }
 
     if (nThisTick <= nLastTick)
         return TRUE;
 
+    const time_t nCurTime = time(nullptr);
+    if (nLastTick < 0)
+        nStartTime = nCurTime;
+
+    constexpr int MIN_DELAY_FOR_ETA = 5;  // in seconds
+    if (nCurTime - nStartTime >= MIN_DELAY_FOR_ETA && dfComplete > 0 &&
+        dfComplete < 0.5)
+    {
+        static bool bIsTTY = isatty(static_cast<int>(fileno(stdout))) != 0;
+        bETADisplayed = bIsTTY;
+    }
+    if (bETADisplayed)
+    {
+        fprintf(stdout, "\r");
+        nLastTick = -1;
+    }
+    int nChars = 0;
     while (nThisTick > nLastTick)
     {
         ++nLastTick;
         if (nLastTick % 4 == 0)
+        {
+            nChars += (nLastTick == MAX_TICKS) ? 3 : (nLastTick > 0) ? 2 : 1;
             fprintf(stdout, "%d", (nLastTick / 4) * 10);
+        }
         else
+        {
+            ++nChars;
             fprintf(stdout, ".");
+        }
     }
 
-    if (nThisTick == 40)
-        fprintf(stdout, " - done.\n");
+    if (nThisTick == MAX_TICKS)
+    {
+        fprintf(stdout, " - done");
+        if (nCurTime - nStartTime >= MIN_DELAY_FOR_ETA)
+        {
+            const int nEllapsed = static_cast<int>(nCurTime - nStartTime);
+            const int nHours = nEllapsed / 3600;
+            const int nMins = (nEllapsed % 3600) / 60;
+            const int nSecs = nEllapsed % 60;
+            fprintf(stdout, " in %02d:%02d:%02d.", nHours, nMins, nSecs);
+            if (bETADisplayed)
+                fprintf(stdout, "                 ");
+        }
+        else
+            fprintf(stdout, ".");
+        fprintf(stdout, "\n");
+    }
     else
+    {
+        if (bETADisplayed)
+        {
+            const double dfETA =
+                (nCurTime - nStartTime) * (1.0 / dfComplete - 1);
+            constexpr int LENGTH_OF_0_TO_100_PROGRESS = 52;
+            for (int i = nChars; i < LENGTH_OF_0_TO_100_PROGRESS; ++i)
+                fprintf(stdout, " ");
+            const int nETA = static_cast<int>(dfETA + 0.5);
+            const int nHours = nETA / 3600;
+            const int nMins = (nETA % 3600) / 60;
+            const int nSecs = nETA % 60;
+            // 2 extra spaces for extremely long tasks...
+            fprintf(stdout, " - estimated remaining time: %02d:%02d:%02d  ",
+                    nHours, nMins, nSecs);
+        }
         fflush(stdout);
+    }
 
     return TRUE;
 }
