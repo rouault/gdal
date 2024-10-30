@@ -4041,7 +4041,7 @@ static bool GWKResampleOptimizedLanczos(const GDALWarpKernel *poWK, int iBand,
             constexpr double THREE_PI_PI = 3 * M_PI * M_PI;
             padfWeightsY[jMin - poWK->nFiltInitY] =
                 dfY == 0 ? 1.0 : THREE_PI_PI * dfSin * dfSinOver3 / (dfY * dfY);
-            for (int j = jMin + 1; j <= iMax; ++j)
+            for (int j = jMin + 1; j <= jMax; ++j)
             {
                 dfY += dfYScale;
                 const double dfNewSin =
