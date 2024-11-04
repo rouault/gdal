@@ -274,6 +274,11 @@ RUN if test "${OPENDRIVE_VERSION}" != ""; then ( \
     && rm -rf libOpenDRIVE-${OPENDRIVE_VERSION} \
     ); fi
 
+# Install exprtk
+RUN wget -q https://www.partow.net/downloads/exprtk.zip && \
+    unzip -j -d /usr/local/include exprtk.zip exprtk/exprtk.hpp && \
+    rm exprtk.zip
+
 RUN ldconfig
 
 COPY requirements.txt /tmp/
