@@ -14,6 +14,10 @@ jobs:
     if: github.repository_owner == 'OSGeo'
     runs-on: ubuntu-latest
     steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+      with:
+          egress-policy: audit
+
     - uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e # v9.0.0
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}

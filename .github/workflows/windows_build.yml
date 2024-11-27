@@ -50,6 +50,9 @@ jobs:
         PYTHON_VERSION: "3.10.5"
 
     steps:
+      - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+        with:
+          egress-policy: audit
 
       # To avoid git clone to mess with the line endings of GDAL autotest data
       # files that look like text, but should be handled as binary content

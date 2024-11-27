@@ -151,6 +151,10 @@ jobs:
         shell: bash
 
     steps:
+      - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+        with:
+          egress-policy: audit
+
       - name: Set variables
         # This logic needs to be kept in sync between linux_build.yml and converity_scan.yml
         run: |

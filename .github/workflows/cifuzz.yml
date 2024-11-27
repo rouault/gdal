@@ -19,6 +19,10 @@ jobs:
     if: github.repository == 'OSGeo/gdal'
 
     steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+      with:
+        egress-policy: audit
+
     - name: Build Fuzzers
       id: build
       uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@56f58e25299ee6559fa40369bd4af908000c0c36 # master on 2023/12/31

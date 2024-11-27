@@ -34,6 +34,9 @@ jobs:
       CMAKE_OPTIONS: -DPython_LOOKUP_VERSION=3.8 -DUSE_CCACHE=ON -DSWIG_REGENERATE_PYTHON=ON
       cache-name: cmake-ubuntu-focal
     steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+      with:
+        egress-policy: audit
     - name: Checkout GDAL
       uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
     - name: Setup cache
@@ -310,6 +313,9 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
+      - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+        with:
+          egress-policy: audit
       # To avoid git clone to mess with the line endings of GDAL autotest data
       # files that look like text, but should be handled as binary content
       - name: Set git core.autocrlf to false
@@ -406,6 +412,9 @@ jobs:
         generator: Ninja
         cache-name: cmake-msvc
     steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+      with:
+        egress-policy: audit
     # To avoid git clone to mess with the line endings of GDAL autotest data
     # files that look like text, but should be handled as binary content
     - name: Set git core.autocrlf to false
@@ -518,6 +527,9 @@ jobs:
         generator: Visual Studio 17 2022
         GDAL_PYTHON_BINDINGS_WITHOUT_NUMPY: YES
     steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+      with:
+        egress-policy: audit
     # To avoid git clone to mess with the line endings of GDAL autotest data
     # files that look like text, but should be handled as binary content
     - name: Set git core.autocrlf to false
@@ -603,6 +615,9 @@ jobs:
       CMAKE_OPTIONS: -DCFITSIO_ROOT=/opt/homebrew/Cellar/cfitsio  -DPoppler_ROOT=/opt/homebrew/Cellar/poppler -DPROJ_ROOT=/opt/homebrew/Cellar/proj -DSPATIALITE_ROOT=/opt/homebrew/Cellar/libspatialite -DPostgreSQL_ROOT=/opt/homebrew/Cellar/libpq -DEXPAT_ROOT=/opt/homebrew/Cellar/expat -DXercesC_ROOT=/opt/homebrew/Cellar/xerces-c -DSQLite3_ROOT=/opt/homebrew/Cellar/sqlite -DOpenSSL_ROOT=/opt/homebrew/Cellar/openssl -DPNG_ROOT=/opt/homebrew/Cellar/libpng -DJPEG_ROOT=/opt/homebrew/Cellar/jpeg-turbo -DEXPECTED_JPEG_LIB_VERSION=80 -DOpenJPEG_ROOT=/opt/homebrew/Cellar/openjpeg -DCURL_ROOT=/opt/homebrew/Cellar/curl -DGDAL_USE_LIBKML=OFF -DGDAL_USE_ODBC=OFF
       cache-name: cmake-macos
     steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+      with:
+        egress-policy: audit
     - name: Setup xcode
       uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1.6.0
       with:

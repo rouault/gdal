@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'OSGeo/gdal'
     steps:
+    - uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
+      with:
+        egress-policy: audit
+
     - name: Delete all containers from gdal-deps without tags
       uses: Chizkiyahu/delete-untagged-ghcr-action@b302990b6c629f3b272a31f3c3a268e1f7d0ffae # v4.0.1
       with:
