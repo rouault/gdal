@@ -54,9 +54,10 @@
 
 // #define DEBUG_VERBOSE_EXTRACT_DEM
 
-CPL_C_START
 CPLXMLNode *GDALSerializeRPCTransformer(void *pTransformArg);
-void *GDALDeserializeRPCTransformer(CPLXMLNode *psTree);
+
+CPL_C_START
+void *GDALDeserializeRPCTransformer(const CPLXMLNode *psTree);
 CPL_C_END
 
 constexpr int MAX_ABS_VALUE_WARNINGS = 20;
@@ -2078,7 +2079,7 @@ CPLXMLNode *GDALSerializeRPCTransformer(void *pTransformArg)
 /*                   GDALDeserializeRPCTransformer()                    */
 /************************************************************************/
 
-void *GDALDeserializeRPCTransformer(CPLXMLNode *psTree)
+void *GDALDeserializeRPCTransformer(const CPLXMLNode *psTree)
 
 {
     char **papszOptions = nullptr;
@@ -2086,14 +2087,14 @@ void *GDALDeserializeRPCTransformer(CPLXMLNode *psTree)
     /* -------------------------------------------------------------------- */
     /*      Collect metadata.                                               */
     /* -------------------------------------------------------------------- */
-    CPLXMLNode *psMetadata = CPLGetXMLNode(psTree, "Metadata");
+    const CPLXMLNode *psMetadata = CPLGetXMLNode(psTree, "Metadata");
 
     if (psMetadata == nullptr || psMetadata->eType != CXT_Element ||
         !EQUAL(psMetadata->pszValue, "Metadata"))
         return nullptr;
 
     char **papszMD = nullptr;
-    for (CPLXMLNode *psMDI = psMetadata->psChild; psMDI != nullptr;
+    for (const CPLXMLNode *psMDI = psMetadata->psChild; psMDI != nullptr;
          psMDI = psMDI->psNext)
     {
         if (!EQUAL(psMDI->pszValue, "MDI") || psMDI->eType != CXT_Element ||

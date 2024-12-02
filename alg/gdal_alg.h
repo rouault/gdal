@@ -80,21 +80,82 @@ typedef int (*GDALTransformerFunc)(void *pTransformerArg, int bDstToSrc,
                                    int nPointCount, double *x, double *y,
                                    double *z, int *panSuccess);
 
-/*! @cond Doxygen_Suppress */
+/** Signature to be set in GDALTransformerInfo::abySignature member */
 #define GDAL_GTI2_SIGNATURE "GTI2"
 
+/** Structure that must be instantiated as the first member of a transformer
+ * instance.
+ */
 typedef struct
 {
+    /** Signature. Should be filled with GDAL_GTI2_SIGNATURE. */
     GByte abySignature[4];
+
+    /** Class name. Should uniquely identify the transformer. */
     const char *pszClassName;
+
+    /** Transformer callback. */
     GDALTransformerFunc pfnTransform;
+
+    /** Cleanup callback. */
     void (*pfnCleanup)(void *pTransformerArg);
+
+    /** XML serialization callback. */
     CPLXMLNode *(*pfnSerialize)(void *pTransformerArg);
+
+    /** Callback to instanciate a transformer instance similar to the passed one. */
     void *(*pfnCreateSimilar)(void *pTransformerArg, double dfSrcRatioX,
                               double dfSrcRatioY);
 } GDALTransformerInfo;
 
-/*! @endcond */
+/* Custom transformers */
+
+/** Function pointer that instantiates a transformer instance for use by the
+ * GDALCreateGenImgProjTransformer() family of functions.
+ *
+ * The transformer instance should be a structure whose first member is an
+ * instance of GDALTransformerInfo.
+ *
+ * @param pszMethod Transformation method. May be NULL, in which case the
+ *                  callback is free to decide, from the content of the dataset
+ *                  and transformer options, if it can be instantiated.
+ * @param bIsSrcTransformer true if the transformer is used as the source
+ *                          transformer of GDALGenImgProjTransform.
+ *                          false if the transformer is used as the target
+ *                          transformer of GDALGenImgProjTransform.
+ * @param hDS source or target dataset, depending of bIsSrcTransformer.
+ *            The passed value is not NULL.
+ * @param papszTransformOptions Transformer options. May be NULL.
+ * @param[in,out] phSRS Pointer to a OGRSpatialReferenceH. The input *phSRS may be
+ *                   set. The callback may assign a new value to *phSRS (to be
+ *                   released with OSRRelease(). If the callback needs to free
+ *                   the passed *phSRS value, it must do so with OSRRelease().
+ * @return a new transformer instance, or NULL in case of error or if
+ * pszMethod == NULL and the callback does not recognize it should be
+ * instantiated.
+ */
+typedef void *(*GDALTransformerCreateForGenImgTransformer)(
+    const char *pszMethod, bool bIsSrcTransformer, GDALDatasetH hDS,
+    char **papszTransformOptions, OGRSpatialReferenceH *phSRS);
+
+/** Function pointer that takes a XML tree as argument and returns a
+ * transformer instance.
+ *
+ * The transformer instance returned should be a structure whose first member
+ * is an instance of GDALTransformerInfo.
+ *
+ * @param psTree XML tree
+ * @return a new transformer instance, or NULL in case of error
+ */
+typedef void *(*GDALTransformDeserializeFunc)(const CPLXMLNode *psTree);
+
+void CPL_DLL *
+GDALRegisterTransformer(const char *pszTransformName,
+                        GDALTransformDeserializeFunc pfnDeserializeFunc,
+                        GDALTransformerCreateForGenImgTransformer
+                            pfnTransformerCreateForGenImgTransformerFunc);
+
+void CPL_DLL GDALUnregisterTransformer(void *pData);
 
 /*! @cond Doxygen_Suppress */
 void CPL_DLL GDALDestroyTransformer(void *pTransformerArg);
@@ -229,6 +290,8 @@ void CPL_DLL GDALDestroyApproxTransformer(void *pApproxArg);
 int CPL_DLL GDALApproxTransform(void *pTransformArg, int bDstToSrc,
                                 int nPointCount, double *x, double *y,
                                 double *z, int *panSuccess);
+
+/* Warping related functions */
 
 int CPL_DLL CPL_STDCALL GDALSimpleImageWarp(
     GDALDatasetH hSrcDS, GDALDatasetH hDstDS, int nBandCount, int *panBandList,

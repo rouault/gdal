@@ -161,14 +161,7 @@ constexpr const char *GDAL_RPC_TRANSFORMER_CLASS_NAME = "GDALRPCTransformer";
 
 bool GDALIsTransformer(void *hTransformerArg, const char *pszClassName);
 
-typedef void *(*GDALTransformDeserializeFunc)(CPLXMLNode *psTree);
-
-void CPL_DLL *GDALRegisterTransformDeserializer(
-    const char *pszTransformName, GDALTransformerFunc pfnTransformerFunc,
-    GDALTransformDeserializeFunc pfnDeserializeFunc);
-void CPL_DLL GDALUnregisterTransformDeserializer(void *pData);
-
-void GDALCleanupTransformDeserializerMutex();
+void GDALCleanupTransformers();
 
 /* Transformer cloning */
 

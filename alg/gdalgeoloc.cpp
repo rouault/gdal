@@ -53,9 +53,10 @@ constexpr float INVALID_BMXY = -10.0f;
 #warning "Remove me before committing"
 #endif
 
+static CPLXMLNode *GDALSerializeGeoLocTransformer(void *pTransformArg);
+
 CPL_C_START
-CPLXMLNode *GDALSerializeGeoLocTransformer(void *pTransformArg);
-void *GDALDeserializeGeoLocTransformer(CPLXMLNode *psTree);
+void *GDALDeserializeGeoLocTransformer(const CPLXMLNode *psTree);
 CPL_C_END
 
 /************************************************************************/
@@ -2145,13 +2146,13 @@ CPLXMLNode *GDALSerializeGeoLocTransformer(void *pTransformArg)
 /*                   GDALDeserializeGeoLocTransformer()                 */
 /************************************************************************/
 
-void *GDALDeserializeGeoLocTransformer(CPLXMLNode *psTree)
+void *GDALDeserializeGeoLocTransformer(const CPLXMLNode *psTree)
 
 {
     /* -------------------------------------------------------------------- */
     /*      Collect metadata.                                               */
     /* -------------------------------------------------------------------- */
-    CPLXMLNode *psMetadata = CPLGetXMLNode(psTree, "Metadata");
+    const CPLXMLNode *psMetadata = CPLGetXMLNode(psTree, "Metadata");
 
     if (psMetadata == nullptr || psMetadata->eType != CXT_Element ||
         !EQUAL(psMetadata->pszValue, "Metadata"))
