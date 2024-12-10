@@ -91,6 +91,11 @@ class IVSIS3LikeHandleHelper
         return false;
     }
 
+    virtual std::string GetAuthenticationHint() const
+    {
+        return std::string();
+    }
+
     virtual const std::string &GetURL() const = 0;
     std::string GetURLNoKVP() const;
 
@@ -149,6 +154,7 @@ class VSIS3HandleHelper final : public IVSIS3LikeHandleHelper
     bool m_bUseHTTPS = false;
     bool m_bUseVirtualHosting = false;
     AWSCredentialsSource m_eCredentialsSource = AWSCredentialsSource::REGULAR;
+    std::string m_osAuthenticationHint{};
 
     void RebuildURL() override;
 
@@ -191,7 +197,8 @@ class VSIS3HandleHelper final : public IVSIS3LikeHandleHelper
                                  std::string &osAccessKeyId,
                                  std::string &osSessionToken,
                                  std::string &osRegion,
-                                 AWSCredentialsSource &eCredentialsSource);
+                                 AWSCredentialsSource &eCredentialsSource,
+                                 std::string &osAuthenticationHint);
 
     void RefreshCredentials(const std::string &osPathForOption,
                             bool bForceRefresh) const;
@@ -204,7 +211,8 @@ class VSIS3HandleHelper final : public IVSIS3LikeHandleHelper
         const std::string &osRegion, const std::string &osRequestPayer,
         const std::string &osBucket, const std::string &osObjectKey,
         bool bUseHTTPS, bool bUseVirtualHosting,
-        AWSCredentialsSource eCredentialsSource);
+        AWSCredentialsSource eCredentialsSource,
+        const std::string &osAuthenticationHint);
     ~VSIS3HandleHelper();
 
     static VSIS3HandleHelper *BuildFromURI(const char *pszURI,
@@ -225,6 +233,11 @@ class VSIS3HandleHelper final : public IVSIS3LikeHandleHelper
     bool AllowAutomaticRedirection() override
     {
         return false;
+    }
+
+    virtual std::string GetAuthenticationHint() const override
+    {
+        return m_osAuthenticationHint;
     }
 
     bool CanRestartOnError(const char *, const char *pszHeaders,

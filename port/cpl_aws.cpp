@@ -359,7 +359,8 @@ VSIS3HandleHelper::VSIS3HandleHelper(
     const std::string &osSessionToken, const std::string &osEndpoint,
     const std::string &osRegion, const std::string &osRequestPayer,
     const std::string &osBucket, const std::string &osObjectKey, bool bUseHTTPS,
-    bool bUseVirtualHosting, AWSCredentialsSource eCredentialsSource)
+    bool bUseVirtualHosting, AWSCredentialsSource eCredentialsSource,
+    const std::string &osAuthenticationHint)
     : m_osURL(BuildURL(osEndpoint, osBucket, osObjectKey, bUseHTTPS,
                        bUseVirtualHosting)),
       m_osSecretAccessKey(osSecretAccessKey), m_osAccessKeyId(osAccessKeyId),
@@ -367,7 +368,8 @@ VSIS3HandleHelper::VSIS3HandleHelper(
       m_osRegion(osRegion), m_osRequestPayer(osRequestPayer),
       m_osBucket(osBucket), m_osObjectKey(osObjectKey), m_bUseHTTPS(bUseHTTPS),
       m_bUseVirtualHosting(bUseVirtualHosting),
-      m_eCredentialsSource(eCredentialsSource)
+      m_eCredentialsSource(eCredentialsSource),
+      m_osAuthenticationHint(osAuthenticationHint)
 {
     VSIS3UpdateParams::UpdateHandleFromMap(this);
 }
@@ -1730,7 +1732,7 @@ bool VSIS3HandleHelper::GetConfiguration(
     const std::string &osPathForOption, CSLConstList papszOptions,
     std::string &osSecretAccessKey, std::string &osAccessKeyId,
     std::string &osSessionToken, std::string &osRegion,
-    AWSCredentialsSource &eCredentialsSource)
+    AWSCredentialsSource &eCredentialsSource, std::string &osAuthenticationHint)
 {
     eCredentialsSource = AWSCredentialsSource::REGULAR;
 
@@ -1741,8 +1743,9 @@ bool VSIS3HandleHelper::GetConfiguration(
         VSIGetPathSpecificOption(osPathForOption.c_str(), "AWS_REGION",
                                  "us-east-1"));
 
-    if (CPLTestBool(VSIGetPathSpecificOption(osPathForOption.c_str(),
-                                             "AWS_NO_SIGN_REQUEST", "NO")))
+    const char *pszAWS_NO_SIGN_REQUEST = VSIGetPathSpecificOption(
+        osPathForOption.c_str(), "AWS_NO_SIGN_REQUEST", nullptr);
+    if (pszAWS_NO_SIGN_REQUEST && CPLTestBool(pszAWS_NO_SIGN_REQUEST))
     {
         osSecretAccessKey.clear();
         osAccessKeyId.clear();
@@ -1973,10 +1976,27 @@ bool VSIS3HandleHelper::GetConfiguration(
         return true;
     }
 
-    VSIError(VSIE_AWSInvalidCredentials,
-             "AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration "
-             "options not defined, and %s not filled",
-             osCredentials.c_str());
+    osAuthenticationHint =
+        "No AWS credentials detected. You may need to set "
+        "AWS_SECRET_ACCESS_KEY and other related configuration options, or "
+        "set " +
+        osCredentials +
+        ". Consult "
+        "https://gdal.org/en/stable/user/"
+        "virtual_file_systems.html#vsis3-aws-s3-files for more details.";
+    if (!pszAWS_NO_SIGN_REQUEST)
+    {
+        CPLDebug("S3",
+                 "No authentication settings detected for %s. Attempting "
+                 "unauthenticated request",
+                 osPathForOption.c_str());
+        osSecretAccessKey.clear();
+        osAccessKeyId.clear();
+        osSessionToken.clear();
+        return true;
+    }
+
+    VSIError(VSIE_AWSInvalidCredentials, "%s", osAuthenticationHint.c_str());
     return false;
 }
 
@@ -2037,9 +2057,10 @@ VSIS3HandleHelper *VSIS3HandleHelper::BuildFromURI(const char *pszURI,
     std::string osSessionToken;
     std::string osRegion;
     AWSCredentialsSource eCredentialsSource = AWSCredentialsSource::REGULAR;
+    std::string osAuthenticationHint;
     if (!GetConfiguration(osPathForOption, papszOptions, osSecretAccessKey,
                           osAccessKeyId, osSessionToken, osRegion,
-                          eCredentialsSource))
+                          eCredentialsSource, osAuthenticationHint))
     {
         return nullptr;
     }
@@ -2085,7 +2106,7 @@ VSIS3HandleHelper *VSIS3HandleHelper::BuildFromURI(const char *pszURI,
     return new VSIS3HandleHelper(
         osSecretAccessKey, osAccessKeyId, osSessionToken, osEndpoint, osRegion,
         osRequestPayer, osBucket, osObjectKey, bUseHTTPS, bUseVirtualHosting,
-        eCredentialsSource);
+        eCredentialsSource, osAuthenticationHint);
 }
 
 /************************************************************************/

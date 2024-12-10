@@ -447,6 +447,11 @@ class VSICurlHandle : public VSIVirtualHandle
         return false;
     }
 
+    virtual std::string GetAuthenticationHint() const
+    {
+        return std::string();
+    }
+
     virtual bool UseLimitRangeGetInsteadOfHead()
     {
         return false;

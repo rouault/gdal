@@ -1526,7 +1526,14 @@ retry:
             }
             else
             {
-                if (response_code != 400 && response_code != 404)
+                if (response_code == 403 && !GetAuthenticationHint().empty())
+                {
+                    CPLError(CE_Failure, CPLE_AWSInvalidCredentials,
+                             "HTTP response code on %s: %d. %s", osURL.c_str(),
+                             static_cast<int>(response_code),
+                             GetAuthenticationHint().c_str());
+                }
+                else if (response_code != 400 && response_code != 404)
                 {
                     CPLError(CE_Warning, CPLE_AppDefined,
                              "HTTP response code on %s: %d", osURL.c_str(),

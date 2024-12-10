@@ -714,6 +714,8 @@ class VSIS3Handle final : public IVSIS3LikeHandle
                    const struct curl_slist *psExistingHeaders) override;
     bool CanRestartOnError(const char *, const char *, bool) override;
 
+    std::string GetAuthenticationHint() const override;
+
     bool AllowAutomaticRedirection() override
     {
         return m_poS3HandleHelper->AllowAutomaticRedirection();
@@ -5124,6 +5126,15 @@ VSIS3Handle::GetCurlHeaders(const std::string &osVerb,
                             const struct curl_slist *psExistingHeaders)
 {
     return m_poS3HandleHelper->GetCurlHeaders(osVerb, psExistingHeaders);
+}
+
+/************************************************************************/
+/*                       GetAuthenticationHint()                        */
+/************************************************************************/
+
+std::string VSIS3Handle::GetAuthenticationHint() const
+{
+    return m_poS3HandleHelper->GetAuthenticationHint();
 }
 
 /************************************************************************/
