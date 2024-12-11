@@ -249,62 +249,62 @@ class GTiffDataset final : public GDALPamDataset
     std::queue<int> m_asQueueJobIdx{};  // queue of index of m_asCompressionJobs
                                         // being compressed in worker threads
 
-    bool m_bStreamingIn : 1;
-    bool m_bStreamingOut : 1;
-    bool m_bScanDeferred : 1;
+    bool m_bStreamingIn;
+    bool m_bStreamingOut;
+    bool m_bScanDeferred;
     bool m_bSingleIFDOpened = false;
-    bool m_bLoadedBlockDirty : 1;
-    bool m_bWriteError : 1;
-    bool m_bLookedForProjection : 1;
-    bool m_bLookedForMDAreaOrPoint : 1;
-    bool m_bGeoTransformValid : 1;
-    bool m_bCrystalized : 1;
-    bool m_bGeoTIFFInfoChanged : 1;
-    bool m_bForceUnsetGTOrGCPs : 1;
-    bool m_bForceUnsetProjection : 1;
-    bool m_bNoDataChanged : 1;
-    bool m_bNoDataSet : 1;
-    bool m_bNoDataSetAsInt64 : 1;
-    bool m_bNoDataSetAsUInt64 : 1;
-    bool m_bMetadataChanged : 1;
-    bool m_bColorProfileMetadataChanged : 1;
-    bool m_bForceUnsetRPC : 1;
-    bool m_bNeedsRewrite : 1;
-    bool m_bLoadingOtherBands : 1;
-    bool m_bIsOverview : 1;
-    bool m_bWriteEmptyTiles : 1;  // Whether a write of a tile entirely at
-                                  // nodata/0 should go to the disk. Default is
-                                  // true, unless SPARSE_OK is set
-    bool m_bFillEmptyTilesAtClosing : 1;  // Might only be set to true on newly
-                                          // created files, when SPARSE_OK is
-                                          // not set
-    bool m_bTreatAsSplit : 1;
-    bool m_bTreatAsSplitBitmap : 1;
-    bool m_bClipWarn : 1;
-    bool m_bIMDRPCMetadataLoaded : 1;
-    bool m_bEXIFMetadataLoaded : 1;
-    bool m_bICCMetadataLoaded : 1;
-    bool m_bHasWarnedDisableAggressiveBandCaching : 1;
-    bool m_bDontReloadFirstBlock : 1;  // Hack for libtiff 3.X and #3633.
-    bool m_bWebPLossless : 1;
-    bool m_bPromoteTo8Bits : 1;
-    bool m_bDebugDontWriteBlocks : 1;
-    bool m_bIsFinalized : 1;
-    bool m_bIgnoreReadErrors : 1;
-    bool m_bDirectIO : 1;
-    bool m_bReadGeoTransform : 1;
-    bool m_bLoadPam : 1;
-    bool m_bHasGotSiblingFiles : 1;
-    bool m_bHasIdentifiedAuthorizedGeoreferencingSources : 1;
-    bool m_bLayoutIFDSBeforeData : 1;
-    bool m_bBlockOrderRowMajor : 1;
-    bool m_bLeaderSizeAsUInt4 : 1;
-    bool m_bTrailerRepeatedLast4BytesRepeated : 1;
-    bool m_bMaskInterleavedWithImagery : 1;
-    bool m_bKnownIncompatibleEdition : 1;
-    bool m_bWriteKnownIncompatibleEdition : 1;
-    bool m_bHasUsedReadEncodedAPI : 1;  // for debugging
-    bool m_bWriteCOGLayout : 1;
+    bool m_bLoadedBlockDirty;
+    bool m_bWriteError;
+    bool m_bLookedForProjection;
+    bool m_bLookedForMDAreaOrPoint;
+    bool m_bGeoTransformValid;
+    bool m_bCrystalized;
+    bool m_bGeoTIFFInfoChanged;
+    bool m_bForceUnsetGTOrGCPs;
+    bool m_bForceUnsetProjection;
+    bool m_bNoDataChanged;
+    bool m_bNoDataSet;
+    bool m_bNoDataSetAsInt64;
+    bool m_bNoDataSetAsUInt64;
+    bool m_bMetadataChanged;
+    bool m_bColorProfileMetadataChanged;
+    bool m_bForceUnsetRPC;
+    bool m_bNeedsRewrite;
+    bool m_bLoadingOtherBands;
+    bool m_bIsOverview;
+    bool m_bWriteEmptyTiles;  // Whether a write of a tile entirely at
+                              // nodata/0 should go to the disk. Default is
+                              // true, unless SPARSE_OK is set
+    bool m_bFillEmptyTilesAtClosing;  // Might only be set to true on newly
+                                      // created files, when SPARSE_OK is
+                                      // not set
+    bool m_bTreatAsSplit;
+    bool m_bTreatAsSplitBitmap;
+    bool m_bClipWarn;
+    bool m_bIMDRPCMetadataLoaded;
+    bool m_bEXIFMetadataLoaded;
+    bool m_bICCMetadataLoaded;
+    bool m_bHasWarnedDisableAggressiveBandCaching;
+    bool m_bDontReloadFirstBlock;  // Hack for libtiff 3.X and #3633.
+    bool m_bWebPLossless;
+    bool m_bPromoteTo8Bits;
+    bool m_bDebugDontWriteBlocks;
+    bool m_bIsFinalized;
+    bool m_bIgnoreReadErrors;
+    bool m_bDirectIO;
+    bool m_bReadGeoTransform;
+    bool m_bLoadPam;
+    bool m_bHasGotSiblingFiles;
+    bool m_bHasIdentifiedAuthorizedGeoreferencingSources;
+    bool m_bLayoutIFDSBeforeData;
+    bool m_bBlockOrderRowMajor;
+    bool m_bLeaderSizeAsUInt4;
+    bool m_bTrailerRepeatedLast4BytesRepeated;
+    bool m_bMaskInterleavedWithImagery;
+    bool m_bKnownIncompatibleEdition;
+    bool m_bWriteKnownIncompatibleEdition;
+    bool m_bHasUsedReadEncodedAPI;  // for debugging
+    bool m_bWriteCOGLayout;
 
     void ScanDirectories();
     bool ReadStrile(int nBlockId, void *pOutputBuffer,

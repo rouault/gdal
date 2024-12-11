@@ -231,8 +231,10 @@ std::string OGRFormatDouble(double val, const OGRWktOptions &opts, int nDimIdx)
     if (std::isnan(val))
         return "nan";
 
-    static thread_local std::locale classic_locale = []()
-    { return std::locale::classic(); }();
+#if !defined(__PIZLONATOR_WAS_HERE__)
+    static thread_local
+#endif
+        std::locale classic_locale = []() { return std::locale::classic(); }();
     std::ostringstream oss;
     oss.imbue(classic_locale);  // Make sure we output decimal points.
     bool l_round(opts.round);
