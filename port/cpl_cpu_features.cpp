@@ -116,6 +116,7 @@ bool CPLHaveRuntimeSSSE3()
 
 static bool CPLDetectRuntimeAVX()
 {
+#if !defined(__PIZLONATOR_WAS_HERE__)
     int cpuinfo[4] = {0, 0, 0, 0};
     CPL_CPUID(1, cpuinfo);
 
@@ -143,6 +144,9 @@ static bool CPLDetectRuntimeAVX()
     CPL_IGNORE_RET_VAL(nXCRHigh);  // unused
 
     return true;
+#else
+    return false;
+#endif
 }
 
 bool bCPLHasAVX = false;

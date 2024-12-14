@@ -1294,11 +1294,17 @@ static struct json_object *_json_object_new_string(const char *s, const size_t l
 	if (!jso)
 		return NULL;
 	jso->len = len;
+#if defined(__PIZLONATOR_WAS_HERE__)
+	memcpy(jso->c_string.idata, s, len);
+	// Cast below needed for Clang UB sanitizer
+	((char *)jso->c_string.idata)[len] = '\0';
+#else
 	char* strdata;
 	uintptr_t strdata_addr = (uintptr_t)&(jso->c_string.idata);
 	memcpy(&strdata, &(strdata_addr), sizeof(char*));
 	memcpy(strdata, s, len);
 	strdata[len] = '\0';
+#endif
 	return &jso->base;
 }
 

@@ -49,7 +49,8 @@ int CPLAtomicCompareAndExchange(volatile int *ptr, int oldval, int newval)
                                             (LONG)oldval) == (LONG)oldval;
 }
 
-#elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
+#elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) &&       \
+    !defined(__PIZLONATOR_WAS_HERE__)
 
 int CPLAtomicAdd(volatile int *ptr, int increment)
 {
