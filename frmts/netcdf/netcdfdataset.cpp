@@ -2624,6 +2624,120 @@ CPLErr netCDFRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff,
 }
 
 /************************************************************************/
+/*                   netCDFDataset::IRasterIO()                         */
+/************************************************************************/
+
+CPLErr netCDFDataset::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
+                                int nXSize, int nYSize, void *pData,
+                                int nBufXSize, int nBufYSize,
+                                GDALDataType eBufType, int nBandCount,
+                                BANDMAP_TYPE panBandMap, GSpacing nPixelSpace,
+                                GSpacing nLineSpace, GSpacing nBandSpace,
+                                GDALRasterIOExtraArg *psExtraArg)
+{
+    const auto band = cpl::down_cast<netCDFRasterBand *>(papoBands[0]);
+    if (eRWFlag == GF_Read && !bBottomUp && nXOff == 0 && nYOff == 0 &&
+        nXSize == nRasterXSize && nYSize == nRasterYSize &&
+        nBufXSize == nXSize && nBufYSize == nYSize &&
+        eBufType == band->GetRasterDataType() && nBandCount == nBands &&
+        nPixelSpace == GDALGetDataTypeSizeBytes(eBufType) &&
+        nLineSpace == nBufXSize * nPixelSpace &&
+        nBandSpace == nBufYSize * nLineSpace &&
+        !(band->bValidRangeValid || band->bCheckLongitude))
+    {
+        bool bBandsInOrder = true;
+        for (int i = 0; i < nBands; ++i)
+        {
+            if (panBandMap[i] != i + 1 ||
+                cpl::down_cast<netCDFRasterBand *>(papoBands[i])->nZId !=
+                    band->nZId)
+            {
+                bBandsInOrder = false;
+                break;
+            }
+        }
+        if (bBandsInOrder)
+        {
+            CPLMutexHolderD(&hNCMutex);
+
+            if (eAccess == GA_Update)
+                FlushCache(false);
+
+            SetDefineMode(false);
+
+            const int nZId = band->nZId;
+            size_t start[MAX_NC_DIMS] = {};
+            size_t edge[MAX_NC_DIMS] = {};
+            int nd = 0;
+            nc_inq_varndims(cdfid, nZId, &nd);
+            int dimids[MAX_NC_DIMS] = {};
+            nc_inq_vardimid(cdfid, nZId, dimids);
+            for (int i = 0; i < nd; ++i)
+            {
+                start[i] = 0;
+                nc_inq_dimlen(cdfid, dimids[i], &edge[i]);
+            }
+            bool bHandledDT = false;
+            int status = -1;
+            if (eBufType == GDT_Byte)
+            {
+                bHandledDT = true;
+                if (band->bSignedData)
+                {
+                    status =
+                        nc_get_vara_schar(cdfid, nZId, start, edge,
+                                          static_cast<signed char *>(pData));
+                }
+                else
+                {
+                    status =
+                        nc_get_vara_uchar(cdfid, nZId, start, edge,
+                                          static_cast<unsigned char *>(pData));
+                }
+            }
+            else if (eBufType == GDT_Int16)
+            {
+                bHandledDT = true;
+                status = nc_get_vara_short(cdfid, nZId, start, edge,
+                                           static_cast<short *>(pData));
+            }
+            else if (eBufType == GDT_UInt16)
+            {
+                bHandledDT = true;
+                status = nc_get_vara_short(cdfid, nZId, start, edge,
+                                           static_cast<short *>(pData));
+            }
+            else if (eBufType == GDT_Int32)
+            {
+                bHandledDT = true;
+                status = nc_get_vara_int(cdfid, nZId, start, edge,
+                                         static_cast<int *>(pData));
+            }
+            else if (eBufType == GDT_Float32)
+            {
+                bHandledDT = true;
+                status = nc_get_vara_float(cdfid, nZId, start, edge,
+                                           static_cast<float *>(pData));
+            }
+            else if (eBufType == GDT_Float64)
+            {
+                bHandledDT = true;
+                status = nc_get_vara_double(cdfid, nZId, start, edge,
+                                            static_cast<double *>(pData));
+            }
+            if (bHandledDT)
+            {
+                return status == NC_NOERR ? CE_None : CE_Failure;
+            }
+        }
+    }
+    return GDALDataset::IRasterIO(eRWFlag, nXOff, nYOff, nXSize, nYSize, pData,
+                                  nBufXSize, nBufYSize, eBufType, nBandCount,
+                                  panBandMap, nPixelSpace, nLineSpace,
+                                  nBandSpace, psExtraArg);
+}
+
+/************************************************************************/
 /*                             IWriteBlock()                            */
 /************************************************************************/
 
@@ -5507,11 +5621,6 @@ CPLErr netCDFDataset::AddProjectionVars(bool bDefsOnly,
     // Make sure we write grid_mapping if we need to write GDAL tags.
     if (bWriteGDALTags)
         bWriteGridMapping = true;
-
-    // bottom-up value: new driver is bottom-up by default.
-    // Override with WRITE_BOTTOMUP.
-    bBottomUp = CPL_TO_BOOL(
-        CSLFetchBoolean(papszCreationOptions, "WRITE_BOTTOMUP", TRUE));
 
     if (bDefsOnly)
     {
@@ -9169,6 +9278,11 @@ netCDFDataset *netCDFDataset::CreateLL(const char *pszFilename, int nXSize,
     poDS->eAccess = GA_Update;
     poDS->osFilename = pszFilename;
 
+    // bottom-up value: new driver is bottom-up by default.
+    // Override with WRITE_BOTTOMUP.
+    poDS->bBottomUp =
+        CPL_TO_BOOL(CSLFetchBoolean(papszOptions, "WRITE_BOTTOMUP", TRUE));
+
     // From gtiff driver, is this ok?
     /*
     poDS->nBlockXSize = nXSize;
@@ -9695,8 +9809,6 @@ netCDFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
     }
     else
     {
-        poDS->bBottomUp =
-            CPL_TO_BOOL(CSLFetchBoolean(papszOptions, "WRITE_BOTTOMUP", TRUE));
         if (papszGeolocationInfo)
         {
             poDS->AddProjectionVars(true, nullptr, nullptr);

@@ -6634,3 +6634,36 @@ def test_netcdf_var_with_geoloc_array_but_no_coordinates_attr():
         got_md["X_DATASET"]
         == 'NETCDF:"data/netcdf/var_with_geoloc_array_but_no_coordinates_attr.nc":lon'
     )
+
+
+###############################################################################
+
+
+@pytest.mark.parametrize(
+    "dt",
+    [
+        gdal.GDT_Byte,
+        gdal.GDT_Int16,
+        gdal.GDT_UInt16,
+        gdal.GDT_Int32,
+        gdal.GDT_Float32,
+        gdal.GDT_Float64,
+    ],
+)
+def test_netcdf_rasterio_optim(tmp_path, dt):
+
+    ref_ds = gdal.GetDriverByName("MEM").Create("", 2, 3, 4, dt)
+    ref_ds.GetRasterBand(1).Fill(1)
+    ref_ds.GetRasterBand(2).Fill(2)
+    ref_ds.GetRasterBand(3).Fill(3)
+    ref_ds.GetRasterBand(4).Fill(4)
+
+    out_filename = str(tmp_path / "test.nc")
+    gdal.GetDriverByName("netCDF").CreateCopy(
+        out_filename,
+        ref_ds,
+        options=["WRITE_BOTTOMUP=NO", "WRITE_GDAL_VERSION=NO", "WRITE_GDAL_HISTORY=NO"],
+    )
+    with gdal.config_option("GDAL_NETCDF_BOTTOMUP", "NO"):
+        ds = gdal.OpenEx(out_filename, open_options=["VARIABLES_AS_BANDS=YES"])
+    assert ds.ReadRaster() == ref_ds.ReadRaster()
