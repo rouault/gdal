@@ -5830,6 +5830,13 @@ void GDALTranspose2D(const void *pSrc, GDALDataType eSrcType, void *pDst,
                                        nSrcHeight);
             return;
         }
+#elif defined(USE_NEON_OPTIMIZATIONS)
+        {
+            GDALTranspose2D_Byte_SSSE3(static_cast<const uint8_t *>(pSrc),
+                                       static_cast<uint8_t *>(pDst), nSrcWidth,
+                                       nSrcHeight);
+            return;
+        }
 #endif
     }
 
