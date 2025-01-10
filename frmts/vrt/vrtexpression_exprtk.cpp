@@ -20,7 +20,6 @@
 #define exprtk_disable_rtl_io_file
 #define exprtk_disable_rtl_vecops
 #define exprtk_disable_string_capabilities
-#define exprtk_disable_advanced_features
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -86,6 +85,7 @@ struct loop_timeout_check final : public exprtk::loop_runtime_check
         {
             if (std::chrono::steady_clock::now() > timeout_t)
             {
+                timeout = true;
                 return false;
             }
 
@@ -95,22 +95,25 @@ struct loop_timeout_check final : public exprtk::loop_runtime_check
         return true;
     }
 
-    void handle_runtime_violation(const violation_context &context) override
+    void handle_runtime_violation(const violation_context &) override
     {
         std::ostringstream oss;
 
-        if (context.violation == violation_type::e_iteration_count)
-        {
-            oss << "Exceeded maximium of " << max_loop_iterations
-                << " loop iterations.";
-        }
-        else if (context.violation == violation_type::e_timeout)
+        // current version of exprtk does not report the correct
+        // violation in case of timeout, so we track the error category
+        // ourselves
+        if (timeout)
         {
             oss << "Expression evaluation time exceeded maximum of "
                 << static_cast<double>(max_duration.count() / 1e6)
                 << " seconds. You can increase this threshold by setting the "
                 << "GDAL_EXPRTK_TIMEOUT_SECONDS configuration "
                 << "option.";
+        }
+        else
+        {
+            oss << "Exceeded maximum of " << max_loop_iterations
+                << " loop iterations.";
         }
 
         throw std::runtime_error(oss.str());
@@ -120,6 +123,7 @@ struct loop_timeout_check final : public exprtk::loop_runtime_check
     size_t iterations = 0;
     time_point_t timeout_t{};
     std::chrono::microseconds max_duration{};
+    bool timeout{false};
 };
 
 class ExprtkExpression::Impl
