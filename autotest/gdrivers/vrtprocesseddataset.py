@@ -1221,9 +1221,10 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
 
 
 @pytest.mark.parametrize(
-    "expression,src,expected,error,env",
+    "dialect,expression,src,expected,error,env",
     [
         pytest.param(
+            "exprtk",
             "return [BANDS[1], BANDS[2]]",
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
             np.array([[[3, 4]], [[5, 6]]]),
@@ -1232,6 +1233,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="multiple bands in, multiple bands out (1)",
         ),
         pytest.param(
+            "exprtk",
             "return [BANDS]",
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
@@ -1240,6 +1242,25 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="multiple bands in, multiple bands out (2)",
         ),
         pytest.param(
+            "muparser",
+            "B2, B3",
+            np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
+            np.array([[[3, 4]], [[5, 6]]]),
+            None,
+            {},
+            id="multiple bands in, multiple bands out (3)",
+        ),
+        pytest.param(
+            "muparser",
+            "BANDS",
+            np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
+            np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
+            None,
+            {},
+            id="multiple bands in, multiple bands out (4)",
+        ),
+        pytest.param(
+            "exprtk",
             """
              // Reduce every 10 bands of input into a single
              // band of output, using avg()
@@ -1264,6 +1285,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="procedural",
         ),
         pytest.param(
+            "exprtk",
             "B1",
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
             np.array([[1, 2]]),
@@ -1272,7 +1294,8 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="multiple bands in, single band out (1)",
         ),
         pytest.param(
-            "BANDS[0]",
+            "muparser",
+            "B1",
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
             np.array([[1, 2]]),
             None,
@@ -1280,7 +1303,8 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="multiple bands in, single band out (2)",
         ),
         pytest.param(
-            "return [B1];",
+            "exprtk",
+            "BANDS[0]",
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
             np.array([[1, 2]]),
             None,
@@ -1288,6 +1312,16 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="multiple bands in, single band out (3)",
         ),
         pytest.param(
+            "exprtk",
+            "return [B1];",
+            np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
+            np.array([[1, 2]]),
+            None,
+            {},
+            id="multiple bands in, single band out (4)",
+        ),
+        pytest.param(
+            "exprtk",
             "return [B1, B2]",
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
             np.array([[1, 2]]),
@@ -1296,6 +1330,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="return wrong number of bands",
         ),
         pytest.param(
+            "exprtk",
             "return [BANDS, B2]",
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
             np.array([[1, 2]]),
@@ -1304,6 +1339,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="return wrong number of bands",
         ),
         pytest.param(
+            "exprtk",
             """
              var out[3];
              for (var i := 0; i < 100; i += 1) {
@@ -1318,6 +1354,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="out of bounds vector access",
         ),
         pytest.param(
+            "exprtk",
             """
              var out[5];
              return [out];
@@ -1329,6 +1366,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="vector too large",
         ),
         pytest.param(
+            "exprtk",
             """
              var out[3];
              for (var i := 0; i < out[]; i += 1) {
@@ -1343,6 +1381,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             id="loops disabled",
         ),
         pytest.param(
+            "exprtk",
             """
              for (var i := 0; i < 20000; i += 1) {
                 sleep(0.2/20000); // we only check runtime every 10,000 iterations
@@ -1358,10 +1397,10 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
     ],
 )
 def test_vrtprocesseddataset_expression(
-    request, tmp_vsimem, expression, src, expected, env, error
+    request, tmp_vsimem, expression, src, dialect, expected, env, error
 ):
-    if not gdaltest.gdal_has_vrt_expression_dialect("exprtk"):
-        pytest.skip("exprtk not available")
+    if not gdaltest.gdal_has_vrt_expression_dialect(dialect):
+        pytest.skip(f"{dialect} not available")
 
     if "timeout" in request.node.name and "debug" not in gdal.VersionInfo(""):
         pytest.skip("Timeout tests only work on debug builds")
@@ -1390,7 +1429,7 @@ def test_vrtprocesseddataset_expression(
                 <Step>
                     <Algorithm>Expression</Algorithm>
                     <Argument name="expression">{expression.replace('<', '&lt;').replace('>', '&gt;')}</Argument>
-                    <Argument name="dialect">exprtk</Argument>
+                    <Argument name="dialect">{dialect}</Argument>
                 </Step>
             </ProcessingSteps>
                 {output_band_xml}

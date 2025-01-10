@@ -75,7 +75,10 @@ class MuParserExpression::Impl
 
         try
         {
-            m_adfResults[0] = m_oParser.Eval();
+            int nResults;
+            const double *dfResults = m_oParser.Eval(nResults);
+            m_adfResults.resize(nResults);
+            std::copy(dfResults, dfResults + nResults, m_adfResults.begin());
         }
         catch (const mu::Parser::exception_type &e)
         {
