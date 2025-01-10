@@ -10,8 +10,8 @@
 # SPDX-License-Identifier: MIT
 ###############################################################################
 
-import os
 import math
+import os
 
 import gdaltest
 import pytest
