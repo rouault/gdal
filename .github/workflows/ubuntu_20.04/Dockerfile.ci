@@ -49,6 +49,7 @@ RUN apt-get update -y \
     liblz4-dev \
     liblzma-dev \
     libmono-system-drawing4.0-cil \
+    libmuparser-dev \
     libmysqlclient-dev \
     libnetcdf-dev \
     libogdi-dev \

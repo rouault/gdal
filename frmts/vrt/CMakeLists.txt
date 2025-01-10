@@ -24,8 +24,6 @@ gdal_standard_includes(gdal_vrt)
 target_include_directories(gdal_vrt PRIVATE ${GDAL_RASTER_FORMAT_SOURCE_DIR}/raw
                                             $<TARGET_PROPERTY:ogrsf_generic,SOURCE_DIR>)
 
-option(GDAL_VRT_ENABLE_MUPARSER "Enable muparser library for VRT expressions" ON)
-
 if (GDAL_USE_EXPRTK)
     target_sources(gdal_vrt PRIVATE vrtexpression_exprtk.cpp)
         if (MSVC)
@@ -37,24 +35,11 @@ if (GDAL_USE_EXPRTK)
     target_link_libraries(gdal_vrt PRIVATE ExprTk::ExprTk)
 endif()
 
-if (GDAL_VRT_ENABLE_MUPARSER)
+if (GDAL_USE_MUPARSER)
     target_sources(gdal_vrt PRIVATE vrtexpression_muparser.cpp)
-        add_library(muparser OBJECT
-            ${PROJECT_SOURCE_DIR}/third_party/muparser/src/muParser.cpp
-            ${PROJECT_SOURCE_DIR}/third_party/muparser/src/muParserBase.cpp
-            ${PROJECT_SOURCE_DIR}/third_party/muparser/src/muParserBytecode.cpp
-            ${PROJECT_SOURCE_DIR}/third_party/muparser/src/muParserCallback.cpp
-            ${PROJECT_SOURCE_DIR}/third_party/muparser/src/muParserError.cpp
-            ${PROJECT_SOURCE_DIR}/third_party/muparser/src/muParserTokenReader.cpp
-        )
-        target_compile_definitions(muparser PRIVATE MUPARSERLIB_EXPORTS)
-        set_property(TARGET muparser PROPERTY POSITION_INDEPENDENT_CODE ${GDAL_OBJECT_LIBRARIES_POSITION_INDEPENDENT_CODE})
-        target_include_directories(muparser SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/muparser/include)
-        target_include_directories(gdal_vrt SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/muparser/include)
-        target_sources(${GDAL_LIB_TARGET_NAME} PRIVATE $<TARGET_OBJECTS:muparser>)
+    gdal_target_link_libraries(gdal_vrt PRIVATE muparser::muparser)
     target_compile_definitions(gdal_vrt PRIVATE GDAL_VRT_ENABLE_MUPARSER)
 endif()
-
 
 set(GDAL_DATA_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/data/gdalvrt.xsd
