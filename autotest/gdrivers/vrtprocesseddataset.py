@@ -1344,7 +1344,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
              var out[3];
              for (var i := 0; i < 100; i += 1) {
                 out[i] := i;
-             }
+             };
              return [out];
              """,
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
@@ -1371,7 +1371,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
              var out[3];
              for (var i := 0; i < out[]; i += 1) {
                 out[i] := i;
-             }
+             };
              return [out];
              """,
             np.array([[[1, 2]], [[3, 4]], [[5, 6]]]),
@@ -1385,7 +1385,7 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             """
              for (var i := 0; i < 20000; i += 1) {
                 sleep(0.2/20000); // we only check runtime every 10,000 iterations
-             }
+             };
              return [B1];
              """,
             np.array([[[1, 2]]]),
