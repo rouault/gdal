@@ -1151,10 +1151,9 @@ GDAL provides a set of default pixel functions that can be used without writing 
    * - **expression**
      - 1
      - ``expression``
-     - evaluate an specified expression using the `exprtk library <https://www.partow.net/programming/exprtk/index.html>`__. Band values can be accessed:
-         * through the variables ``B1``, ``B2``, etc.
-         * by giving a name to a source band (e.g., ``<SimpleSource name="NIR">``)
-         * through the ``BANDS`` vector (0-indexed)
+     - evaluate a specified expression using `muparser <https://beltoforion.de/en/muparser/>`__ (default) or `ExprTk <https://www.partow.net/programming/exprtk/index.html>`__. The expression is specified using the "expression" argument; the dialect may be specified using the "dialect" argument. Within the expression, band values can be accessed through the variables ``B1``, ``B2``, etc. ; by giving a name to a source band (e.g., ``<SimpleSource name="NIR">``); or through the ``BANDS`` vector. With ExprTk, ``BANDS`` is exposed as a standard (0-indexed) vector. With muparser, it is expanded into a list of all input bands.
+
+       ExprTk and muparser support a number of built-in functions and control structures. Refer to the documentation of those libraries for details.
    * - **imag**
      - 1
      - -
@@ -1244,7 +1243,14 @@ GDAL provides a set of default pixel functions that can be used without writing 
    .. code-block:: xml
 
       <PixelFunctionType>expression</PixelFunctionType>
-      <PixelFunctionArguments expression="if (B1 &gt; 1) 1.5*B3 ; else B1" />
+      <PixelFunctionArguments dialect="muparser" expression="B1 ? 1.5*B3 : B1" />
+
+    or
+
+   .. code-block:: xml
+
+      <PixelFunctionType>expression</PixelFunctionType>
+      <PixelFunctionArguments dialect="exprtk" expression="if (B1 &gt; 1) 1.5*B3 ; else B1" />
 
 .. example::
    :title: VRT expression using all bands
