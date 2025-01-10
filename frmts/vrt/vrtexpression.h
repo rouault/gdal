@@ -169,6 +169,9 @@ class MuParserExpression : public MathExpression
 inline std::unique_ptr<MathExpression>
 MathExpression::Create(const char *pszExpression, const char *pszDialect)
 {
+    CPL_IGNORE_RET_VAL(pszExpression);
+    CPL_IGNORE_RET_VAL(pszDialect);
+
 #if GDAL_VRT_ENABLE_EXPRTK
     if (EQUAL(pszDialect, "exprtk"))
     {
