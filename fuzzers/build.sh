@@ -158,10 +158,7 @@ git clone --depth 1 https://gitbox.apache.org/repos/asf/xerces-c.git
 
 # Build sqlite from source to avoid upstream bugs
 rm -rf sqlite
-curl -L https://sqlite.org/2024/sqlite-autoconf-3470000.tar.gz > sqlite-autoconf-3470000.tar.gz && \
-    tar xzf sqlite-autoconf-3470000.tar.gz && \
-    mv sqlite-autoconf-3470000 sqlite && \
-    rm sqlite-autoconf-3470000.tar.gz
+git clone --depth 1 https://github.com/sqlite/sqlite sqlite
 
 # libxerces-c-dev${ARCH_SUFFIX}
 # libsqlite3-dev${ARCH_SUFFIX}
@@ -189,7 +186,7 @@ NON_FUZZING_CXXFLAGS="$NON_FUZZING_CFLAGS -stdlib=libc++"
 
 # build sqlite
 cd sqlite
-CFLAGS="$NON_FUZZING_CFLAGS -DSQLITE_ENABLE_COLUMN_METADATA" ./configure --prefix=$SRC/install --enable-rtree
+CFLAGS="$NON_FUZZING_CFLAGS -DSQLITE_ENABLE_COLUMN_METADATA" ./configure --prefix=$SRC/install --enable-rtree --disable-tcl
 make clean -s
 make -j$(nproc) -s
 make install
