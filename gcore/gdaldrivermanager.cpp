@@ -290,9 +290,9 @@ GDALDriverManager::~GDALDriverManager()
     GDALRasterBlock::DestroyRBMutex();
 
     /* -------------------------------------------------------------------- */
-    /*      Cleanup gdaltransformer.cpp mutex.                              */
+    /*      Cleanup GDAL transformers and mutex.                            */
     /* -------------------------------------------------------------------- */
-    GDALCleanupTransformDeserializerMutex();
+    GDALCleanupTransformers();
 
     /* -------------------------------------------------------------------- */
     /*      Cleanup cpl_error.cpp mutex.                                    */

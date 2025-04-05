@@ -969,97 +969,6 @@ static int VRTWarpedOverviewTransform(void *pTransformArg, int bDstToSrc,
                                       double *padfY, double *padfZ,
                                       int *panSuccess);
 
-#if 0   // TODO: Why?
-/************************************************************************/
-/*                VRTSerializeWarpedOverviewTransformer()               */
-/************************************************************************/
-
-static CPLXMLNode *
-VRTSerializeWarpedOverviewTransformer( void *pTransformArg )
-
-{
-    VWOTInfo *psInfo = static_cast<VWOTInfo *>( pTransformArg );
-
-    CPLXMLNode *psTree
-        = CPLCreateXMLNode( NULL, CXT_Element, "WarpedOverviewTransformer" );
-
-    CPLCreateXMLElementAndValue(
-        psTree, "XFactor",
-        CPLString().Printf("%g",psInfo->dfXOverviewFactor) );
-    CPLCreateXMLElementAndValue(
-        psTree, "YFactor",
-        CPLString().Printf("%g",psInfo->dfYOverviewFactor) );
-
-/* -------------------------------------------------------------------- */
-/*      Capture underlying transformer.                                 */
-/* -------------------------------------------------------------------- */
-    CPLXMLNode *psTransformerContainer
-        = CPLCreateXMLNode( psTree, CXT_Element, "BaseTransformer" );
-
-    CPLXMLNode *psTransformer
-        = GDALSerializeTransformer( psInfo->pfnBaseTransformer,
-                                    psInfo->pBaseTransformerArg );
-    if( psTransformer != NULL )
-        CPLAddXMLChild( psTransformerContainer, psTransformer );
-
-    return psTree;
-}
-
-/************************************************************************/
-/*           VRTWarpedOverviewTransformerOwnsSubtransformer()           */
-/************************************************************************/
-
-static void VRTWarpedOverviewTransformerOwnsSubtransformer( void *pTransformArg,
-                                                            bool bOwnFlag )
-{
-    VWOTInfo *psInfo = static_cast<VWOTInfo *>( pTransformArg );
-
-    psInfo->bOwnSubtransformer = bOwnFlag;
-}
-
-/************************************************************************/
-/*            VRTDeserializeWarpedOverviewTransformer()                 */
-/************************************************************************/
-
-void* VRTDeserializeWarpedOverviewTransformer( CPLXMLNode *psTree )
-
-{
-    const double dfXOverviewFactor =
-        CPLAtof(CPLGetXMLValue( psTree, "XFactor",  "1" ));
-    const double dfYOverviewFactor =
-        CPLAtof(CPLGetXMLValue( psTree, "YFactor",  "1" ));
-    GDALTransformerFunc pfnBaseTransform = NULL;
-    void *pBaseTransformerArg = NULL;
-
-    CPLXMLNode *psContainer = CPLGetXMLNode( psTree, "BaseTransformer" );
-
-    if( psContainer != NULL && psContainer->psChild != NULL )
-    {
-        GDALDeserializeTransformer( psContainer->psChild,
-                                    &pfnBaseTransform,
-                                    &pBaseTransformerArg );
-    }
-
-    if( pfnBaseTransform == NULL )
-    {
-        CPLError( CE_Failure, CPLE_AppDefined,
-                  "Cannot get base transform for scaled coord transformer." );
-        return NULL;
-    }
-    else
-    {
-        void *pApproxCBData =
-                       VRTCreateWarpedOverviewTransformer( pfnBaseTransform,
-                                                           pBaseTransformerArg,
-                                                           dfXOverviewFactor,
-                                                           dfYOverviewFactor );
-        VRTWarpedOverviewTransformerOwnsSubtransformer( pApproxCBData, true );
-
-        return pApproxCBData;
-    }
-}
-#endif  // TODO: Why disabled?
-
 /************************************************************************/
 /*                   VRTCreateWarpedOverviewTransformer()               */
 /************************************************************************/
@@ -1084,9 +993,6 @@ static void *VRTCreateWarpedOverviewTransformer(
     psSCTInfo->sTI.pszClassName = "VRTWarpedOverviewTransformer";
     psSCTInfo->sTI.pfnTransform = VRTWarpedOverviewTransform;
     psSCTInfo->sTI.pfnCleanup = VRTDestroyWarpedOverviewTransformer;
-#if 0
-    psSCTInfo->sTI.pfnSerialize = VRTSerializeWarpedOverviewTransformer;
-#endif
     return psSCTInfo;
 }
 
