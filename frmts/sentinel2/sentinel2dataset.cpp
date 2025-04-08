@@ -1499,8 +1499,7 @@ GDALDataset *SENTINEL2Dataset::OpenL1BUserProduct(GDALOpenInfo *poOpenInfo)
         const CPLStringList aosList(VSIReadDir(osDatastripRoot.c_str()));
         for (const char *pszDatastripId : aosList)
         {
-            if (STARTS_WITH_CI(pszDatastripId, "S2A_OPER_MSI_L1B_") ||
-                STARTS_WITH_CI(pszDatastripId, "S2B_OPER_MSI_L1B_"))
+            if (IsS2Prefixed(pszDatastripId, "_OPER_MSI_L1B_"))
             {
                 const std::string osGEO_DATA =
                     CPLFormFilename(CPLFormFilename(osDatastripRoot.c_str(),
