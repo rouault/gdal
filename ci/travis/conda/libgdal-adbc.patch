@@ -27,24 +27,35 @@ index ddc8ae6..0e6c07e 100644
        -DBUILD_JAVA_BINDINGS:BOOL=OFF \
        -DBUILD_CSHARP_BINDINGS:BOOL=OFF \
 diff --git a/recipe/meta.yaml b/recipe/meta.yaml
-index f1d0c48..68e2ca4 100644
+index feffe09..19d48dd 100644
 --- a/recipe/meta.yaml
 +++ b/recipe/meta.yaml
-@@ -678,6 +678,53 @@ outputs:
+@@ -20,6 +20,7 @@ build:
+     - tiledb
+     - libnetcdf
+     - libheif
++    - libadbc-driver-manager
+   run_exports:
+     # no idea, going with minor pin
+     - {{ pin_subpackage('libgdal-core', max_pin='x.x') }}
+@@ -71,6 +72,7 @@ requirements:
+     - tiledb
+     - libnetcdf
+     - libheif
++    - libadbc-driver-manager
+   run_constrained:
+     - libgdal {{ version }}.*
+
+@@ -537,6 +539,41 @@ outputs:
        license: MIT
        license_file: LICENSE.TXT
- 
+
 +  - name: libgdal-adbc
 +    script: build_plugin.sh  # [unix]
 +    script: build_plugin.bat  # [win]
 +    build:
 +      # FIXME: libadbc-driver-manager is not available currently on Windows
 +      skip: true  # [win]
-+      ignore_run_exports_from:
-+        - expat
-+        - icu
-+        - liblzma
-+        - lz4-c
 +      script_env:
 +        - GDAL_PLUGIN_NAME=ADBC
 +        - GDAL_PLUGIN_TYPE=ogr
@@ -59,17 +70,10 @@ index f1d0c48..68e2ca4 100644
 +        - make  # [unix]
 +        - ninja  # [win]
 +      host:
-+        - {{ pin_subpackage('libgdal-core', exact=True) }}
-+        # GH992 attempt to workaround dep solver picking wrong libxml2
-+        - icu  # [not win]
-+        - libkml-devel
-+        - liblzma-devel
-+        - expat
++        - {{ pin_subpackage('libgdal-core-devel', exact=True) }}
 +        - libadbc-driver-manager
-+        # dep solver issue
-+        - lz4-c
 +      run:
-+        - libgdal-core >={{ ".".join(version.split(".")[:2]) }}
++        - {{ pin_subpackage('libgdal-core', exact=True) }}
 +    test:
 +      commands:
 +        - test -f ${PREFIX}/lib/gdalplugins/${GDAL_PLUGIN_TYPE}_${GDAL_PLUGIN_NAME}${SHLIB_EXT}      # [unix]
@@ -84,3 +88,11 @@ index f1d0c48..68e2ca4 100644
    - name: libgdal
      build:
        run_exports:
+@@ -558,6 +595,7 @@ outputs:
+         - libgdal-netcdf {{ version }}.*
+         - libgdal-hdf5 {{ version }}.*
+         - libgdal-hdf4 {{ version }}.*
++        - libgdal-adbc {{ version }}.*  # [not win]
+
+   - name: gdal
+     script: install_python.sh  # [unix]
