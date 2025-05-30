@@ -177,8 +177,31 @@ class GDALVectorSimplifyCoverageOutputDataset final
             return false;
         }
 
+#if defined HAVE_GEOS &&                                                       \
+    (GEOS_VERSION_MAJOR > 3 ||                                                 \
+     (GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR >= 14))
+        struct ProgressAdaptater
+        {
+            std::function<bool(double)> *progressFunc;
+
+            static int Func(double ratio, const char * /*msg*/, void *userData)
+            {
+                ProgressAdaptater *self =
+                    static_cast<ProgressAdaptater *>(userData);
+                return (*self->progressFunc)(
+                    PCT_FIRST_PASS + (PCT_GEOS - PCT_FIRST_PASS) * ratio);
+            }
+        };
+
+        ProgressAdaptater sAdaptater;
+        sAdaptater.progressFunc = progressFunc;
+        GEOSGeometry *geos_result = GEOSCoverageSimplifyVWWithProgress_r(
+            m_poGeosContext, coll, m_opts.tolerance, m_opts.preserveBoundary,
+            progressFunc ? &ProgressAdaptater::Func : nullptr, &sAdaptater);
+#else
         GEOSGeometry *geos_result = GEOSCoverageSimplifyVW_r(
             m_poGeosContext, coll, m_opts.tolerance, m_opts.preserveBoundary);
+#endif
         GEOSGeom_destroy_r(m_poGeosContext, coll);
 
         if (geos_result == nullptr)
