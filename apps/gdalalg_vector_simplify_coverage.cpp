@@ -184,12 +184,12 @@ class GDALVectorSimplifyCoverageOutputDataset final
         {
             std::function<bool(double)> *progressFunc;
 
-            static int Func(double ratio, const char * /*msg*/, void *userData)
+            static void Func(double ratio, const char * /*msg*/, void *userData)
             {
                 ProgressAdaptater *self =
                     static_cast<ProgressAdaptater *>(userData);
-                return (*self->progressFunc)(
-                    PCT_FIRST_PASS + (PCT_GEOS - PCT_FIRST_PASS) * ratio);
+                !(*self->progressFunc)(PCT_FIRST_PASS +
+                                       (PCT_GEOS - PCT_FIRST_PASS) * ratio);
             }
         };
 
