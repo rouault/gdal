@@ -5219,14 +5219,19 @@ OGRGeometryH OGR_G_UnionCascaded(OGRGeometryH hThis)
  * If OGR is built without the GEOS library, this method will always fail,
  * issuing a CPLE_NotSupported error.
  *
+ * @param pfnProgress Progress function (since GDAL 3.12 and only effective if GEOS >= 3.14)
+ * @param pProgressData Progress function user data (since GDAL 3.12 and only effective if GEOS >= 3.14)
  * @return a new geometry to be freed by the caller, or NULL if an error occurs.
  *
  * @since GDAL 3.7
  */
 
-OGRGeometry *OGRGeometry::UnaryUnion() const
+OGRGeometry *OGRGeometry::UnaryUnion(GDALProgressFunc pfnProgress,
+                                     void *pProgressData) const
 
 {
+    (void)pfnProgress;
+    (void)pProgressData;
 #ifndef HAVE_GEOS
 
     CPLError(CE_Failure, CPLE_NotSupported, "GEOS support not enabled.");
@@ -5248,7 +5253,29 @@ OGRGeometry *OGRGeometry::UnaryUnion() const
     GEOSGeom hThisGeosGeom = exportToGEOS(hGEOSCtxt);
     if (hThisGeosGeom != nullptr)
     {
+#if GEOS_VERSION_MAJOR > 3 || GEOS_VERSION_MINOR >= 14
+        struct MyProgress
+        {
+            GDALProgressFunc m_pfnProgress;
+            void *m_pProgressData;
+
+            static void Func(double progressRatio, const char *message,
+                             void *userdata)
+            {
+                MyProgress *self = static_cast<MyProgress *>(userdata);
+                self->m_pfnProgress(progressRatio, message,
+                                    self->m_pProgressData);
+            }
+        };
+
+        MyProgress progress;
+        progress.m_pfnProgress = pfnProgress;
+        progress.m_pProgressData = pProgressData;
+        GEOSGeom hGeosProduct = GEOSUnaryUnionWithProgress_r(
+            hGEOSCtxt, hThisGeosGeom, MyProgress::Func, &progress);
+#else
         GEOSGeom hGeosProduct = GEOSUnaryUnion_r(hGEOSCtxt, hThisGeosGeom);
+#endif
         GEOSGeom_destroy_r(hGEOSCtxt, hThisGeosGeom);
 
         poOGRProduct =
@@ -5298,6 +5325,50 @@ OGRGeometryH OGR_G_UnaryUnion(OGRGeometryH hThis)
     VALIDATE_POINTER1(hThis, "OGR_G_UnaryUnion", nullptr);
 
     return OGRGeometry::ToHandle(OGRGeometry::FromHandle(hThis)->UnaryUnion());
+}
+
+/************************************************************************/
+/*                            OGR_G_UnaryUnionEx()                      */
+/************************************************************************/
+
+/**
+ * \brief Returns the union of all components of a single geometry.
+ *
+ * Usually used to convert a collection into the smallest set of polygons that
+ * cover the same area.
+ *
+ * See https://postgis.net/docs/ST_UnaryUnion.html for more details.
+ *
+ * Geometry validity is not checked. In case you are unsure of the validity
+ * of the input geometries, call IsValid() before, otherwise the result might
+ * be wrong.
+ *
+ * This function is the same as the C++ method OGRGeometry::UnaryUnion().
+ *
+ * This function is built on the GEOS library, check it for the definition
+ * of the geometry operation.
+ * If OGR is built without the GEOS library, this function will always fail,
+ * issuing a CPLE_NotSupported error.
+ *
+ * @param hThis the geometry.
+ * @param pfnProgress Progress function (only effective if GEOS >= 3.14)
+ * @param pProgressData Progress function user data (only effective if GEOS >= 3.14)
+ *
+ * @return a new geometry to be freed by the caller with OGR_G_DestroyGeometry,
+ * or NULL if an error occurs.
+ *
+ * @since GDAL 3.12
+ */
+
+OGRGeometryH OGR_G_UnaryUnionEx(OGRGeometryH hThis,
+                                GDALProgressFunc pfnProgress,
+                                void *pProgressData)
+
+{
+    VALIDATE_POINTER1(hThis, "OGR_G_UnaryUnionEx", nullptr);
+
+    return OGRGeometry::ToHandle(
+        OGRGeometry::FromHandle(hThis)->UnaryUnion(pfnProgress, pProgressData));
 }
 
 /************************************************************************/

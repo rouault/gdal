@@ -3859,9 +3859,13 @@ public:
     return (OGRGeometryShadow*) OGR_G_UnionCascaded( self );
   }
 
+#ifndef SWIGJAVA
+  %feature( "kwargs" ) UnaryUnion;
+#endif
   %newobject UnaryUnion;
-  OGRGeometryShadow* UnaryUnion() {
-    return (OGRGeometryShadow*) OGR_G_UnaryUnion( self );
+  OGRGeometryShadow* UnaryUnion(GDALProgressFunc callback=NULL,
+                                void* callback_data=NULL) {
+    return (OGRGeometryShadow*) OGR_G_UnaryUnionEx( self, callback, callback_data );
   }
 
   %newobject Difference;
