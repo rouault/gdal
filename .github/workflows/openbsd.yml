@@ -1,0 +1,40 @@
+name: OpenBSD build
+
+on:
+    push:
+        paths-ignore:
+            - 'doc/**'
+            - 'docker/**'
+        branches-ignore:
+            - 'backport**'
+            - 'dependabot**'
+    pull_request:
+        paths-ignore:
+            - 'doc/**'
+            - 'docker/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+jobs:
+  openbsd:
+    runs-on: ubuntu-latest
+    name: OpenBSD build
+    steps:
+    - name: Checkout
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+    - uses: vmactions/openbsd-vm@0d65352eee1508bab7cb12d130536d3a556be487 # v1.1.8
+      with:
+        usesh: true
+        prepare: |
+          pkg_add cmake proj curl geos python
+
+        run: |
+          mkdir build
+          cd build
+          cmake .. -Werror=dev -DCMAKE_C_FLAGS=-Werror -DCMAKE_CXX_FLAGS=-Werror -DWERROR_DEV_FLAG="-Werror=dev" -DBUILD_TESTING=OFF
+          make -j3
