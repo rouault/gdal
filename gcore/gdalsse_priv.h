@@ -76,6 +76,65 @@ class XMMReg4Int;
 
 class XMMReg4Double;
 
+class XMMReg2Float
+{
+  public:
+    __m128 xmm;
+
+    XMMReg2Float()
+#if !defined(_MSC_VER)
+        : xmm(_mm_undefined_ps())
+#endif
+    {
+    }
+
+    XMMReg2Float(const XMMReg2Float &other) : xmm(other.xmm)
+    {
+    }
+
+    static inline XMMReg2Float Zero()
+    {
+        XMMReg2Float reg;
+        reg.xmm = _mm_setzero_ps();
+        return reg;
+    }
+
+    static inline XMMReg2Float Load2Val(const float *ptr)
+    {
+        XMMReg2Float reg;
+        reg.xmm = _mm_loadl_pi(_mm_setzero_ps(),
+                               reinterpret_cast<const __m64 *>(ptr));
+        return reg;
+    }
+
+    static inline XMMReg2Float Load2Val(const unsigned char *ptr)
+    {
+        XMMReg2Float reg;
+        __m128i xmm_i = GDALCopyInt16ToXMM(ptr);
+#if defined(__SSE4_1__) || defined(__AVX__) || defined(USE_NEON_OPTIMIZATIONS)
+        xmm_i = _mm_cvtepu8_epi32(xmm_i);
+#else
+        xmm_i = _mm_unpacklo_epi8(xmm_i, _mm_setzero_si128());
+        xmm_i = _mm_unpacklo_epi16(xmm_i, _mm_setzero_si128());
+#endif
+        reg.xmm = _mm_cvtepi32_ps(xmm_i);
+        return reg;
+    }
+
+    inline XMMReg2Float &operator+=(const XMMReg2Float &other)
+    {
+        xmm = _mm_add_ps(xmm, other.xmm);
+        return *this;
+    }
+
+    inline XMMReg2Float operator*(const XMMReg2Float &other)
+    {
+        XMMReg2Float res;
+        res.xmm = _mm_mul_ps(xmm, other.xmm);
+        return res;
+    }
+};
+
 class XMMReg4Float
 {
   public:
@@ -419,6 +478,37 @@ class XMMReg4Float
     inline void Store4ValAligned(float *ptr) const
     {
         _mm_store_ps(ptr, xmm);
+    }
+
+    void AddToLow(const XMMReg2Float &other)
+    {
+        xmm = _mm_add_ps(xmm, other.xmm);
+    }
+
+    inline float GetHorizSum() const
+    {
+        __m128 shuf = _mm_movehl_ps(xmm, xmm);  // high halves → low
+        __m128 sums = _mm_add_ps(xmm, shuf);    // [a+c, b+d, ?, ?]
+        shuf = _mm_shuffle_ps(sums, sums, 1);   // move sums[1] to low
+        sums = _mm_add_ss(sums, shuf);          // add low two
+        return _mm_cvtss_f32(sums);
+    }
+
+    static inline void Get4HorizSum(XMMReg4Float a, XMMReg4Float b,
+                                    XMMReg4Float c, XMMReg4Float d,
+                                    float horizSums[4])
+    {
+        // Do a 4x4 transposition of inputs
+        __m128 tmp0 = _mm_unpacklo_ps(a.xmm, b.xmm);
+        __m128 tmp1 = _mm_unpackhi_ps(a.xmm, b.xmm);
+        __m128 tmp2 = _mm_unpacklo_ps(c.xmm, d.xmm);
+        __m128 tmp3 = _mm_unpackhi_ps(c.xmm, d.xmm);
+        __m128 A = _mm_movelh_ps(tmp0, tmp2);
+        __m128 B = _mm_movehl_ps(tmp2, tmp0);
+        __m128 C = _mm_movelh_ps(tmp1, tmp3);
+        __m128 D = _mm_movehl_ps(tmp3, tmp1);
+        _mm_storeu_ps(horizSums,
+                      _mm_add_ps(_mm_add_ps(A, B), _mm_add_ps(C, D)));
     }
 
     inline operator float() const
@@ -1656,6 +1746,17 @@ class XMMReg4Double
         return _mm_cvtsd_f64(_mm256_castpd256_pd128(ymm_tmp1));
     }
 
+    static inline void Get4HorizSum(const XMMReg4Double &a,
+                                    const XMMReg4Double &b,
+                                    const XMMReg4Double &c,
+                                    const XMMReg4Double &d, double horizSums[4])
+    {
+        horizSums[0] = a.GetHorizSum();
+        horizSums[1] = b.GetHorizSum();
+        horizSums[2] = c.GetHorizSum();
+        horizSums[3] = d.GetHorizSum();
+    }
+
     inline XMMReg4Double approx_inv_sqrt(const XMMReg4Double &one,
                                          const XMMReg4Double &half) const
     {
@@ -1987,6 +2088,17 @@ class XMMReg4Double
     inline double GetHorizSum() const
     {
         return (low + high).GetHorizSum();
+    }
+
+    static inline void Get4HorizSum(const XMMReg4Double &a,
+                                    const XMMReg4Double &b,
+                                    const XMMReg4Double &c,
+                                    const XMMReg4Double &d, double horizSums[4])
+    {
+        horizSums[0] = a.GetHorizSum();
+        horizSums[1] = b.GetHorizSum();
+        horizSums[2] = c.GetHorizSum();
+        horizSums[3] = d.GetHorizSum();
     }
 
 #if !defined(USE_SSE2_EMULATION)

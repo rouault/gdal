@@ -4443,11 +4443,12 @@ static bool GWKResampleOptimizedLanczos(const GDALWarpKernel *poWK, int iBand,
 /*                        GWKComputeWeights()                           */
 /************************************************************************/
 
+template <class T>
 static void GWKComputeWeights(GDALResampleAlg eResample, int iMin, int iMax,
                               double dfDeltaX, double dfXScale, int jMin,
                               int jMax, double dfDeltaY, double dfYScale,
-                              double *padfWeightsHorizontal,
-                              double *padfWeightsVertical, double &dfInvWeights)
+                              T *padfWeightsHorizontal, T *padfWeightsVertical,
+                              T &dfInvWeights)
 {
 
     const FilterFuncType pfnGetWeight = apfGWKFilter[eResample];
@@ -4504,15 +4505,83 @@ static void GWKComputeWeights(GDALResampleAlg eResample, int iMin, int iMax,
         1. / (dfAccumulatorWeightHorizontal * dfAccumulatorWeightVertical);
 }
 
+template <>
+void GWKComputeWeights<float>(GDALResampleAlg eResample, int iMin, int iMax,
+                              double dfDeltaX, double dfXScale, int jMin,
+                              int jMax, double dfDeltaY, double dfYScale,
+                              float *padfWeightsHorizontal,
+                              float *padfWeightsVertical, float &dfInvWeights)
+{
+
+    const FilterFuncType pfnGetWeight = apfGWKFilter[eResample];
+    CPLAssert(pfnGetWeight);
+    const FilterFunc4ValuesType pfnGetWeight4Values =
+        apfGWKFilter4Values[eResample];
+    CPLAssert(pfnGetWeight4Values);
+
+    int i = iMin;  // Used after for.
+    int iC = 0;    // Used after for.
+    // Not zero, but as close as possible to it, to avoid potential division by
+    // zero at end of function
+    double dfAccumulatorWeightHorizontal = cpl::NumericLimits<double>::min();
+    for (; i + 2 < iMax; i += 4, iC += 4)
+    {
+        double weights[4];
+        weights[0] = (i - dfDeltaX) * dfXScale;
+        weights[1] = weights[0] + dfXScale;
+        weights[2] = weights[1] + dfXScale;
+        weights[3] = weights[2] + dfXScale;
+        dfAccumulatorWeightHorizontal += pfnGetWeight4Values(weights);
+        padfWeightsHorizontal[iC + 0] = static_cast<float>(weights[0]);
+        padfWeightsHorizontal[iC + 1] = static_cast<float>(weights[1]);
+        padfWeightsHorizontal[iC + 2] = static_cast<float>(weights[2]);
+        padfWeightsHorizontal[iC + 3] = static_cast<float>(weights[3]);
+    }
+    for (; i <= iMax; ++i, ++iC)
+    {
+        const double dfWeight = pfnGetWeight((i - dfDeltaX) * dfXScale);
+        padfWeightsHorizontal[iC] = static_cast<float>(dfWeight);
+        dfAccumulatorWeightHorizontal += dfWeight;
+    }
+
+    int j = jMin;  // Used after for.
+    int jC = 0;    // Used after for.
+    // Not zero, but as close as possible to it, to avoid potential division by
+    // zero at end of function
+    double dfAccumulatorWeightVertical = cpl::NumericLimits<double>::min();
+    for (; j + 2 < jMax; j += 4, jC += 4)
+    {
+        double weights[4];
+        weights[0] = (j - dfDeltaY) * dfYScale;
+        weights[1] = weights[0] + dfYScale;
+        weights[2] = weights[1] + dfYScale;
+        weights[3] = weights[2] + dfYScale;
+        dfAccumulatorWeightVertical += pfnGetWeight4Values(weights);
+        padfWeightsVertical[jC + 0] = static_cast<float>(weights[0]);
+        padfWeightsVertical[jC + 1] = static_cast<float>(weights[1]);
+        padfWeightsVertical[jC + 2] = static_cast<float>(weights[2]);
+        padfWeightsVertical[jC + 3] = static_cast<float>(weights[3]);
+    }
+    for (; j <= jMax; ++j, ++jC)
+    {
+        const double dfWeight = pfnGetWeight((j - dfDeltaY) * dfYScale);
+        padfWeightsVertical[jC] = static_cast<float>(dfWeight);
+        dfAccumulatorWeightVertical += dfWeight;
+    }
+
+    dfInvWeights = static_cast<float>(
+        1. / (dfAccumulatorWeightHorizontal * dfAccumulatorWeightVertical));
+}
+
 /************************************************************************/
 /*                        GWKResampleNoMasksT()                         */
 /************************************************************************/
 
-template <class T>
+template <class T, class AccType>
 static bool
 GWKResampleNoMasksT(const GDALWarpKernel *poWK, int iBand, double dfSrcX,
-                    double dfSrcY, T *pValue, double *padfWeightsHorizontal,
-                    double *padfWeightsVertical, double &dfInvWeights)
+                    double dfSrcY, T *pValue, AccType *padfWeightsHorizontal,
+                    AccType *padfWeightsVertical, AccType &dfInvWeights)
 
 {
     // Commonly used; save locally.
@@ -4562,15 +4631,15 @@ GWKResampleNoMasksT(const GDALWarpKernel *poWK, int iBand, double dfSrcX,
     }
 
     // Loop over all rows in the kernel.
-    double dfAccumulator = 0.0;
+    AccType dfAccumulator = 0.0;
     for (int jC = 0, j = jMin; j <= jMax; ++j, ++jC)
     {
         const GPtrDiff_t iSampJ =
             iSrcOffset + static_cast<GPtrDiff_t>(j) * nSrcXSize;
 
         // Loop over all pixels in the row.
-        double dfAccumulatorLocal = 0.0;
-        double dfAccumulatorLocal2 = 0.0;
+        AccType dfAccumulatorLocal = 0.0;
+        AccType dfAccumulatorLocal2 = 0.0;
         int iC = 0;
         int i = iMin;
         // Process by chunk of 4 cols.
@@ -4616,15 +4685,38 @@ GWKResampleNoMasksT(const GDALWarpKernel *poWK, int iBand, double dfSrcX,
 
 /************************************************************************/
 /*                    GWKResampleNoMasks_SSE2_T()                       */
-/************************************************************************/
+/*************************f***********************************************/
 
-template <class T>
+template <class AccType> struct GetVecReg4ValueType
+{
+    using type = XMMReg4Double;
+};
+
+template <> struct GetVecReg4ValueType<float>
+{
+    using type = XMMReg4Float;
+};
+
+template <class AccType> struct GetVecReg2ValueType
+{
+    using type = XMMReg2Double;
+};
+
+template <> struct GetVecReg2ValueType<float>
+{
+    using type = XMMReg2Float;
+};
+
+template <class T, class AccType = double>
 static bool GWKResampleNoMasks_SSE2_T(const GDALWarpKernel *poWK, int iBand,
                                       double dfSrcX, double dfSrcY, T *pValue,
-                                      double *padfWeightsHorizontal,
-                                      double *padfWeightsVertical,
-                                      double &dfInvWeights)
+                                      AccType *padfWeightsHorizontal,
+                                      AccType *padfWeightsVertical,
+                                      AccType &dfInvWeights)
 {
+    using VecReg4Values = typename GetVecReg4ValueType<AccType>::type;
+    using VecReg2Values = typename GetVecReg2ValueType<AccType>::type;
+
     // Commonly used; save locally.
     const int nSrcXSize = poWK->nSrcXSize;
     const int nSrcYSize = poWK->nSrcYSize;
@@ -4675,31 +4767,30 @@ static bool GWKResampleNoMasks_SSE2_T(const GDALWarpKernel *poWK, int iBand,
     // Process by chunk of 4 rows.
     int jC = 0;
     int j = jMin;
-    double dfAccumulator = 0.0;
+    auto vAccumulator = VecReg4Values::Zero();
     for (; j + 2 < jMax; j += 4, iSampJ += 4 * nSrcXSize, jC += 4)
     {
         // Loop over all pixels in the row.
         int iC = 0;
         int i = iMin;
         // Process by chunk of 4 cols.
-        XMMReg4Double v_acc_1 = XMMReg4Double::Zero();
-        XMMReg4Double v_acc_2 = XMMReg4Double::Zero();
-        XMMReg4Double v_acc_3 = XMMReg4Double::Zero();
-        XMMReg4Double v_acc_4 = XMMReg4Double::Zero();
+        auto v_acc_1 = VecReg4Values::Zero();
+        auto v_acc_2 = VecReg4Values::Zero();
+        auto v_acc_3 = VecReg4Values::Zero();
+        auto v_acc_4 = VecReg4Values::Zero();
         for (; i + 2 < iMax; i += 4, iC += 4)
         {
             // Retrieve the pixel & accumulate.
-            XMMReg4Double v_pixels_1 =
-                XMMReg4Double::Load4Val(pSrcBand + i + iSampJ);
-            XMMReg4Double v_pixels_2 =
-                XMMReg4Double::Load4Val(pSrcBand + i + iSampJ + nSrcXSize);
-            XMMReg4Double v_pixels_3 =
-                XMMReg4Double::Load4Val(pSrcBand + i + iSampJ + 2 * nSrcXSize);
-            XMMReg4Double v_pixels_4 =
-                XMMReg4Double::Load4Val(pSrcBand + i + iSampJ + 3 * nSrcXSize);
+            auto v_pixels_1 = VecReg4Values::Load4Val(pSrcBand + i + iSampJ);
+            auto v_pixels_2 =
+                VecReg4Values::Load4Val(pSrcBand + i + iSampJ + nSrcXSize);
+            auto v_pixels_3 =
+                VecReg4Values::Load4Val(pSrcBand + i + iSampJ + 2 * nSrcXSize);
+            auto v_pixels_4 =
+                VecReg4Values::Load4Val(pSrcBand + i + iSampJ + 3 * nSrcXSize);
 
-            XMMReg4Double v_padfWeight =
-                XMMReg4Double::Load4Val(padfWeightsHorizontal + iC);
+            auto v_padfWeight =
+                VecReg4Values::Load4Val(padfWeightsHorizontal + iC);
 
             v_acc_1 += v_pixels_1 * v_padfWeight;
             v_acc_2 += v_pixels_2 * v_padfWeight;
@@ -4709,17 +4800,16 @@ static bool GWKResampleNoMasks_SSE2_T(const GDALWarpKernel *poWK, int iBand,
 
         if (i < iMax)
         {
-            XMMReg2Double v_pixels_1 =
-                XMMReg2Double::Load2Val(pSrcBand + i + iSampJ);
-            XMMReg2Double v_pixels_2 =
-                XMMReg2Double::Load2Val(pSrcBand + i + iSampJ + nSrcXSize);
-            XMMReg2Double v_pixels_3 =
-                XMMReg2Double::Load2Val(pSrcBand + i + iSampJ + 2 * nSrcXSize);
-            XMMReg2Double v_pixels_4 =
-                XMMReg2Double::Load2Val(pSrcBand + i + iSampJ + 3 * nSrcXSize);
+            auto v_pixels_1 = VecReg2Values::Load2Val(pSrcBand + i + iSampJ);
+            auto v_pixels_2 =
+                VecReg2Values::Load2Val(pSrcBand + i + iSampJ + nSrcXSize);
+            auto v_pixels_3 =
+                VecReg2Values::Load2Val(pSrcBand + i + iSampJ + 2 * nSrcXSize);
+            auto v_pixels_4 =
+                VecReg2Values::Load2Val(pSrcBand + i + iSampJ + 3 * nSrcXSize);
 
-            XMMReg2Double v_padfWeight =
-                XMMReg2Double::Load2Val(padfWeightsHorizontal + iC);
+            auto v_padfWeight =
+                VecReg2Values::Load2Val(padfWeightsHorizontal + iC);
 
             v_acc_1.AddToLow(v_pixels_1 * v_padfWeight);
             v_acc_2.AddToLow(v_pixels_2 * v_padfWeight);
@@ -4730,50 +4820,46 @@ static bool GWKResampleNoMasks_SSE2_T(const GDALWarpKernel *poWK, int iBand,
             iC += 2;
         }
 
-        double dfAccumulatorLocal_1 = v_acc_1.GetHorizSum();
-        double dfAccumulatorLocal_2 = v_acc_2.GetHorizSum();
-        double dfAccumulatorLocal_3 = v_acc_3.GetHorizSum();
-        double dfAccumulatorLocal_4 = v_acc_4.GetHorizSum();
+        AccType dfAccumulatorLocal[4];
+        VecReg4Values::Get4HorizSum(v_acc_1, v_acc_2, v_acc_3, v_acc_4,
+                                    dfAccumulatorLocal);
 
         if (i == iMax)
         {
-            dfAccumulatorLocal_1 += static_cast<double>(pSrcBand[i + iSampJ]) *
-                                    padfWeightsHorizontal[iC];
-            dfAccumulatorLocal_2 +=
-                static_cast<double>(pSrcBand[i + iSampJ + nSrcXSize]) *
-                padfWeightsHorizontal[iC];
-            dfAccumulatorLocal_3 +=
-                static_cast<double>(pSrcBand[i + iSampJ + 2 * nSrcXSize]) *
-                padfWeightsHorizontal[iC];
-            dfAccumulatorLocal_4 +=
-                static_cast<double>(pSrcBand[i + iSampJ + 3 * nSrcXSize]) *
-                padfWeightsHorizontal[iC];
+            dfAccumulatorLocal[0] +=
+                pSrcBand[i + iSampJ] * padfWeightsHorizontal[iC];
+            dfAccumulatorLocal[1] +=
+                pSrcBand[i + iSampJ + nSrcXSize] * padfWeightsHorizontal[iC];
+            dfAccumulatorLocal[2] += pSrcBand[i + iSampJ + 2 * nSrcXSize] *
+                                     padfWeightsHorizontal[iC];
+            dfAccumulatorLocal[3] += pSrcBand[i + iSampJ + 3 * nSrcXSize] *
+                                     padfWeightsHorizontal[iC];
         }
 
-        dfAccumulator += padfWeightsVertical[jC] * dfAccumulatorLocal_1;
-        dfAccumulator += padfWeightsVertical[jC + 1] * dfAccumulatorLocal_2;
-        dfAccumulator += padfWeightsVertical[jC + 2] * dfAccumulatorLocal_3;
-        dfAccumulator += padfWeightsVertical[jC + 3] * dfAccumulatorLocal_4;
+        vAccumulator += VecReg4Values::Load4Val(padfWeightsVertical + jC) *
+                        VecReg4Values::Load4Val(dfAccumulatorLocal);
     }
+
+    auto dfAccumulator = vAccumulator.GetHorizSum();
+
     for (; j <= jMax; ++j, iSampJ += nSrcXSize, ++jC)
     {
         // Loop over all pixels in the row.
         int iC = 0;
         int i = iMin;
         // Process by chunk of 4 cols.
-        XMMReg4Double v_acc = XMMReg4Double::Zero();
+        auto v_acc = VecReg4Values::Zero();
         for (; i + 2 < iMax; i += 4, iC += 4)
         {
             // Retrieve the pixel & accumulate.
-            XMMReg4Double v_pixels =
-                XMMReg4Double::Load4Val(pSrcBand + i + iSampJ);
-            XMMReg4Double v_padfWeight =
-                XMMReg4Double::Load4Val(padfWeightsHorizontal + iC);
+            auto v_pixels = VecReg4Values::Load4Val(pSrcBand + i + iSampJ);
+            auto v_padfWeight =
+                VecReg4Values::Load4Val(padfWeightsHorizontal + iC);
 
             v_acc += v_pixels * v_padfWeight;
         }
 
-        double dfAccumulatorLocal = v_acc.GetHorizSum();
+        AccType dfAccumulatorLocal = v_acc.GetHorizSum();
 
         if (i < iMax)
         {
@@ -4786,8 +4872,8 @@ static bool GWKResampleNoMasks_SSE2_T(const GDALWarpKernel *poWK, int iBand,
         }
         if (i == iMax)
         {
-            dfAccumulatorLocal += static_cast<double>(pSrcBand[i + iSampJ]) *
-                                  padfWeightsHorizontal[iC];
+            dfAccumulatorLocal +=
+                pSrcBand[i + iSampJ] * padfWeightsHorizontal[iC];
         }
 
         dfAccumulator += padfWeightsVertical[jC] * dfAccumulatorLocal;
@@ -4802,12 +4888,18 @@ static bool GWKResampleNoMasks_SSE2_T(const GDALWarpKernel *poWK, int iBand,
 /*                     GWKResampleNoMasksT<GByte>()                     */
 /************************************************************************/
 
+#ifdef __GNUC__
+#define CPL_NOINLINE __attribute__((noinline))
+#else
+#define CPL_NOINLINE
+#endif
+
 template <>
-bool GWKResampleNoMasksT<GByte>(const GDALWarpKernel *poWK, int iBand,
-                                double dfSrcX, double dfSrcY, GByte *pValue,
-                                double *padfWeightsHorizontal,
-                                double *padfWeightsVertical,
-                                double &dfInvWeights)
+CPL_NOINLINE bool
+GWKResampleNoMasksT<GByte>(const GDALWarpKernel *poWK, int iBand, double dfSrcX,
+                           double dfSrcY, GByte *pValue,
+                           float *padfWeightsHorizontal,
+                           float *padfWeightsVertical, float &dfInvWeights)
 {
     return GWKResampleNoMasks_SSE2_T(poWK, iBand, dfSrcX, dfSrcY, pValue,
                                      padfWeightsHorizontal, padfWeightsVertical,
@@ -5938,6 +6030,16 @@ static void GWKCubicResampleNoMasks4MultiBandT(const GDALWarpKernel *poWK,
 
 #endif  // defined(USE_SSE2)
 
+template <class T> struct GetAccType
+{
+    using type = double;
+};
+
+template <> struct GetAccType<GByte>
+{
+    using type = float;
+};
+
 /************************************************************************/
 /*                GWKResampleNoMasksOrDstDensityOnlyThreadInternal()    */
 /************************************************************************/
@@ -5976,10 +6078,11 @@ static void GWKResampleNoMasksOrDstDensityOnlyThreadInternal(void *pData)
     int *pabSuccess = static_cast<int *>(CPLMalloc(sizeof(int) * nDstXSize));
 
     const int nXRadius = poWK->nXRadius;
-    double *padfWeightsX =
-        static_cast<double *>(CPLCalloc(1 + nXRadius * 2, sizeof(double)));
-    double *padfWeightsY = static_cast<double *>(
-        CPLCalloc(1 + poWK->nYRadius * 2, sizeof(double)));
+    using AccType = typename GetAccType<T>::type;
+    AccType *padfWeightsX =
+        static_cast<AccType *>(CPLCalloc(1 + nXRadius * 2, sizeof(AccType)));
+    AccType *padfWeightsY = static_cast<AccType *>(
+        CPLCalloc(1 + poWK->nYRadius * 2, sizeof(AccType)));
     const double dfSrcCoordPrecision = CPLAtof(CSLFetchNameValueDef(
         poWK->papszWarpOptions, "SRC_COORD_PRECISION", "0"));
     const double dfErrorThreshold = CPLAtof(
@@ -6058,7 +6161,7 @@ static void GWKResampleNoMasksOrDstDensityOnlyThreadInternal(void *pData)
             }
 #endif  // defined(USE_SSE2)
 
-            [[maybe_unused]] double dfInvWeights = 0;
+            [[maybe_unused]] AccType dfInvWeights = 0;
             for (int iBand = 0; iBand < poWK->nBands; iBand++)
             {
                 T value = 0;
