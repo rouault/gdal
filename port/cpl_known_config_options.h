@@ -1033,7 +1033,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "SXF_RSC_FILENAME", // from ogrsxfdatasource.cpp
    "SXF_SET_VERTCS", // from ogrsxfdatasource.cpp
    "TAB_APPROX_GEOTRANSFORM", // from gdal_misc.cpp
-   "TEMP", // from cpl_path.cpp, gdal_misc.cpp, gdalwmscache.cpp, wcsutils.cpp
+   "TEMP", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp, cpl_path.cpp, gdal_misc.cpp, gdalwmscache.cpp, wcsutils.cpp
    "THRESHOLD", // from ogrct.cpp
    "TIFF_READ_STREAMING", // from gtiffdataset_read.cpp
    "TIFF_USE_OVR", // from gtiffdataset_write.cpp
@@ -1053,8 +1053,8 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "USE_SQLITE_DEBUG_MEMALLOC", // from ogrsqlitedatasource.cpp
    "USE_TEMPFILE", // from ogrgpsbabeldatasource.cpp, ogrgpsbabelwritedatasource.cpp
    "USE_TILE_AS_BLOCK", // from jp2kakdataset.cpp
-   "USER", // from gdal_misc.cpp, gdalwmscache.cpp, isis3dataset.cpp, wcsutils.cpp
-   "USERNAME", // from gdal_misc.cpp, gdalwmscache.cpp, isis3dataset.cpp, wcsutils.cpp
+   "USER", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp, gdal_misc.cpp, gdalwmscache.cpp, isis3dataset.cpp, wcsutils.cpp
+   "USERNAME", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp, gdal_misc.cpp, gdalwmscache.cpp, isis3dataset.cpp, wcsutils.cpp
    "USERPROFILE", // from cpl_aws.cpp, cpl_azure.cpp, cpl_conv.cpp, cpl_google_cloud.cpp, cpl_path.cpp, gdal_misc.cpp, gdalwmscache.cpp, wcsutils.cpp
    "VRT_ALLOW_MEM_DRIVER", // from vrtrasterband.cpp
    "VRT_MIN_MAX_FROM_SOURCES", // from vrtsourcedrasterband.cpp
