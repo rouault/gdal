@@ -24,6 +24,8 @@
 
 #ifdef HAVE_CURL
 
+std::string CPL_DLL GDALGetCacheDirectory();
+
 static bool bFirstTimeForDebugMessage = true;
 
 struct GOA2ManagerCache
@@ -829,6 +831,45 @@ VSIGSHandleHelper::GetCurlHeaders(const std::string &osVerb,
         const auto osQueryString(GetQueryString(false));
         if (osQueryString == "?uploads" || osQueryString == "?acl")
             osCanonicalResource += osQueryString;
+    }
+
+    if (cpl::starts_with(m_osEndpoint, "https://storage.googleapis.com/"))
+    {
+        static const bool bCheckSponsoring = []()
+        {
+            const std::string osCacheDir = GDALGetCacheDirectory();
+            VSIStatBufL sStat;
+            if (VSIStatL(osCacheDir.c_str(), &sStat) != 0)
+                VSIMkdir(osCacheDir.c_str(), 0755);
+            const std::string osCloudCheck = CPLFormFilenameSafe(
+                osCacheDir.c_str(), "cloud_check_gcs.txt", nullptr);
+            if (VSIStatL(osCloudCheck.c_str(), &sStat) != 0 ||
+                sStat.st_mtime + 3600 < time(nullptr))
+            {
+                FILE *f = fopen(osCloudCheck.c_str(), "wb");
+                if (f)
+                    fclose(f);
+                CPLErrorStateBackuper oBackuper(CPLQuietErrorHandler);
+                const char *const apszOptions[] = {"CUSTOMREQUEST=HEAD",
+                                                   nullptr};
+                const auto res = CPLHTTPFetch(
+                    "https://gdal.org/en/latest/sponsors/did_gcs_sponsor.html",
+                    apszOptions);
+                if (!res || res->pszErrBuf)
+                {
+                    fprintf(
+                        stderr,
+                        "WARNING: You are depending on Google Cloud Storage "
+                        "functionality. Google generates a lot of money "
+                        "through GDAL, used to sponsor us, but no longer does. "
+                        "Please contact you Google sales representative to "
+                        "remove this warning.\n");
+                }
+                CPLHTTPDestroyResult(res);
+            }
+            return true;
+        }();
+        CPL_IGNORE_RET_VAL(bCheckSponsoring);
     }
 
     return GetGSHeaders("/vsigs/" + m_osBucketObjectKey, osVerb,

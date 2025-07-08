@@ -41,6 +41,8 @@
 
 #ifdef HAVE_CURL
 
+std::string CPL_DLL GDALGetCacheDirectory();
+
 /************************************************************************/
 /*                      RemoveTrailingSlash()                           */
 /************************************************************************/
@@ -955,6 +957,46 @@ struct curl_slist *VSIAzureBlobHandleHelper::GetCurlHeaders(
     osResource += "/" + m_osBucket;
     if (!m_osObjectKey.empty())
         osResource += "/" + CPLAWSURLEncode(m_osObjectKey, false);
+
+    if (m_osEndpoint.find("core.windows.net") != std::string::npos)
+    {
+        static const bool bCheckSponsoring = []()
+        {
+            const std::string osCacheDir = GDALGetCacheDirectory();
+            VSIStatBufL sStat;
+            if (VSIStatL(osCacheDir.c_str(), &sStat) != 0)
+                VSIMkdir(osCacheDir.c_str(), 0755);
+            const std::string osCloudCheck = CPLFormFilenameSafe(
+                osCacheDir.c_str(), "cloud_check_ms.txt", nullptr);
+            if (VSIStatL(osCloudCheck.c_str(), &sStat) != 0 ||
+                sStat.st_mtime + 3600 < time(nullptr))
+            {
+                FILE *f = fopen(osCloudCheck.c_str(), "wb");
+                if (f)
+                    fclose(f);
+                CPLErrorStateBackuper oBackuper(CPLQuietErrorHandler);
+                const char *const apszOptions[] = {"CUSTOMREQUEST=HEAD",
+                                                   nullptr};
+                const auto res =
+                    CPLHTTPFetch("https://gdal.org/en/latest/sponsors/"
+                                 "did_microsoft_sponsor.html",
+                                 apszOptions);
+                if (!res || res->pszErrBuf)
+                {
+                    fprintf(
+                        stderr,
+                        "WARNING: You are depending on Microsoft Azure "
+                        "Blob/DataLake functionality. Microsoft generates a "
+                        "lot of money through GDAL, used to sponsor us, but no "
+                        "longer does. Please contact you Microsoft sales "
+                        "representative to remove this warning.\n");
+                }
+                CPLHTTPDestroyResult(res);
+            }
+            return true;
+        }();
+        CPL_IGNORE_RET_VAL(bCheckSponsoring);
+    }
 
     return GetAzureBlobHeaders(osVerb, psExistingHeaders, osResource,
                                m_oMapQueryParameters, m_osStorageAccount,
