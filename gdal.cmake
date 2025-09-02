@@ -443,6 +443,8 @@ if (USE_PRECOMPILED_HEADERS)
   )
 endif()
 
+option(GDAL_ENABLE_ALGORITHMS "Whether to enable 'gdal' algorithms" ON)
+
 # Core components
 add_subdirectory(alg)
 add_subdirectory(ogr)

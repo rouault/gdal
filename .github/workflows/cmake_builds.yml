@@ -548,11 +548,11 @@ jobs:
     - name: Build
       shell: bash -l {0}
       run: cmake --build $GITHUB_WORKSPACE/build --config RelWithDebInfo -j 2
-    - name: Configure with even less dependencies
+    - name: Configure with even less dependencies, and set GDAL_ENABLE_ALGORITHMS=OFF
       shell: bash -l {0}
       run: |
         rm -f build/CMakeCache.txt
-        cmake -A ${architecture} -G "${generator}" "-DCMAKE_PREFIX_PATH=${CONDA}/envs/gdalenv" -Werror=dev "-DCMAKE_CXX_COMPILER_LAUNCHER=clcache" -DCMAKE_UNITY_BUILD=${CMAKE_UNITY_BUILD} -S "$GITHUB_WORKSPACE" -B "$GITHUB_WORKSPACE/build" -DCMAKE_C_FLAGS=" /WX" -DCMAKE_CXX_FLAGS=" /WX" -DGDAL_USE_EXTERNAL_LIBS:BOOL=OFF -DGDAL_USE_PNG_INTERNAL=OFF -DGDAL_USE_JPEG_INTERNAL=OFF -DGDAL_USE_JPEG12_INTERNAL=OFF -DGDAL_USE_GIF_INTERNAL=OFF -DGDAL_USE_LERC_INTERNAL=OFF -DGDAL_USE_LERCV1_INTERNAL=OFF -DGDAL_USE_QHULL_INTERNAL=OFF -DGDAL_USE_OPENCAD_INTERNAL=OFF -DWERROR_DEV_FLAG="-Werror=dev"
+        cmake -A ${architecture} -G "${generator}" "-DCMAKE_PREFIX_PATH=${CONDA}/envs/gdalenv" -Werror=dev "-DCMAKE_CXX_COMPILER_LAUNCHER=clcache" -DCMAKE_UNITY_BUILD=${CMAKE_UNITY_BUILD} -S "$GITHUB_WORKSPACE" -B "$GITHUB_WORKSPACE/build" -DCMAKE_C_FLAGS=" /WX" -DCMAKE_CXX_FLAGS=" /WX" -DGDAL_USE_EXTERNAL_LIBS:BOOL=OFF -DGDAL_USE_PNG_INTERNAL=OFF -DGDAL_USE_JPEG_INTERNAL=OFF -DGDAL_USE_JPEG12_INTERNAL=OFF -DGDAL_USE_GIF_INTERNAL=OFF -DGDAL_USE_LERC_INTERNAL=OFF -DGDAL_USE_LERCV1_INTERNAL=OFF -DGDAL_USE_QHULL_INTERNAL=OFF -DGDAL_USE_OPENCAD_INTERNAL=OFF -DGDAL_ENABLE_ALGORITHMS=OFF -DWERROR_DEV_FLAG="-Werror=dev"
     - name: Configure with even less dependencies, and disabling all optional drivers
       shell: bash -l {0}
       run: |
@@ -562,10 +562,10 @@ jobs:
       shell: bash -l {0}
       run: cmake --build $GITHUB_WORKSPACE/build --config RelWithDebInfo -j 2
 
-    - name: Re-enable shapefile driver (otherwise lots of python tests would fail)
+    - name: Re-enable shapefile driver, and set GDAL_ENABLE_ALGORITHMS=ON (otherwise lots of python tests would fail)
       shell: bash -l {0}
       run: |
-        cmake -S "$GITHUB_WORKSPACE" -B "$GITHUB_WORKSPACE/build" -DOGR_ENABLE_DRIVER_SHAPE=ON -DOGR_ENABLE_DRIVER_SHAPE_PLUGIN=ON
+        cmake -S "$GITHUB_WORKSPACE" -B "$GITHUB_WORKSPACE/build" -DOGR_ENABLE_DRIVER_SHAPE=ON -DOGR_ENABLE_DRIVER_SHAPE_PLUGIN=ON -DGDAL_ENABLE_ALGORITHMS=ON
     - name: Build
       shell: bash -l {0}
       run: cmake --build $GITHUB_WORKSPACE/build --config RelWithDebInfo -j 2
