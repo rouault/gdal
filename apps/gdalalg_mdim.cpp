@@ -13,6 +13,7 @@
 #include "gdalalgorithm.h"
 
 #include "gdalalg_mdim_info.h"
+#include "gdalalg_mdim_concat.h"
 #include "gdalalg_mdim_convert.h"
 
 #include "gdal_priv.h"
@@ -41,6 +42,7 @@ class GDALMdimAlgorithm final : public GDALAlgorithm
         AddOutputStringArg(&m_output);
 
         RegisterSubAlgorithm<GDALMdimInfoAlgorithm>();
+        RegisterSubAlgorithm<GDALMdimConcatAlgorithm>();
         RegisterSubAlgorithm<GDALMdimConvertAlgorithm>();
     }
 

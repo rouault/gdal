@@ -40,6 +40,7 @@ target_sources(appslib PRIVATE
   gdalalg_materialize.cpp
   gdalalg_mdim.cpp
   gdalalg_mdim_info.cpp
+  gdalalg_mdim_concat.cpp
   gdalalg_mdim_convert.cpp
   gdalalg_pipeline.cpp
   gdalalg_raster.cpp
