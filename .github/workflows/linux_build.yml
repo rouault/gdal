@@ -154,7 +154,7 @@ jobs:
             container: armhf
             build_script: build.sh
             test_script: test.sh
-            os: ubuntu-22.04
+            os: ubuntu-24.04-arm
 
     name: ${{ matrix.name }}
 
@@ -201,6 +201,7 @@ jobs:
 
       - name: Enable Docker qemu
         shell: bash -l {0}
+        if: "(matrix.os != 'ubuntu-24.04-arm')"
         run: |
           docker run --rm --privileged linuxkit/binfmt:v0.8
 
