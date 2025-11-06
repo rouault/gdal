@@ -70,37 +70,11 @@ const GTIFFTag *GTiffDataset::GetTIFFTags()
 /************************************************************************/
 
 GTiffDataset::GTiffDataset()
-    : m_bStreamingIn(false), m_bStreamingOut(false), m_bScanDeferred(true),
-      m_bSingleIFDOpened(false), m_bLoadedBlockDirty(false),
-      m_bWriteError(false), m_bLookedForProjection(false),
-      m_bLookedForMDAreaOrPoint(false), m_bGeoTransformValid(false),
-      m_bCrystalized(true), m_bGeoTIFFInfoChanged(false),
-      m_bForceUnsetGTOrGCPs(false), m_bForceUnsetProjection(false),
-      m_bNoDataChanged(false), m_bNoDataSet(false), m_bNoDataSetAsInt64(false),
-      m_bNoDataSetAsUInt64(false), m_bMetadataChanged(false),
-      m_bColorProfileMetadataChanged(false), m_bForceUnsetRPC(false),
-      m_bNeedsRewrite(false), m_bLoadingOtherBands(false), m_bIsOverview(false),
-      m_bWriteEmptyTiles(true), m_bFillEmptyTilesAtClosing(false),
-      m_bTreatAsSplit(false), m_bTreatAsSplitBitmap(false), m_bClipWarn(false),
-      m_bIMDRPCMetadataLoaded(false), m_bEXIFMetadataLoaded(false),
-      m_bICCMetadataLoaded(false),
-      m_bHasWarnedDisableAggressiveBandCaching(false),
-      m_bDontReloadFirstBlock(false), m_bWebPLossless(false),
-      m_bPromoteTo8Bits(false),
-      m_bDebugDontWriteBlocks(
+    : m_bDebugDontWriteBlocks(
           CPLTestBool(CPLGetConfigOption("GTIFF_DONT_WRITE_BLOCKS", "NO"))),
-      m_bIsFinalized(false),
       m_bIgnoreReadErrors(
           CPLTestBool(CPLGetConfigOption("GTIFF_IGNORE_READ_ERRORS", "NO"))),
-      m_bDirectIO(CPLTestBool(CPLGetConfigOption("GTIFF_DIRECT_IO", "NO"))),
-      m_bReadGeoTransform(false), m_bLoadPam(false),
-      m_bHasGotSiblingFiles(false),
-      m_bHasIdentifiedAuthorizedGeoreferencingSources(false),
-      m_bLayoutIFDSBeforeData(false), m_bBlockOrderRowMajor(false),
-      m_bLeaderSizeAsUInt4(false), m_bTrailerRepeatedLast4BytesRepeated(false),
-      m_bMaskInterleavedWithImagery(false), m_bKnownIncompatibleEdition(false),
-      m_bWriteKnownIncompatibleEdition(false), m_bHasUsedReadEncodedAPI(false),
-      m_bWriteCOGLayout(false), m_bTileInterleave(false)
+      m_bDirectIO(CPLTestBool(CPLGetConfigOption("GTIFF_DIRECT_IO", "NO")))
 {
     // CPLDebug("GDAL", "sizeof(GTiffDataset) = %d bytes", static_cast<int>(
     //     sizeof(GTiffDataset)));

@@ -249,63 +249,66 @@ class GTiffDataset final : public GDALPamDataset
     std::queue<int> m_asQueueJobIdx{};  // queue of index of m_asCompressionJobs
                                         // being compressed in worker threads
 
-    bool m_bStreamingIn : 1;
-    bool m_bStreamingOut : 1;
-    bool m_bScanDeferred : 1;
-    bool m_bSingleIFDOpened = false;
-    bool m_bLoadedBlockDirty : 1;
-    bool m_bWriteError : 1;
-    bool m_bLookedForProjection : 1;
-    bool m_bLookedForMDAreaOrPoint : 1;
-    bool m_bGeoTransformValid : 1;
-    bool m_bCrystalized : 1;
-    bool m_bGeoTIFFInfoChanged : 1;
-    bool m_bForceUnsetGTOrGCPs : 1;
-    bool m_bForceUnsetProjection : 1;
-    bool m_bNoDataChanged : 1;
-    bool m_bNoDataSet : 1;
-    bool m_bNoDataSetAsInt64 : 1;
-    bool m_bNoDataSetAsUInt64 : 1;
-    bool m_bMetadataChanged : 1;
-    bool m_bColorProfileMetadataChanged : 1;
-    bool m_bForceUnsetRPC : 1;
-    bool m_bNeedsRewrite : 1;
-    bool m_bLoadingOtherBands : 1;
-    bool m_bIsOverview : 1;
-    bool m_bWriteEmptyTiles : 1;  // Whether a write of a tile entirely at
-                                  // nodata/0 should go to the disk. Default is
-                                  // true, unless SPARSE_OK is set
-    bool m_bFillEmptyTilesAtClosing : 1;  // Might only be set to true on newly
-                                          // created files, when SPARSE_OK is
-                                          // not set
-    bool m_bTreatAsSplit : 1;
-    bool m_bTreatAsSplitBitmap : 1;
-    bool m_bClipWarn : 1;
-    bool m_bIMDRPCMetadataLoaded : 1;
-    bool m_bEXIFMetadataLoaded : 1;
-    bool m_bICCMetadataLoaded : 1;
-    bool m_bHasWarnedDisableAggressiveBandCaching : 1;
-    bool m_bDontReloadFirstBlock : 1;  // Hack for libtiff 3.X and #3633.
-    bool m_bWebPLossless : 1;
-    bool m_bPromoteTo8Bits : 1;
-    bool m_bDebugDontWriteBlocks : 1;
-    bool m_bIsFinalized : 1;
-    bool m_bIgnoreReadErrors : 1;
-    bool m_bDirectIO : 1;
-    bool m_bReadGeoTransform : 1;
-    bool m_bLoadPam : 1;
-    bool m_bHasGotSiblingFiles : 1;
-    bool m_bHasIdentifiedAuthorizedGeoreferencingSources : 1;
-    bool m_bLayoutIFDSBeforeData : 1;
-    bool m_bBlockOrderRowMajor : 1;
-    bool m_bLeaderSizeAsUInt4 : 1;
-    bool m_bTrailerRepeatedLast4BytesRepeated : 1;
-    bool m_bMaskInterleavedWithImagery : 1;
-    bool m_bKnownIncompatibleEdition : 1;
-    bool m_bWriteKnownIncompatibleEdition : 1;
-    bool m_bHasUsedReadEncodedAPI : 1;  // for debugging
-    bool m_bWriteCOGLayout : 1;
-    bool m_bTileInterleave : 1;
+    bool m_bStreamingIn : 1 = false;
+    bool m_bStreamingOut : 1 = false;
+    bool m_bScanDeferred : 1 = true;
+    bool m_bSingleIFDOpened : 1 = false;
+    bool m_bLoadedBlockDirty : 1 = false;
+    bool m_bWriteError : 1 = false;
+    bool m_bLookedForProjection : 1 = false;
+    bool m_bLookedForMDAreaOrPoint : 1 = false;
+    bool m_bGeoTransformValid : 1 = false;
+    bool m_bCrystalized : 1 = true;
+    bool m_bGeoTIFFInfoChanged : 1 = false;
+    bool m_bForceUnsetGTOrGCPs : 1 = false;
+    bool m_bForceUnsetProjection : 1 = false;
+    bool m_bNoDataChanged : 1 = false;
+    bool m_bNoDataSet : 1 = false;
+    bool m_bNoDataSetAsInt64 : 1 = false;
+    bool m_bNoDataSetAsUInt64 : 1 = false;
+    bool m_bMetadataChanged : 1 = false;
+    bool m_bColorProfileMetadataChanged : 1 = false;
+    bool m_bForceUnsetRPC : 1 = false;
+    bool m_bNeedsRewrite : 1 = false;
+    bool m_bLoadingOtherBands : 1 = false;
+    bool m_bIsOverview : 1 = false;
+    bool m_bWriteEmptyTiles : 1 =
+        true;  // Whether a write of a tile entirely at
+               // nodata/0 should go to the disk. Default is
+               // true, unless SPARSE_OK is set
+    bool m_bFillEmptyTilesAtClosing : 1 =
+        false;  // Might only be set to true on newly
+                // created files, when SPARSE_OK is
+                // not set
+    bool m_bTreatAsSplit : 1 = false;
+    bool m_bTreatAsSplitBitmap : 1 = false;
+    bool m_bClipWarn : 1 = false;
+    bool m_bIMDRPCMetadataLoaded : 1 = false;
+    bool m_bEXIFMetadataLoaded : 1 = false;
+    bool m_bICCMetadataLoaded : 1 = false;
+    bool m_bHasWarnedDisableAggressiveBandCaching : 1 = false;
+    bool m_bDontReloadFirstBlock : 1 =
+        false;  // Hack for libtiff 3.X and #3633.
+    bool m_bWebPLossless : 1 = false;
+    bool m_bPromoteTo8Bits : 1 = false;
+    bool m_bDebugDontWriteBlocks : 1 = false;
+    bool m_bIsFinalized : 1 = false;
+    bool m_bIgnoreReadErrors : 1 = false;
+    bool m_bDirectIO : 1 = false;
+    bool m_bReadGeoTransform : 1 = false;
+    bool m_bLoadPam : 1 = false;
+    bool m_bHasGotSiblingFiles : 1 = false;
+    bool m_bHasIdentifiedAuthorizedGeoreferencingSources : 1 = false;
+    bool m_bLayoutIFDSBeforeData : 1 = false;
+    bool m_bBlockOrderRowMajor : 1 = false;
+    bool m_bLeaderSizeAsUInt4 : 1 = false;
+    bool m_bTrailerRepeatedLast4BytesRepeated : 1 = false;
+    bool m_bMaskInterleavedWithImagery : 1 = false;
+    bool m_bKnownIncompatibleEdition : 1 = false;
+    bool m_bWriteKnownIncompatibleEdition : 1 = false;
+    bool m_bHasUsedReadEncodedAPI : 1 = false;  // for debugging
+    bool m_bWriteCOGLayout : 1 = false;
+    bool m_bTileInterleave : 1 = false;
 
     void ScanDirectories();
     bool ReadStrile(int nBlockId, void *pOutputBuffer,
