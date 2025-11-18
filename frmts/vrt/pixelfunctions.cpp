@@ -19,6 +19,11 @@
 #include "vrtreclassifier.h"
 #include "cpl_float.h"
 
+#ifdef GDAL_USE_LLVM
+#include "gdal_c_expr.h"
+#include "gdal_jit.h"
+#endif
+
 #if defined(__x86_64) || defined(_M_X64) || defined(USE_NEON_OPTIMIZATIONS)
 #define USE_SSE2
 #include "gdalsse_priv.h"
@@ -43,6 +48,7 @@
 #include <algorithm>
 #include <cassert>
 #include <limits>
+#include <set>
 
 namespace gdal
 {
@@ -2788,6 +2794,80 @@ static CPLErr MaxPixelFunc(void **papoSources, int nSources, void *pData,
         nPixelSpace, nLineSpace, papszArgs);
 }
 
+#ifdef GDAL_USE_LLVM
+
+/************************************************************************/
+/*                              JITCompute()                            */
+/************************************************************************/
+
+template <class T>
+static bool JITCompute(void **papoSources, int nSources, void *pData,
+                       int nXSize, int nYSize, GDALDataType eSrcType,
+                       GDALDataType eBufType, int nPixelSpace, int nLineSpace,
+                       const char *c_code)
+{
+    std::string disassembly;
+    std::string *pDisassembly =
+        CPLGetConfigOption("CPL_DEBUG", nullptr) != nullptr ? &disassembly
+                                                            : nullptr;
+    auto computePixels =
+        GDALGetJITFunction<void(const T *const *, T *, size_t)>(
+            c_code, "computePixels", pDisassembly);
+    if (pDisassembly)
+        CPLDebug("VRT", "Disassembly:\n%s", disassembly.c_str());
+    if (!computePixels)
+        return false;
+
+    std::unique_ptr<T, VSIFreeReleaser> paResults;
+    const bool bNeedTmpBuffer =
+        !(eBufType == eSrcType &&
+          nPixelSpace == GDALGetDataTypeSizeBytes(eSrcType));
+    if (bNeedTmpBuffer)
+    {
+        paResults.reset(
+            static_cast<T *>(VSI_MALLOC2_VERBOSE(nXSize, sizeof(T))));
+        if (!paResults)
+            return false;
+    }
+
+    std::vector<const T *> inAr(nSources);
+
+    for (int iLine = 0; iLine < nYSize; ++iLine)
+    {
+        for (int iSrc = 0; iSrc < nSources; ++iSrc)
+        {
+            inAr[iSrc] =
+                reinterpret_cast<T *>(papoSources[iSrc]) + iLine * nXSize;
+        }
+
+        if (!paResults)
+        {
+            computePixels(inAr.data(),
+                          reinterpret_cast<T *>(
+                              static_cast<GByte *>(pData) +
+                              static_cast<GSpacing>(nLineSpace) * iLine),
+                          nXSize);
+        }
+        else
+        {
+            computePixels(inAr.data(), paResults.get(), nXSize);
+
+            GDALCopyWords(paResults.get(), eBufType, sizeof(T),
+                          static_cast<GByte *>(pData) +
+                              static_cast<GSpacing>(nLineSpace) * iLine,
+                          eBufType, nPixelSpace, nXSize);
+        }
+    }
+
+    return true;
+}
+
+#endif  // GDAL_USE_LLVM
+
+/************************************************************************/
+/*                            ExprPixelFunc()                           */
+/************************************************************************/
+
 static const char pszExprPixelFuncMetadata[] =
     "<PixelFunctionArgumentsList>"
     "   <Argument type='builtin' value='NoData' optional='true' />"
@@ -2934,6 +3014,646 @@ static CPLErr ExprPixelFunc(void **papoSources, int nSources, void *pData,
         poExpression->RegisterVector("BANDS", &adfValuesForPixel);
     }
 
+#ifdef GDAL_USE_LLVM
+    if (EQUAL(pszDialect, "muparser") &&
+        (eSrcType == GDT_Byte || eSrcType == GDT_Int8 ||
+         eSrcType == GDT_UInt16 || eSrcType == GDT_Int16 ||
+         eSrcType == GDT_UInt32 || eSrcType == GDT_Int32 ||
+         eSrcType == GDT_UInt64 || eSrcType == GDT_Int64 ||
+         eSrcType == GDT_Float32 || eSrcType == GDT_Float64) &&
+        !includeCenterCoords && !bHasNoData && !bPropagateNoData &&
+        CPLTestBool(CPLGetConfigOption("GDAL_USE_LLVM", "YES")))
+    {
+        std::function<void(const GDAL_c_expr_node *, const CPLStringList &,
+                           std::string &, bool &, std::set<std::string> &)>
+            DumpCExpr;
+
+        DumpCExpr =
+            [&DumpCExpr, eSrcType](const GDAL_c_expr_node *node,
+                                   const CPLStringList &aosSourceNamesIn,
+                                   std::string &outStr, bool &bError,
+                                   std::set<std::string> &setNeededFuncs)
+        {
+            const char *pszFunctionSuffix = eSrcType == GDT_Float32 ? "f" : "";
+            const char *pszIntegerNumberSuffix =
+                eSrcType == GDT_Float32 ? ".0f" : "";
+
+            switch (node->eNodeType)
+            {
+                case CENT_CONSTANT:
+                {
+                    switch (node->field_type)
+                    {
+                        case C_EXPR_FIELD_TYPE_INTEGER:
+                            outStr += std::to_string(node->int_value);
+                            outStr += pszIntegerNumberSuffix;
+                            break;
+                        case C_EXPR_FIELD_TYPE_FLOAT:
+                            if (eSrcType == GDT_Float32)
+                            {
+                                if (std::isnan(node->float_value))
+                                    outStr += "__builtin_nanf(\"\")";
+                                else
+                                    outStr +=
+                                        CPLSPrintf("%.8gf", node->float_value);
+                            }
+                            else
+                            {
+                                if (std::isnan(node->float_value))
+                                    outStr += "__builtin_nan(\"\")";
+                                else
+                                    outStr +=
+                                        CPLSPrintf("%.17g", node->float_value);
+                            }
+                            break;
+                        case C_EXPR_FIELD_TYPE_STRING:
+                        {
+                            int iFound = -1;
+                            for (int i = 0; i < aosSourceNamesIn.size(); ++i)
+                            {
+                                if (CPLString(aosSourceNamesIn[i])
+                                        .replaceAll('[', '_')
+                                        .replaceAll(']', '_') ==
+                                    node->string_value)
+                                {
+                                    iFound = i;
+                                    break;
+                                }
+                            }
+                            if (iFound < 0)
+                            {
+                                CPLError(CE_Failure, CPLE_AppDefined,
+                                         "Unknown variable name: %s",
+                                         node->string_value.c_str());
+                                bError = false;
+                            }
+                            else
+                            {
+                                outStr += "inArray";
+                                outStr += std::to_string(iFound);
+                                outStr += "[i]";
+                            }
+                            break;
+                        }
+                        case C_EXPR_FIELD_TYPE_EMPTY:
+                            CPLAssert(false);
+                            break;
+                    }
+                    break;
+                }
+                case CENT_OPERATION:
+                {
+                    const auto EmitBinary = [node, &outStr, &DumpCExpr,
+                                             &aosSourceNamesIn, &bError,
+                                             &setNeededFuncs](const char *pszOp)
+                    {
+                        CPLAssert(node->papoSubExpr.size() == 2);
+                        outStr += '(';
+                        DumpCExpr(node->papoSubExpr[0].get(), aosSourceNamesIn,
+                                  outStr, bError, setNeededFuncs);
+                        outStr += ' ';
+                        outStr += pszOp;
+                        outStr += ' ';
+                        DumpCExpr(node->papoSubExpr[1].get(), aosSourceNamesIn,
+                                  outStr, bError, setNeededFuncs);
+                        outStr += ')';
+                    };
+
+                    const auto EmitSuffixedFunction =
+                        [node, pszFunctionSuffix, &outStr, &DumpCExpr,
+                         &aosSourceNamesIn, &bError,
+                         &setNeededFuncs](const char *pszFuncName)
+                    {
+                        CPLAssert(node->papoSubExpr.size() >= 1);
+                        setNeededFuncs.insert(
+                            std::string(pszFuncName).append(pszFunctionSuffix));
+                        outStr += pszFuncName;
+                        outStr += pszFunctionSuffix;
+                        outStr += '(';
+                        DumpCExpr(node->papoSubExpr[0].get(), aosSourceNamesIn,
+                                  outStr, bError, setNeededFuncs);
+                        outStr += ')';
+                    };
+
+                    const auto EmitSuffixedFunctionTwoArgs =
+                        [node, pszFunctionSuffix, &outStr, &DumpCExpr,
+                         &aosSourceNamesIn, &bError,
+                         &setNeededFuncs](const char *pszFuncName)
+                    {
+                        CPLAssert(node->papoSubExpr.size() == 2);
+                        setNeededFuncs.insert(
+                            std::string(pszFuncName).append(pszFunctionSuffix));
+                        outStr += pszFuncName;
+                        outStr += pszFunctionSuffix;
+                        outStr += '(';
+                        DumpCExpr(node->papoSubExpr[0].get(), aosSourceNamesIn,
+                                  outStr, bError, setNeededFuncs);
+                        outStr += ", ";
+                        DumpCExpr(node->papoSubExpr[1].get(), aosSourceNamesIn,
+                                  outStr, bError, setNeededFuncs);
+                        outStr += ')';
+                    };
+
+                    std::function<void(
+                        const char *, const std::unique_ptr<GDAL_c_expr_node> *,
+                        size_t)>
+                        EmitMultiArgFunction;
+
+                    EmitMultiArgFunction =
+                        [&outStr, &DumpCExpr, &aosSourceNamesIn, &bError,
+                         &setNeededFuncs, &EmitMultiArgFunction](
+                            const char *pszFuncName,
+                            const std::unique_ptr<GDAL_c_expr_node> *argsBegin,
+                            size_t argCount)
+                    {
+                        if (argCount == 1)
+                        {
+                            DumpCExpr(argsBegin[0].get(), aosSourceNamesIn,
+                                      outStr, bError, setNeededFuncs);
+                        }
+                        else if (strcmp(pszFuncName, "sum") == 0)
+                        {
+                            outStr += '(';
+                            EmitMultiArgFunction(pszFuncName, argsBegin,
+                                                 argCount / 2);
+                            outStr += " + ";
+                            EmitMultiArgFunction(pszFuncName,
+                                                 argsBegin + argCount / 2,
+                                                 argCount - argCount / 2);
+                            outStr += ')';
+                        }
+                        else
+                        {
+                            outStr += "my_";
+                            outStr += pszFuncName;
+                            outStr += '(';
+                            EmitMultiArgFunction(pszFuncName, argsBegin,
+                                                 argCount / 2);
+                            outStr += ", ";
+                            EmitMultiArgFunction(pszFuncName,
+                                                 argsBegin + argCount / 2,
+                                                 argCount - argCount / 2);
+                            outStr += ')';
+                        }
+                    };
+
+                    switch (node->eOp)
+                    {
+                        case C_EXPR_OR:
+                            EmitBinary("||");
+                            break;
+                        case C_EXPR_AND:
+                            EmitBinary("&&");
+                            break;
+                        case C_EXPR_NOT:
+                            outStr += "(!";
+                            DumpCExpr(node->papoSubExpr[0].get(),
+                                      aosSourceNamesIn, outStr, bError,
+                                      setNeededFuncs);
+                            outStr += ')';
+                            break;
+                        case C_EXPR_TERNARY:
+                            CPLAssert(node->papoSubExpr.size() == 3);
+                            outStr += "(";
+                            DumpCExpr(node->papoSubExpr[0].get(),
+                                      aosSourceNamesIn, outStr, bError,
+                                      setNeededFuncs);
+                            outStr += " ? ";
+                            DumpCExpr(node->papoSubExpr[1].get(),
+                                      aosSourceNamesIn, outStr, bError,
+                                      setNeededFuncs);
+                            outStr += " : ";
+                            DumpCExpr(node->papoSubExpr[2].get(),
+                                      aosSourceNamesIn, outStr, bError,
+                                      setNeededFuncs);
+                            outStr += ')';
+                            break;
+                        case C_EXPR_EQ:
+                            EmitBinary("==");
+                            break;
+                        case C_EXPR_NE:
+                            EmitBinary("!=");
+                            break;
+                        case C_EXPR_LT:
+                            EmitBinary("<");
+                            break;
+                        case C_EXPR_LE:
+                            EmitBinary("<=");
+                            break;
+                        case C_EXPR_GT:
+                            EmitBinary(">");
+                            break;
+                        case C_EXPR_GE:
+                            EmitBinary(">=");
+                            break;
+                        case C_EXPR_ADD:
+                            EmitBinary("+");
+                            break;
+                        case C_EXPR_SUBTRACT:
+                            EmitBinary("-");
+                            break;
+                        case C_EXPR_MULTIPLY:
+                            EmitBinary("*");
+                            break;
+                        case C_EXPR_DIVIDE:
+                            if (GDALDataTypeIsFloating(eSrcType))
+                            {
+                                outStr += '(';
+                                DumpCExpr(node->papoSubExpr[0].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += " / ";
+                                DumpCExpr(node->papoSubExpr[1].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += ')';
+                            }
+                            else
+                            {
+                                setNeededFuncs.insert("my_div");
+                                outStr += "my_div(";
+                                DumpCExpr(node->papoSubExpr[0].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += ", ";
+                                DumpCExpr(node->papoSubExpr[1].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += ')';
+                            }
+                            break;
+                        case C_EXPR_MODULUS:
+                            if (GDALDataTypeIsFloating(eSrcType))
+                            {
+                                outStr += '(';
+                                DumpCExpr(node->papoSubExpr[0].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += " % ";
+                                DumpCExpr(node->papoSubExpr[1].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += ')';
+                            }
+                            else
+                            {
+                                setNeededFuncs.insert("my_mod");
+                                outStr += "my_mod(";
+                                DumpCExpr(node->papoSubExpr[0].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += ", ";
+                                DumpCExpr(node->papoSubExpr[1].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += ')';
+                            }
+                            break;
+                        case C_EXPR_POWER:
+                        {
+                            if (node->papoSubExpr[1]->eNodeType ==
+                                    CENT_CONSTANT &&
+                                node->papoSubExpr[1]->field_type ==
+                                    C_EXPR_FIELD_TYPE_INTEGER &&
+                                node->papoSubExpr[1]->int_value == 2 &&
+                                GDALDataTypeIsFloating(eSrcType))
+                            {
+                                setNeededFuncs.insert("my_square");
+                                outStr += "my_square(";
+                                DumpCExpr(node->papoSubExpr[0].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += ')';
+                            }
+                            else
+                            {
+                                EmitSuffixedFunctionTwoArgs("pow");
+                            }
+                            break;
+                        }
+                        case C_EXPR_FMOD:
+                            EmitSuffixedFunctionTwoArgs("fmod");
+                            break;
+                        case C_EXPR_ABS:
+                        {
+                            if (GDALDataTypeIsFloating(eSrcType))
+                            {
+                                EmitSuffixedFunction("fabs");
+                            }
+                            else if (GDALDataTypeIsSigned(eSrcType))
+                            {
+                                setNeededFuncs.insert("my_abs");
+                                outStr += "my_abs(";
+                                DumpCExpr(node->papoSubExpr[0].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                                outStr += ')';
+                            }
+                            else
+                            {
+                                DumpCExpr(node->papoSubExpr[0].get(),
+                                          aosSourceNamesIn, outStr, bError,
+                                          setNeededFuncs);
+                            }
+                            break;
+                        }
+                        // clang-format off
+                        case C_EXPR_SQRT:  EmitSuffixedFunction("sqrt");  break;
+                        case C_EXPR_SIN:   EmitSuffixedFunction("sin");   break;
+                        case C_EXPR_COS:   EmitSuffixedFunction("cos");   break;
+                        case C_EXPR_TAN:   EmitSuffixedFunction("tan");   break;
+                        case C_EXPR_ASIN:  EmitSuffixedFunction("asin");  break;
+                        case C_EXPR_ACOS:  EmitSuffixedFunction("acos");  break;
+                        case C_EXPR_ATAN:  EmitSuffixedFunction("atan");  break;
+                        case C_EXPR_SINH:  EmitSuffixedFunction("sinh");  break;
+                        case C_EXPR_COSH:  EmitSuffixedFunction("cosh");  break;
+                        case C_EXPR_TANH:  EmitSuffixedFunction("tanh");  break;
+                        case C_EXPR_ASINH: EmitSuffixedFunction("asinh"); break;
+                        case C_EXPR_ACOSH: EmitSuffixedFunction("acosh"); break;
+                        case C_EXPR_ATANH: EmitSuffixedFunction("atanh"); break;
+                        case C_EXPR_EXP:   EmitSuffixedFunction("exp");   break;
+                        case C_EXPR_LOG:   EmitSuffixedFunction("log");   break;
+                        case C_EXPR_LOG2:  EmitSuffixedFunction("log2");  break;
+                        case C_EXPR_LOG10: EmitSuffixedFunction("log10"); break;
+                        // clang-format on
+                        case C_EXPR_ISNAN:
+                            outStr += "__builtin_isnan(";
+                            DumpCExpr(node->papoSubExpr[0].get(),
+                                      aosSourceNamesIn, outStr, bError,
+                                      setNeededFuncs);
+                            outStr += ')';
+                            break;
+                        case C_EXPR_MIN:
+                            setNeededFuncs.insert("my_min");
+                            EmitMultiArgFunction("min",
+                                                 node->papoSubExpr.data(),
+                                                 node->papoSubExpr.size());
+                            break;
+                        case C_EXPR_MAX:
+                            setNeededFuncs.insert("my_max");
+                            EmitMultiArgFunction("max",
+                                                 node->papoSubExpr.data(),
+                                                 node->papoSubExpr.size());
+                            break;
+                        case C_EXPR_SUM:
+                            EmitMultiArgFunction("sum",
+                                                 node->papoSubExpr.data(),
+                                                 node->papoSubExpr.size());
+                            break;
+                        case C_EXPR_AVG:
+                            outStr += '(';
+                            EmitMultiArgFunction("sum",
+                                                 node->papoSubExpr.data(),
+                                                 node->papoSubExpr.size());
+                            outStr += " / ";
+                            outStr += std::to_string(node->papoSubExpr.size());
+                            outStr += ')';
+                            break;
+                        case C_EXPR_LIST:
+                        case C_EXPR_INVALID:
+                            CPLAssert(false);
+                            break;
+                    }
+                    break;
+                }
+            }
+        };
+
+        auto node = GDAL_c_expr_compile(
+            CPLString(pszExpression).replaceAll('[', '_').replaceAll(']', '_'));
+        bool bError = node == nullptr;
+        std::string osCExpr;
+        std::set<std::string> setNeededFuncs;
+        if (!bError)
+        {
+            DumpCExpr(node.get(), aosSourceNames, osCExpr, bError,
+                      setNeededFuncs);
+        }
+        if (!bError)
+        {
+            const char *c_type = "";
+            // clang-format off
+            switch (eSrcType)
+            {
+                case GDT_Byte:    c_type = "unsigned char"; break;
+                case GDT_Int8:    c_type = "signed char"; break;
+                case GDT_UInt16:  c_type = "unsigned short"; break;
+                case GDT_Int16:   c_type = "short"; break;
+                case GDT_UInt32:  c_type = "unsigned int"; break;
+                case GDT_Int32:   c_type = "int"; break;
+                case GDT_UInt64:  c_type = "unsigned long long"; break;
+                case GDT_Int64:   c_type = "long long"; break;
+                case GDT_Float32: c_type = "float"; break;
+                case GDT_Float64: c_type = "double"; break;
+                default:          CPLAssert(0);
+            }
+
+            std::string c_code = "typedef __SIZE_TYPE__ size_t;\n";
+
+            for (const std::string &func : setNeededFuncs)
+            {
+                if (func == "my_min")
+                {
+                    c_code += "static inline ";
+                    c_code += c_type;
+                    c_code += " my_min(";
+                    c_code += c_type;
+                    c_code += " a, ";
+                    c_code += c_type;
+                    c_code += " b)\n"
+                              "{\n"
+                              "  return a < b ? a : b;\n"
+                              "}\n";
+                }
+                else if (func == "my_max")
+                {
+                    c_code += "static inline ";
+                    c_code += c_type;
+                    c_code += " my_max(";
+                    c_code += c_type;
+                    c_code += " a, ";
+                    c_code += c_type;
+                    c_code += " b)\n"
+                              "{\n"
+                              "  return a > b ? a : b;\n"
+                              "}\n";
+                }
+                else if (func == "my_div")
+                {
+                    c_code += "static inline ";
+                    c_code += c_type;
+                    c_code += " my_div(";
+                    c_code += c_type;
+                    c_code += " a, ";
+                    c_code += c_type;
+                    c_code += " b)\n"
+                              "{\n"
+                              "  return b ? a / b : 0;\n"
+                              "}\n";
+                }
+                else if (func == "my_mod")
+                {
+                    c_code += "static inline ";
+                    c_code += c_type;
+                    c_code += " my_mod(";
+                    c_code += c_type;
+                    c_code += " a, ";
+                    c_code += c_type;
+                    c_code += " b)\n"
+                              "{\n"
+                              "  return b ? a % b : 0;\n"
+                              "}\n";
+                }
+                else if (func == "my_square")
+                {
+                    c_code += "static inline ";
+                    c_code += c_type;
+                    c_code += " my_square(";
+                    c_code += c_type;
+                    c_code += " a)\n"
+                              "{\n"
+                              "  return a * a;\n"
+                              "}\n";
+                }
+                else if (func == "my_abs")
+                {
+                    c_code += "static inline ";
+                    c_code += c_type;
+                    c_code += " my_abs(";
+                    c_code += c_type;
+                    c_code += " a)\n"
+                              "{\n"
+                              "  return a < 0 ? -a : a;\n"
+                              "}\n";
+                }
+                else if (func == "powf" || func == "fmodf")
+                {
+                    c_code += "float ";
+                    c_code += func;
+                    c_code += "(float, float);\n";
+                }
+                else if (func == "pow" || func == "fmod")
+                {
+                    c_code += "double ";
+                    c_code += func;
+                    c_code += "(double, double);\n";
+                }
+                else if (func.back() == 'f')
+                {
+                    c_code += "float ";
+                    c_code += func;
+                    c_code += "(float);\n";
+                }
+                else
+                {
+                    c_code += "double ";
+                    c_code += func;
+                    c_code += "(double);\n";
+                }
+            }
+
+            c_code += "void computePixels(const ";
+            c_code += c_type;
+            c_code += "* const* inArrays,\n"
+                      "                   ";
+            c_code += c_type;
+            c_code += "* __restrict outArray,\n"
+                      "                   size_t N)\n"
+                      "{\n";
+            // clang-format on
+
+            std::string in_array_type = "const ";
+            in_array_type += c_type;
+            in_array_type += "* const __restrict";
+
+            for (int iSrc = 0; iSrc < nSources; ++iSrc)
+            {
+                c_code += "  ";
+                c_code += in_array_type;
+                c_code += " inArray";
+                c_code += std::to_string(iSrc);
+                c_code += " = inArrays[";
+                c_code += std::to_string(iSrc);
+                c_code += "];\n";
+            }
+
+            // clang-format off
+            c_code +=
+                "  for(size_t i = 0; i < N; ++i)\n"
+                "  {\n"
+                "     outArray[i] = ";
+            c_code += osCExpr;
+            c_code +=
+                ";\n"
+                "  }\n"
+                "}\n";
+            // clang-format on
+
+            CPLDebug("VRT", "C code:\n%s", c_code.c_str());
+
+            bool bRet = false;
+            switch (eSrcType)
+            {
+                case GDT_Byte:
+                    bRet = JITCompute<uint8_t>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                case GDT_Int8:
+                    bRet = JITCompute<int8_t>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                case GDT_UInt16:
+                    bRet = JITCompute<uint16_t>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                case GDT_Int16:
+                    bRet = JITCompute<int16_t>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                case GDT_UInt32:
+                    bRet = JITCompute<uint32_t>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                case GDT_Int32:
+                    bRet = JITCompute<int32_t>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                case GDT_UInt64:
+                    bRet = JITCompute<uint64_t>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                case GDT_Int64:
+                    bRet = JITCompute<int64_t>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                case GDT_Float32:
+                    bRet = JITCompute<float>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                case GDT_Float64:
+                    bRet = JITCompute<double>(
+                        papoSources, nSources, pData, nXSize, nYSize, eSrcType,
+                        eBufType, nPixelSpace, nLineSpace, c_code.c_str());
+                    break;
+                default:
+                    CPLAssert(false);
+                    break;
+            }
+            if (bRet)
+                return CE_None;
+        }
+    }
+#endif
+
     std::unique_ptr<double, VSIFreeReleaser> padfResults(
         static_cast<double *>(VSI_MALLOC2_VERBOSE(nXSize, sizeof(double))));
     if (!padfResults)
@@ -2945,7 +3665,11 @@ static CPLErr ExprPixelFunc(void **papoSources, int nSources, void *pData,
     {
         for (int iCol = 0; iCol < nXSize; ++iCol, ++ii)
         {
-            double &dfResult = padfResults.get()[iCol];
+            double &dfResult =
+                /*eBufType == GDT_Float64 ?
+                    *reinterpret_cast<double*>(static_cast<GByte *>(pData) +
+                          static_cast<GSpacing>(nLineSpace) * iLine + nPixelSpace * iCol):*/
+                padfResults.get()[iCol];
             bool resultIsNoData = false;
 
             for (int iSrc = 0; iSrc < nSources; iSrc++)
@@ -2984,10 +3708,13 @@ static CPLErr ExprPixelFunc(void **papoSources, int nSources, void *pData,
             }
         }
 
-        GDALCopyWords(padfResults.get(), GDT_Float64, sizeof(double),
-                      static_cast<GByte *>(pData) +
-                          static_cast<GSpacing>(nLineSpace) * iLine,
-                      eBufType, nPixelSpace, nXSize);
+        //if( eBufType != GDT_Float64 )
+        {
+            GDALCopyWords(padfResults.get(), GDT_Float64, sizeof(double),
+                          static_cast<GByte *>(pData) +
+                              static_cast<GSpacing>(nLineSpace) * iLine,
+                          eBufType, nPixelSpace, nXSize);
+        }
     }
 
     /* ---- Return success ---- */

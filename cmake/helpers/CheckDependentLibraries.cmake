@@ -518,4 +518,6 @@ set_package_properties(JNI PROPERTIES PURPOSE "SWIG_JAVA: Java binding")
 find_package(CSharp)
 set_package_properties(CSharp PROPERTIES PURPOSE "SWIG_CSharp: CSharp binding")
 
+gdal_check_package(LLVM "LLVM" CAN_DISABLE)
+
 # vim: ts=4 sw=4 sts=4 et

@@ -62,7 +62,15 @@ add_library(
   nasakeywordhandler.cpp
   tiff_common.cpp
   enviutils.cpp
+  gdal_c_expr.cpp
 )
+
+if (GDAL_USE_LLVM)
+    target_include_directories(gcore PRIVATE ${LLVM_INCLUDE_DIRS})
+    gdal_target_link_libraries(gcore PRIVATE ${LLVM_LIBS} ${LLVM_SYSTEM_LIBS})
+    gdal_target_link_libraries(gcore PRIVATE ${LLVM_CLANG_CPP_LIBRARY})
+    target_sources(gcore PRIVATE gdal_jit.cpp)
+endif()
 
 add_library(gcore_gdal_misc OBJECT gdal_misc.cpp)
 gdal_standard_includes(gcore_gdal_misc)
@@ -275,3 +283,36 @@ set_property(
   TARGET ${GDAL_LIB_TARGET_NAME}
   APPEND
   PROPERTY RESOURCE "${GDAL_DATA_FILES}")
+
+
+###########################################################
+# Targets to refresh gdal_c_expr_parser.cpp
+###########################################################
+
+# Those targets need to be run manually each time gdal_c_expr_parser.cpp
+# is modified.
+# We could of course run them automatically, but that would make building
+# GDAL harder.
+
+# This target checks that gdal_c_expr_parser.cpp md5sum has not changed
+# If it has, then it should be updated and the generate_c_expr_parser target
+# should be manually run
+add_custom_target(check_c_expr_parser_md5 ALL
+                  COMMAND ${CMAKE_COMMAND}
+                      "-DIN_FILE=gdal_c_expr_parser.cpp"
+                      "-DTARGET=generate_c_expr_parser"
+                      "-DEXPECTED_MD5SUM=00e24fd82c5fec251eaa90d84435f94d"
+                      "-DFILENAME_CMAKE=${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt"
+                      -P "${PROJECT_SOURCE_DIR}/cmake/helpers/check_md5sum.cmake"
+                  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/gdal_c_expr_parser.cpp"
+                  VERBATIM)
+
+find_package(BISON)
+add_custom_target(generate_c_expr_parser
+                  COMMAND ${CMAKE_COMMAND}
+                      "-DBISON_FOUND=${BISON_FOUND}"
+                      "-DBISON_EXECUTABLE=${BISON_EXECUTABLE}"
+                      -P "${CMAKE_CURRENT_SOURCE_DIR}/generate_c_expr_parser.cmake"
+                  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                  VERBATIM)
