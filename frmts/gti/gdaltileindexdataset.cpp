@@ -3922,7 +3922,7 @@ bool GDALTileIndexDataset::CollectSources(double dfXOff, double dfYOff,
         SortSourceDesc();
     }
 
-    // Try to find the last (most prioritary) fully opaque source covering
+    // Try to find the last (most priority) fully opaque source covering
     // the whole AOI. We only need to start rendering from it.
     size_t i = m_aoSourceDesc.size();
     while (i > 0)
@@ -4219,7 +4219,7 @@ bool GDALTileIndexDataset::NeedInitBuffer(int nBandCount,
                                           const int *panBandMap) const
 {
     bool bNeedInitBuffer = true;
-    // If the last source (that is the most prioritary one) covers at least
+    // If the last source (that is the most priority one) covers at least
     // the window of interest and is fully opaque, then we don't need to
     // initialize the buffer, and can directly render that source.
     int bHasNoData = false;
@@ -4350,6 +4350,19 @@ CPLErr GDALTileIndexDataset::RenderSource(
         papoBands[nBandNrMax - 1]->GetColorInterpretation() == GCI_AlphaBand &&
         papoBands[nBandNrMax - 1]->GetRasterDataType() == GDT_UInt8)
     {
+        GDALRasterIOExtraArg sExtraArg;
+        INIT_RASTERIO_EXTRA_ARG(sExtraArg);
+        if (psExtraArg->eResampleAlg != GRIORA_NearestNeighbour)
+        {
+            // cppcheck-suppress redundantAssignment
+            sExtraArg.eResampleAlg = psExtraArg->eResampleAlg;
+        }
+        else
+        {
+            // cppcheck-suppress redundantAssignment
+            sExtraArg.eResampleAlg = m_eResampling;
+        }
+
         // Special case when there's typically a mix of RGB and RGBA source
         // datasets and we read a RGB one.
         for (int iBand = 0; iBand < nBandCount && eErr == CE_None; ++iBand)
@@ -4379,9 +4392,10 @@ CPLErr GDALTileIndexDataset::RenderSource(
                 poSource->SetRasterBand(poTileBand, false);
                 if (poSource->GetSrcDstWindow(
                         dfXOff, dfYOff, dfXSize, dfYSize, nBufXSize, nBufYSize,
-                        &dfReqXOff, &dfReqYOff, &dfReqXSize, &dfReqYSize,
-                        &nReqXOff, &nReqYOff, &nReqXSize, &nReqYSize, &nOutXOff,
-                        &nOutYOff, &nOutXSize, &nOutYSize, bError))
+                        sExtraArg.eResampleAlg, &dfReqXOff, &dfReqYOff,
+                        &dfReqXSize, &dfReqYSize, &nReqXOff, &nReqYOff,
+                        &nReqXSize, &nReqYSize, &nOutXOff, &nOutYOff,
+                        &nOutXSize, &nOutYSize, bError))
                 {
                     GByte *pabyOut =
                         static_cast<GByte *>(pData) +
@@ -4411,19 +4425,6 @@ CPLErr GDALTileIndexDataset::RenderSource(
                         bHasNoData ? dfNoDataValue : VRT_NODATA_UNSET);
                 }
                 poSource->SetRasterBand(poTileBand, false);
-
-                GDALRasterIOExtraArg sExtraArg;
-                INIT_RASTERIO_EXTRA_ARG(sExtraArg);
-                if (psExtraArg->eResampleAlg != GRIORA_NearestNeighbour)
-                {
-                    // cppcheck-suppress redundantAssignment
-                    sExtraArg.eResampleAlg = psExtraArg->eResampleAlg;
-                }
-                else
-                {
-                    // cppcheck-suppress redundantAssignment
-                    sExtraArg.eResampleAlg = m_eResampling;
-                }
 
                 GByte *pabyBandData =
                     static_cast<GByte *>(pData) + iBand * nBandSpace;
@@ -4464,11 +4465,25 @@ CPLErr GDALTileIndexDataset::RenderSource(
 
         auto poFirstTileBand = poTileDS->GetRasterBand(1);
         poSource->SetRasterBand(poFirstTileBand, false);
+
+        GDALRasterIOExtraArg sExtraArg;
+        INIT_RASTERIO_EXTRA_ARG(sExtraArg);
+        CPL_IGNORE_RET_VAL(sExtraArg.bFloatingPointWindowValidity);
+        CPL_IGNORE_RET_VAL(sExtraArg.eResampleAlg);
+        if (psExtraArg->eResampleAlg != GRIORA_NearestNeighbour)
+        {
+            sExtraArg.eResampleAlg = psExtraArg->eResampleAlg;
+        }
+        else
+        {
+            sExtraArg.eResampleAlg = m_eResampling;
+        }
+
         if (poSource->GetSrcDstWindow(
                 dfXOff, dfYOff, dfXSize, dfYSize, nBufXSize, nBufYSize,
-                &dfReqXOff, &dfReqYOff, &dfReqXSize, &dfReqYSize, &nReqXOff,
-                &nReqYOff, &nReqXSize, &nReqYSize, &nOutXOff, &nOutYOff,
-                &nOutXSize, &nOutYSize, bError))
+                sExtraArg.eResampleAlg, &dfReqXOff, &dfReqYOff, &dfReqXSize,
+                &dfReqYSize, &nReqXOff, &nReqYOff, &nReqXSize, &nReqYSize,
+                &nOutXOff, &nOutYOff, &nOutXSize, &nOutYSize, bError))
         {
             int iMaskBandIdx = -1;
             if (eBufType == GDT_UInt8 && nBandNrMax == 0)
@@ -4498,18 +4513,6 @@ CPLErr GDALTileIndexDataset::RenderSource(
                 }
             }
 
-            GDALRasterIOExtraArg sExtraArg;
-            INIT_RASTERIO_EXTRA_ARG(sExtraArg);
-            if (psExtraArg->eResampleAlg != GRIORA_NearestNeighbour)
-            {
-                // cppcheck-suppress redundantAssignment
-                sExtraArg.eResampleAlg = psExtraArg->eResampleAlg;
-            }
-            else
-            {
-                // cppcheck-suppress redundantAssignment
-                sExtraArg.eResampleAlg = m_eResampling;
-            }
             sExtraArg.bFloatingPointWindowValidity = TRUE;
             sExtraArg.dfXOff = dfReqXOff;
             sExtraArg.dfYOff = dfReqYOff;

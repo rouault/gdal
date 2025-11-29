@@ -957,9 +957,9 @@ CPLErr VRTDerivedRasterBand::GetPixelFunctionArguments(
 
                     oAdditionalArgs.push_back(
                         std::pair<CPLString, CPLString>(osArgName, osVal));
-                    CPLDebug("VRT",
-                             "Added builtin pixel function argument %s = %s",
-                             osArgName.c_str(), osVal.c_str());
+                    CPLDebugOnly(
+                        "VRT", "Added builtin pixel function argument %s = %s",
+                        osArgName.c_str(), osVal.c_str());
                 }
             }
         }
@@ -1122,7 +1122,26 @@ CPLErr VRTDerivedRasterBand::IRasterIO(
         }
 
         if (eAllSrcType != GDT_Unknown)
+        {
+            if (eAllSrcType != GDT_Float64)
+            {
+                for (const auto &[key, value] : m_poPrivate->m_oFunctionArgs)
+                {
+                    if (EQUAL(key, "expression") &&
+                        (value.find("_CENTER_X_") != std::string::npos ||
+                         value.find("_CENTER_Y_") != std::string::npos))
+                    {
+                        eAllSrcType = GDT_Float64;
+                    }
+                }
+            }
+
+            // Very few CPUs have efficient Float16
+            if (eAllSrcType == GDT_Float16)
+                eAllSrcType = GDT_Float32;
+
             eSrcType = GDALDataTypeUnion(eAllSrcType, eDataType);
+        }
         else
             eSrcType = GDALDataTypeUnion(GDT_Float64, eDataType);
     }
@@ -1202,9 +1221,10 @@ CPLErr VRTDerivedRasterBand::IRasterIO(
                 static_cast<VRTSimpleSource *>(m_papoSources[iSource].get());
             if (!poSource->GetSrcDstWindow(
                     nXOff, nYOff, nXSize, nYSize, nBufXSize, nBufYSize,
-                    &dfReqXOff, &dfReqYOff, &dfReqXSize, &dfReqYSize, &nReqXOff,
-                    &nReqYOff, &nReqXSize, &nReqYSize, &nOutXOff, &nOutYOff,
-                    &nOutXSize, &nOutYSize, bError))
+                    psExtraArg->eResampleAlg, &dfReqXOff, &dfReqYOff,
+                    &dfReqXSize, &dfReqYSize, &nReqXOff, &nReqYOff, &nReqXSize,
+                    &nReqYSize, &nOutXOff, &nOutYOff, &nOutXSize, &nOutYSize,
+                    bError))
             {
                 if (bError)
                 {

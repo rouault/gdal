@@ -535,7 +535,7 @@ OGRErr OGR_L_GetExtentEx(OGRLayerH hLayer, int iGeomField,
  TRUE then some implementations will actually scan the entire layer once
  to compute the MBR of all the features in the layer.
 
- (Contrarty to GetExtent() 2D), the returned extent will always take into
+ (Contrary to GetExtent() 2D), the returned extent will always take into
  account the attribute and spatial filters that may be installed.
 
  Layers without any geometry may return OGRERR_FAILURE just indicating that
@@ -677,7 +677,7 @@ OGRErr OGRLayer::IGetExtent3D(int iGeomField, OGREnvelope3D *psExtent3D,
  TRUE then some implementations will actually scan the entire layer once
  to compute the MBR of all the features in the layer.
 
- (Contrarty to GetExtent() 2D), the returned extent will always take into
+ (Contrary to GetExtent() 2D), the returned extent will always take into
  account the attribute and spatial filters that may be installed.
 
  Layers without any geometry may return OGRERR_FAILURE just indicating that
@@ -2846,7 +2846,7 @@ OGRFeatureDefnH OGR_L_GetLayerDefn(OGRLayerH hLayer)
  The returned number is the index of the field in the layers, or -1 if the
  field doesn't exist.
 
- If bExactMatch is set to FALSE and the field doesn't exists in the given form
+ If bExactMatch is set to FALSE and the field doesn't exist in the given form
  the driver might apply some changes to make it match, like those it might do
  if the layer was created (eg. like LAUNDER in the OCI driver).
 
@@ -2880,7 +2880,7 @@ int OGR_L_FindFieldIndex(OGRLayerH hLayer, const char *pszFieldName,
  The returned number is the index of the field in the layers, or -1 if the
  field doesn't exist.
 
- If bExactMatch is set to FALSE and the field doesn't exists in the given form
+ If bExactMatch is set to FALSE and the field doesn't exist in the given form
  the driver might apply some changes to make it match, like those it might do
  if the layer was created (eg. like LAUNDER in the OCI driver).
 
