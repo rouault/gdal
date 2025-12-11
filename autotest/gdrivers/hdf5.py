@@ -1198,6 +1198,12 @@ END
     assert gdal.Open(ds.GetMetadataItem("Y_DATASET", "GEOLOCATION")) is not None
     ds = None
 
+    ds = gdal.Open(
+        'HDF5:"data/hdf5/dummy_HDFEOS_swath.h5"://HDFEOS/SWATHS/MySwath/Geolocation_Fields/Longitude'
+    )
+    assert len(ds.GetGCPs()) == 0
+    assert ds.GetMetadata("GEOLOCATION") is not None
+
 
 ###############################################################################
 # Test opening a file with band specific attributes

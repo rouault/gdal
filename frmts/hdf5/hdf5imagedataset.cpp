@@ -1021,7 +1021,7 @@ GDALDataset *HDF5ImageDataset::Open(GDALOpenInfo *poOpenInfo)
         {
             CPLDebug("HDF5", "Successfully parsed HDFEOS metadata");
             HDF5EOSParser::GridDataFieldMetadata oGridDataFieldMetadata;
-            HDF5EOSParser::SwathDataFieldMetadata oSwathDataFieldMetadata;
+            HDF5EOSParser::SwathFieldMetadata oSwathFieldMetadata;
             if (oHDFEOSParser.GetDataModel() ==
                     HDF5EOSParser::DataModel::GRID &&
                 oHDFEOSParser.GetGridDataFieldMetadata(
@@ -1051,55 +1051,49 @@ GDALDataset *HDF5ImageDataset::Open(GDALOpenInfo *poOpenInfo)
             }
             else if (oHDFEOSParser.GetDataModel() ==
                          HDF5EOSParser::DataModel::SWATH &&
-                     oHDFEOSParser.GetSwathDataFieldMetadata(
-                         osSubdatasetName.c_str(), oSwathDataFieldMetadata) &&
+                     oHDFEOSParser.GetSwathFieldMetadata(
+                         osSubdatasetName.c_str(), oSwathFieldMetadata) &&
                      static_cast<int>(
-                         oSwathDataFieldMetadata.aoDimensions.size()) ==
+                         oSwathFieldMetadata.aoDimensions.size()) ==
                          poDS->ndims &&
-                     oSwathDataFieldMetadata.iXDim >= 0 &&
-                     oSwathDataFieldMetadata.iYDim >= 0)
+                     oSwathFieldMetadata.iXDim >= 0 &&
+                     oSwathFieldMetadata.iYDim >= 0)
             {
-                poDS->m_nXIndex = oSwathDataFieldMetadata.iXDim;
-                poDS->m_nYIndex = oSwathDataFieldMetadata.iYDim;
-                poDS->m_nOtherDimIndex = oSwathDataFieldMetadata.iOtherDim;
-                if (!oSwathDataFieldMetadata.osLongitudeSubdataset.empty())
+                poDS->m_nXIndex = oSwathFieldMetadata.iXDim;
+                poDS->m_nYIndex = oSwathFieldMetadata.iYDim;
+                poDS->m_nOtherDimIndex = oSwathFieldMetadata.iOtherDim;
+                if (!oSwathFieldMetadata.osLongitudeSubdataset.empty())
                 {
+                    CPLStringList aosGeolocation;
+
                     // Arbitrary
-                    poDS->SetMetadataItem("SRS", SRS_WKT_WGS84_LAT_LONG,
-                                          "GEOLOCATION");
-                    poDS->SetMetadataItem(
-                        "X_DATASET",
-                        ("HDF5:\"" + osFilename +
-                         "\":" + oSwathDataFieldMetadata.osLongitudeSubdataset)
-                            .c_str(),
-                        "GEOLOCATION");
-                    poDS->SetMetadataItem("X_BAND", "1", "GEOLOCATION");
-                    poDS->SetMetadataItem(
-                        "Y_DATASET",
-                        ("HDF5:\"" + osFilename +
-                         "\":" + oSwathDataFieldMetadata.osLatitudeSubdataset)
-                            .c_str(),
-                        "GEOLOCATION");
-                    poDS->SetMetadataItem("Y_BAND", "1", "GEOLOCATION");
-                    poDS->SetMetadataItem(
+                    aosGeolocation.AddNameValue("SRS", SRS_WKT_WGS84_LAT_LONG);
+                    aosGeolocation.AddNameValue(
+                        "X_DATASET", ("HDF5:\"" + osFilename + "\":" +
+                                      oSwathFieldMetadata.osLongitudeSubdataset)
+                                         .c_str());
+                    aosGeolocation.AddNameValue("X_BAND", "1");
+                    aosGeolocation.AddNameValue(
+                        "Y_DATASET", ("HDF5:\"" + osFilename + "\":" +
+                                      oSwathFieldMetadata.osLatitudeSubdataset)
+                                         .c_str());
+                    aosGeolocation.AddNameValue("Y_BAND", "1");
+                    aosGeolocation.AddNameValue(
                         "PIXEL_OFFSET",
-                        CPLSPrintf("%d", oSwathDataFieldMetadata.nPixelOffset),
-                        "GEOLOCATION");
-                    poDS->SetMetadataItem(
+                        CPLSPrintf("%d", oSwathFieldMetadata.nPixelOffset));
+                    aosGeolocation.AddNameValue(
                         "PIXEL_STEP",
-                        CPLSPrintf("%d", oSwathDataFieldMetadata.nPixelStep),
-                        "GEOLOCATION");
-                    poDS->SetMetadataItem(
+                        CPLSPrintf("%d", oSwathFieldMetadata.nPixelStep));
+                    aosGeolocation.AddNameValue(
                         "LINE_OFFSET",
-                        CPLSPrintf("%d", oSwathDataFieldMetadata.nLineOffset),
-                        "GEOLOCATION");
-                    poDS->SetMetadataItem(
+                        CPLSPrintf("%d", oSwathFieldMetadata.nLineOffset));
+                    aosGeolocation.AddNameValue(
                         "LINE_STEP",
-                        CPLSPrintf("%d", oSwathDataFieldMetadata.nLineStep),
-                        "GEOLOCATION");
+                        CPLSPrintf("%d", oSwathFieldMetadata.nLineStep));
                     // Not totally sure about that
-                    poDS->SetMetadataItem("GEOREFERENCING_CONVENTION",
-                                          "PIXEL_CENTER", "GEOLOCATION");
+                    aosGeolocation.AddNameValue("GEOREFERENCING_CONVENTION",
+                                                "PIXEL_CENTER");
+                    poDS->SetMetadata(aosGeolocation.List(), "GEOLOCATION");
                 }
             }
         }
