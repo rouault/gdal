@@ -1234,6 +1234,7 @@ char **JPGDatasetCommon::GetMetadataDomainList()
     ReadXMPMetadata();
     ReadICCProfile();
     ReadThermalMetadata();
+    ReadImageStructureMetadata();
     return GDALPamDataset::GetMetadataDomainList();
 }
 
