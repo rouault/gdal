@@ -118,7 +118,6 @@ if ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "(i586|i686|x86|AMD64)")
     }" HAVE_AVX2_FMA_WITHOUT_FLAG)
 
 else()
-
   # Check ability to use Arm Neon optimizations
   include(CMakePushCheckState)
   cmake_push_check_state(RESET)
