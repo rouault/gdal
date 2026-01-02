@@ -197,7 +197,7 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
     }
 
     /* -------------------------------------------------------------------- */
-    /*      Does this header have the FSDEVT field?                         */
+    /*      Does this header have the ISDEVT field?                         */
     /* -------------------------------------------------------------------- */
     nOffset = 333;
 
@@ -1241,8 +1241,8 @@ void NITFImageDeaccess(NITFImage *psImage)
 /*      from OpenMap ... open source means sharing!                     */
 /************************************************************************/
 
-static void NITFUncompressVQTile(NITFImage *psImage, GByte *pabyVQBuf,
-                                 GByte *pabyResult)
+static void NITFUncompressVQTile(const NITFImage *psImage,
+                                 const GByte *pabyVQBuf, GByte *pabyResult)
 
 {
     int i, j, t, iSrcByte = 0;
@@ -2101,12 +2101,34 @@ int NITFWriteIGEOLO(NITFImage *psImage, char chICORDS, int nZone, double dfULX,
         return FALSE;
     }
 
-    if (chICORDS != 'G' && chICORDS != 'N' && chICORDS != 'S' &&
-        chICORDS != 'D')
+    if (EQUAL(psImage->psFile->szVersion, "NITF02.00"))
     {
-        CPLError(CE_Failure, CPLE_NotSupported,
-                 "Invalid ICOORDS value (%c) for NITFWriteIGEOLO().", chICORDS);
-        return FALSE;
+        if (chICORDS == 'U')
+        {
+            // Could be done, but we don't need UTM for CADRG support
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "Writing UTM MGRS coordinates for NITF02.00 is not "
+                     "supported in this implementation.");
+            return FALSE;
+        }
+        else if (chICORDS != 'G' && chICORDS != 'D')
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "Invalid ICOORDS value (%c) for NITFWriteIGEOLO().",
+                     chICORDS);
+            return FALSE;
+        }
+    }
+    else
+    {
+        if (chICORDS != 'G' && chICORDS != 'N' && chICORDS != 'S' &&
+            chICORDS != 'D')
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "Invalid ICOORDS value (%c) for NITFWriteIGEOLO().",
+                     chICORDS);
+            return FALSE;
+        }
     }
 
     /* -------------------------------------------------------------------- */
@@ -2184,10 +2206,30 @@ int NITFWriteIGEOLO(NITFImage *psImage, char chICORDS, int nZone, double dfULX,
     /* -------------------------------------------------------------------- */
     /*      Write IGEOLO data to disk.                                      */
     /* -------------------------------------------------------------------- */
+    int nOffset = 372;
+    if (EQUAL(psImage->psFile->szVersion, "NITF02.00"))
+    {
+        // Read ISDWNG field;
+        char szISDWNG[6 + 1] = {0};
+        if (VSIFSeekL(psImage->psFile->fp,
+                      psImage->psFile->pasSegmentInfo[psImage->iSegment]
+                              .nSegmentHeaderStart +
+                          284,
+                      SEEK_SET) != 0 ||
+            VSIFReadL(szISDWNG, 1, 6, psImage->psFile->fp) != 6)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "I/O Error writing IGEOLO segment.\n%s",
+                     VSIStrerror(errno));
+            return FALSE;
+        }
+        if (EQUAL(szISDWNG, "999998"))
+            nOffset += 40;
+    }
     if (VSIFSeekL(psImage->psFile->fp,
                   psImage->psFile->pasSegmentInfo[psImage->iSegment]
                           .nSegmentHeaderStart +
-                      372,
+                      nOffset,
                   SEEK_SET) == 0 &&
         VSIFWriteL(szIGEOLO, 1, 60, psImage->psFile->fp) == 60)
     {

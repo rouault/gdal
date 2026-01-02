@@ -15,7 +15,8 @@ NITF -- National Imagery Transmission Format
    nitf_advanced
 
 GDAL supports reading of several subtypes of NITF (National Imagery Transmission Format)
-image files, and writing simple NITF 2.1 files. NITF 1.1, NITF 2.0, NITF 2.1 and NSIF 1.0
+image files, and writing NITF 2.1 files, and limited writing support for NITF 2.0.
+NITF 1.1, NITF 2.0, NITF 2.1 and NSIF 1.0
 files with uncompressed, ARIDPCM (Adaptive Recursive Interpolated Differential Pulse Code Modulation),
 JPEG compressed, JPEG2000 (with Kakadu, ECW SDKs or other JPEG2000 capable driver)
 or VQ (Vector Quantized) compressed images should be readable.
@@ -204,11 +205,12 @@ The following creation options are available:
       interface. If specified, ICORDS must also be specified.
 
 -  .. co:: FHDR
-      :choices: NITF02.10, NSIF01.00
+      :choices: NITF02.10, NSIF01.00, NITF02.00
       :default: NITF02.10
 
-      File version can be selected though currently the only two
-      variations supported are "NITF02.10" (the default), and "NSIF01.00".
+      File version can be selected. "NITF02.10" (the default), and "NSIF01.00"
+      are fully supported. Support for NITF02.00 has been introduced in GDAL 3.13.
+      Note that for NITF02.00 writing UTM coordinates is not supported.
 
 -  .. co:: IREP
 
@@ -339,7 +341,8 @@ The following creation options are available:
       the input file.
 
 
-The following creation options to set fields in the NITF file header are available:
+The following creation options to set fields in the NITF file header are available
+for NITF 02.10 and NSIF 1.0. For NITF 02.00, consult MIL-STD-2500A
 
 -  .. co:: OSTAID
       :choices: string of up to 10 characters
@@ -456,7 +459,8 @@ The following creation options to set fields in the NITF file header are availab
 
       Originator Phone Number
 
-The following creation options to set fields in the NITF image header are available:
+The following creation options to set fields in the NITF image header are available
+for NITF 02.10 and NSIF 1.0. For NITF 02.00, consult MIL-STD-2500A.
 
 -  .. co:: IID1
       :choices: string of up to 10 characters

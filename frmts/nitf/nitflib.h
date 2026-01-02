@@ -150,6 +150,9 @@ typedef struct
     char szICAT[9];
     int nABPP; /* significant bits per pixel */
 
+    /* We use NITF02.10 conventions to indicate no IGEOLO, ie ICORDS=' ', even
+     * when writing NITF02.00 where this is nominally 'N' (which in NITF02.10
+     * means UTM North...). NITFCreate() and NITFWriteIGEOLO() do the translation */
     char chICORDS;
     int bHaveIGEOLO;
 

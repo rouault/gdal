@@ -5738,6 +5738,29 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
 }
 
 /************************************************************************/
+/*                          NITFHasFSDWNGField()                        */
+/************************************************************************/
+
+static bool NITFHasFSDWNGField(VSILFILE *fpVSIL)
+{
+    char szFHDR[9 + 1] = {0};
+    bool bOK = VSIFSeekL(fpVSIL, 0, SEEK_SET) == 0;
+    bOK &= VSIFReadL(szFHDR, 9, 1, fpVSIL) == 1;
+    if (EQUAL(szFHDR, "NITF02.00"))
+    {
+        // Read FSDWNG field
+        char szFSDWNG[6 + 1] = {0};
+        bOK &= VSIFSeekL(fpVSIL, 280, SEEK_SET) == 0;
+        bOK &= VSIFReadL(szFSDWNG, 1, 6, fpVSIL) == 6;
+        if (bOK && EQUAL(szFSDWNG, "999998"))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/************************************************************************/
 /*                        NITFPatchImageLength()                        */
 /*                                                                      */
 /*      Fixup various stuff we don't know till we have written the      */
@@ -5771,7 +5794,8 @@ static bool NITFPatchImageLength(const char *pszFilename, int nIMIndex,
     }
     CPLString osLen =
         CPLString().Printf("%012" CPL_FRMT_GB_WITHOUT_PREFIX "u", nFileLen);
-    if (VSIFSeekL(fpVSIL, 342, SEEK_SET) != 0 ||
+    const int nExtraOffset = NITFHasFSDWNGField(fpVSIL) ? 40 : 0;
+    if (VSIFSeekL(fpVSIL, 342 + nExtraOffset, SEEK_SET) != 0 ||
         VSIFWriteL(reinterpret_cast<const void *>(osLen.c_str()), 12, 1,
                    fpVSIL) != 1)
     {
@@ -5794,7 +5818,7 @@ static bool NITFPatchImageLength(const char *pszFilename, int nIMIndex,
     }
     osLen =
         CPLString().Printf("%010" CPL_FRMT_GB_WITHOUT_PREFIX "u", nImageSize);
-    if (VSIFSeekL(fpVSIL, 369 + 16 * nIMIndex, SEEK_SET) != 0 ||
+    if (VSIFSeekL(fpVSIL, 369 + nExtraOffset + 16 * nIMIndex, SEEK_SET) != 0 ||
         VSIFWriteL(reinterpret_cast<const void *>(osLen.c_str()), 10, 1,
                    fpVSIL) != 1)
     {
@@ -5829,7 +5853,7 @@ static bool NITFPatchImageLength(const char *pszFilename, int nIMIndex,
     }
     else
     {
-        char szCOMRAT[5];
+        char szCOMRAT[5] = "00.0";
 
         if (EQUAL(pszIC, "C8")) /* jpeg2000 */
         {
@@ -5862,10 +5886,6 @@ static bool NITFPatchImageLength(const char *pszFilename, int nIMIndex,
                          // % 10000 to please -Wformat-truncation
                          static_cast<unsigned>(dfRate * 100) % 10000);
             }
-        }
-        else if (EQUAL(pszIC, "C3") || EQUAL(pszIC, "M3")) /* jpeg */
-        {
-            strcpy(szCOMRAT, "00.0");
         }
 
         bOK &= VSIFWriteL(szCOMRAT, 4, 1, fpVSIL) == 1;
@@ -5957,8 +5977,8 @@ static bool NITFWriteCGMSegments(const char *pszFilename, VSILFILE *&fpVSIL,
     char achNUMI[4];  // 3 digits plus null character
     achNUMI[3] = '\0';
 
-    // NUMI offset is at a fixed offset 363
-    const int nNumIOffset = 360;
+    // NUMI offset is at a fixed offset 360
+    const int nNumIOffset = 360 + (NITFHasFSDWNGField(fpVSIL) ? 40 : 0);
     bool bOK = VSIFSeekL(fpVSIL, nNumIOffset, SEEK_SET) == 0;
     bOK &= VSIFReadL(achNUMI, 3, 1, fpVSIL) == 1;
     const int nIM = atoi(achNUMI);
@@ -6182,8 +6202,8 @@ static bool NITFWriteTextSegments(const char *pszFilename, VSILFILE *&fpVSIL,
 
     char achNUMI[4];  // 3 digits plus null character
     achNUMI[3] = '\0';
-    // NUMI offset is at a fixed offset 363
-    int nNumIOffset = 360;
+    // NUMI offset is at a fixed offset 360
+    const int nNumIOffset = 360 + (NITFHasFSDWNGField(fpVSIL) ? 40 : 0);
     bool bOK = VSIFSeekL(fpVSIL, nNumIOffset, SEEK_SET) == 0;
     bOK &= VSIFReadL(achNUMI, 3, 1, fpVSIL) == 1;
     int nIM = atoi(achNUMI);
@@ -6646,10 +6666,11 @@ static bool NITFWriteDES(const char *pszFilename, VSILFILE *&fpVSIL,
     if (fpVSIL == nullptr)
         return false;
 
+    // NUMI offset is at a fixed offset 360, unless there is a FSDWNG field
+    const int nNumIOffset = 360 + (NITFHasFSDWNGField(fpVSIL) ? 40 : 0);
+
     char achNUMI[4];  // 3 digits plus null character
     achNUMI[3] = '\0';
-    // NUMI offset is at a fixed offset 363
-    int nNumIOffset = 360;
     bool bOK = VSIFSeekL(fpVSIL, nNumIOffset, SEEK_SET) == 0;
     bOK &= VSIFReadL(achNUMI, 3, 1, fpVSIL) == 1;
     int nIM = atoi(achNUMI);
@@ -6761,8 +6782,10 @@ static bool UpdateFileLength(VSILFILE *fp)
     /* -------------------------------------------------------------------- */
     bool bOK = VSIFSeekL(fp, 0, SEEK_END) == 0;
     GUIntBig nFileLen = VSIFTellL(fp);
+
     // Offset to file length entry
-    bOK &= VSIFSeekL(fp, 342, SEEK_SET) == 0;
+    const int nFLOffset = 342 + (NITFHasFSDWNGField(fp) ? 40 : 0);
+    bOK &= VSIFSeekL(fp, nFLOffset, SEEK_SET) == 0;
     if (nFileLen >= NITF_MAX_FILE_SIZE)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
@@ -7349,6 +7372,7 @@ void NITFDriver::InitCreationOptionList()
         "version' default='NITF02.10'>"
         "       <Value>NITF02.10</Value>"
         "       <Value>NSIF01.00</Value>"
+        "       <Value>NITF02.00</Value>"
         "   </Option>"
         "   <Option name='IREP' type='string' description='Set to RGB/LUT to "
         "reserve space for a color table for each output band. (Only needed "
@@ -7424,8 +7448,8 @@ void NITFDriver::InitCreationOptionList()
         "_RPC.TXT file' default='NO'/>"
         "   <Option name='USE_SRC_NITF_METADATA' type='boolean' "
         "description='Whether to use NITF source metadata in NITF-to-NITF "
-        "conversions' default='YES'/>";
-    osCreationOptions += "</CreationOptionList>";
+        "conversions' default='YES'/>"
+        "</CreationOptionList>";
 
     SetMetadataItem(GDAL_DMD_CREATIONOPTIONLIST, osCreationOptions);
 }
