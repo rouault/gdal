@@ -13,6 +13,8 @@ add_gdal_driver(
           nitf_gcprpc.cpp
           nitfwritejpeg.cpp
           nitfwritejpeg_12.cpp
+          offsetpatcher.cpp
+          rpfframewriter.cpp
   CORE_SOURCES
           nitfdrivercore.cpp
   PLUGIN_CAPABLE_IF
@@ -91,7 +93,7 @@ if (GDAL_USE_TIFF AND NOT GDAL_USE_TIFF_INTERNAL)
   gdal_target_link_libraries(gdal_NITF PRIVATE TIFF::TIFF)
 endif ()
 
-add_executable(nitfdump EXCLUDE_FROM_ALL nitfdump.c nitffile.cpp nitfimage.c rpftocfile.cpp nitfaridpcm.cpp mgrs.c nitfdes.c)
+add_executable(nitfdump EXCLUDE_FROM_ALL nitfdump.c nitffile.cpp nitfimage.c rpftocfile.cpp nitfaridpcm.cpp mgrs.c nitfdes.c offsetpatcher.cpp rpfframewriter.cpp)
 if (GDAL_USE_TIFF_INTERNAL)
   target_sources(nitfdump PRIVATE $<TARGET_OBJECTS:libtiff>)
   gdal_add_vendored_lib(nitfdump libtiff)

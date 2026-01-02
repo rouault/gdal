@@ -524,6 +524,8 @@ extern "C++"
         CPLStringList &InsertStringDirectly(int nInsertAtLineNo,
                                             char *pszNewLine);
 
+        void Remove(int idx);
+
         // CPLStringList &InsertStrings( int nInsertAtLineNo, char
         // **papszNewLines ); CPLStringList &RemoveStrings( int
         // nFirstLineToDelete, int nNumToRemove=1 );

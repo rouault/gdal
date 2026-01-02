@@ -80,11 +80,6 @@ int CPL_DLL NITFCreate(const char *pszFilename, int nPixels, int nLines,
                        int nBands, int nBitsPerSample, const char *pszPVType,
                        char **papszOptions);
 
-int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
-                 int nBitsPerSample, const char *pszPVType, char **papszOptions,
-                 int *pnIndex, int *pnImageCount, vsi_l_offset *pnImageOffset,
-                 vsi_l_offset *pnICOffset);
-
 const char CPL_DLL *NITFFindTRE(const char *pszTREData, int nTREBytes,
                                 const char *pszTag, int *pnFoundTRESize);
 const char CPL_DLL *NITFFindTREByIndex(const char *pszTREData, int nTREBytes,
@@ -421,5 +416,20 @@ CPLXMLNode *NITFCreateXMLTre(NITFFile *psFile, const char *pszTREName,
                              bool *pbGotError);
 
 CPL_C_END
+
+#ifdef __cplusplus
+
+namespace GDALOffsetPatcher
+{
+class OffsetPatcher;
+}
+
+int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
+                 int nBitsPerSample, const char *pszPVType, char **papszOptions,
+                 int *pnIndex, int *pnImageCount, vsi_l_offset *pnImageOffset,
+                 vsi_l_offset *pnICOffset,
+                 GDALOffsetPatcher::OffsetPatcher *offsetPatcher);
+
+#endif  // __cplusplus
 
 #endif /* ndef NITFLIB_H_INCLUDED */

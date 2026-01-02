@@ -948,6 +948,31 @@ CPLStringList &CPLStringList::InsertStringDirectly(int nInsertAtLineNo,
 }
 
 /************************************************************************/
+/*                                 Remove()                             */
+/************************************************************************/
+
+/** Remove string at index i
+ *
+ * @since 3.13
+ */
+void CPLStringList::Remove(int idx)
+{
+    if (nCount == -1)
+        Count();
+
+    if (idx < 0 || idx >= nCount)
+        return;
+
+    VSIFree(papszList[idx]);
+    if (idx + 1 < nCount)
+    {
+        memmove(papszList + idx, papszList + idx + 1,
+                (nCount - idx) * sizeof(char *));
+    }
+    --nCount;
+}
+
+/************************************************************************/
 /*                      FindSortedInsertionPoint()                      */
 /*                                                                      */
 /*      Find the location at which the indicated line should be         */
