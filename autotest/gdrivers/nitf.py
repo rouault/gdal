@@ -6937,3 +6937,93 @@ def test_nitf_close(tmp_path):
         )
     ds.Close()
     os.remove(tmp_path / "out.ntf")
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_02_00(tmp_path):
+
+    filename = tmp_path / "out.ntf"
+    with gdal.GetDriverByName("NITF").Create(
+        filename, 2, 1, options=["FHDR=NITF02.00"]
+    ) as ds:
+        ds.GetRasterBand(1).WriteRaster(0, 0, 2, 1, b"\x01\x02")
+    with gdal.Open(filename) as ds:
+        assert ds.GetMetadataItem("NITF_FHDR") == "NITF02.00"
+        assert ds.GetRasterBand(1).ReadRaster() == b"\x01\x02"
+
+    # Some warnings because the FSDWNG, FSDEVT, ISDWNG, ISDEVT options are not declared (too esoteric)
+    # but let's ensure we produce valid files though
+    with gdal.quiet_errors():
+        gdal.GetDriverByName("NITF").CreateCopy(
+            filename,
+            gdal.Open("data/small_world.tif"),
+            options=[
+                "FHDR=NITF02.00",
+                "FSDWNG=999998",
+                "FSDEVT=FSDEVT content",
+                "ISDWNG=999998",
+                "ISDEVT=ISDEVT content",
+                "ONAME=ONAME",
+                "DES=DES1=02U" + " " * 166 + r"0004ABCD1234567\0890",
+                "TEXT=DATA_0=COUCOU",
+                "TEXT=HEADER_0=ABC",  # This content is invalid but who cares here
+                "CGM=SEGMENT_COUNT=1",
+                "CGM=SEGMENT_0_SLOC_ROW=25",
+                "CGM=SEGMENT_0_SLOC_COL=25",
+                "CGM=SEGMENT_0_SDLVL=2",
+                "CGM=SEGMENT_0_SALVL=1",
+                "CGM=SEGMENT_0_DATA=XYZ",
+            ],
+        )
+    with gdal.Open(filename) as ds:
+        assert [ds.GetRasterBand(i + 1).Checksum() for i in range(3)] == [
+            30111,
+            32302,
+            40026,
+        ]
+        assert ds.GetGeoTransform() == (-180.0, 0.9, 0.0, 90.0, 0.0, -0.9)
+        data = ds.GetMetadata("xml:DES")[0]
+        assert ds.GetMetadataItem("NITF_ONAME") == "ONAME"
+
+        md = ds.GetMetadata("TEXT")
+        assert "DATA_0" in md
+        assert md["DATA_0"] == "COUCOU"
+        assert "HEADER_0" in md
+        assert "ABC  " in md["HEADER_0"]
+
+        md = ds.GetMetadata("CGM")
+        assert "SEGMENT_COUNT" in md
+        assert md["SEGMENT_COUNT"] == "1"
+        assert "SEGMENT_0_DATA" in md
+        assert md["SEGMENT_0_DATA"] == "XYZ"
+
+    expected_data = """<des_list>
+  <des name="DES1">
+    <field name="DESVER" value="02" />
+    <field name="DECLAS" value="U" />
+    <field name="DESCLSY" value="" />
+    <field name="DESCODE" value="" />
+    <field name="DESCTLH" value="" />
+    <field name="DESREL" value="" />
+    <field name="DESDCTP" value="" />
+    <field name="DESDCDT" value="" />
+    <field name="DESDCXM" value="" />
+    <field name="DESDG" value="" />
+    <field name="DESDGDT" value="" />
+    <field name="DESCLTX" value="" />
+    <field name="DESCATP" value="" />
+    <field name="DESCAUT" value="" />
+    <field name="DESCRSN" value="" />
+    <field name="DESSRDT" value="" />
+    <field name="DESCTLN" value="" />
+    <field name="DESSHL" value="0004" />
+    <field name="DESSHF" value="ABCD" />
+    <field name="DESDATA" value="MTIzNDU2NwA4OTA=" />
+  </des>
+</des_list>
+"""
+
+    assert data == expected_data

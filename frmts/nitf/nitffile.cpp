@@ -814,13 +814,14 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
 
     /* -------------------------------------------------------------------- */
     /*      Work out the version we are producing.  For now we really       */
-    /*      only support creating NITF02.10 or the nato analog              */
+    /*      only support creating NITF02.00, NITF02.10 or the NATO analog   */
     /*      NSIF01.00.                                                      */
     /* -------------------------------------------------------------------- */
     pszVersion = CSLFetchNameValue(papszOptions, "FHDR");
     if (pszVersion == nullptr)
         pszVersion = "NITF02.10";
-    else if (!EQUAL(pszVersion, "NITF02.10") && !EQUAL(pszVersion, "NSIF01.00"))
+    else if (!EQUAL(pszVersion, "NITF02.00") &&
+             !EQUAL(pszVersion, "NITF02.10") && !EQUAL(pszVersion, "NSIF01.00"))
     {
         CPLError(CE_Warning, CPLE_AppDefined,
                  "FHDR=%s not supported, switching to NITF02.10.", pszVersion);
@@ -852,43 +853,70 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
         bOK &= VSIFWriteL(&cVal, 1, 1, fp) == 1;                               \
     } while (0)
 
+    int nCOff = 0;
     if (!bAppendSubdataset)
     {
         PLACE(0, FDHR_FVER, pszVersion);
         OVR(2, 9, CLEVEL, "03"); /* Patched at the end */
-        PLACE(11, STYPE, "BF01");
+        PLACE(11, STYPE, EQUAL(pszVersion, "NITF02.00") ? "    " : "BF01");
         OVR(10, 15, OSTAID, "GDAL");
-        OVR(14, 25, FDT, "20021216151629");
+        OVR(14, 25, FDT,
+            EQUAL(pszVersion, "NITF02.00") ? "01000000ZJAN26"
+                                           : "20021216151629");
         OVR(80, 39, FTITLE, "");
         OVR(1, 119, FSCLAS, "U");
-        OVR(2, 120, FSCLSY, "");
-        OVR(11, 122, FSCODE, "");
-        OVR(2, 133, FSCTLH, "");
-        OVR(20, 135, FSREL, "");
-        OVR(2, 155, FSDCTP, "");
-        OVR(8, 157, FSDCDT, "");
-        OVR(4, 165, FSDCXM, "");
-        OVR(1, 169, FSDG, "");
-        OVR(8, 170, FSDGDT, "");
-        OVR(43, 178, FSCLTX, "");
-        OVR(1, 221, FSCATP, "");
-        OVR(40, 222, FSCAUT, "");
-        OVR(1, 262, FSCRSN, "");
-        OVR(8, 263, FSSRDT, "");
-        OVR(15, 271, FSCTLN, "");
-        OVR(5, 286, FSCOP, "00000");
-        OVR(5, 291, FSCPYS, "00000");
-        PLACE(296, ENCRYP, "0");
-        WRITE_BYTE(297, 0x00); /* FBKGC */
-        WRITE_BYTE(298, 0x00);
-        WRITE_BYTE(299, 0x00);
-        OVR(24, 300, ONAME, "");
-        OVR(18, 324, OPHONE, "");
-        PLACE(342, FL, "????????????");
-        PLACE(354, HL, "??????");
-        PLACE(360, NUMI, CPLSPrintf("%03d", nIM));
 
-        int nHL = 363;
+        if (EQUAL(pszVersion, "NITF02.00"))
+        {
+            OVR(40, 120, FSCODE, "");
+            OVR(40, 160, FSCTLH, "");
+            OVR(40, 200, FSREL, "");
+            OVR(20, 240, FSCAUT, "");
+            OVR(20, 260, FSCTLN, "");
+            OVR(6, 280, FSDWNG, "");
+            if (EQUAL(CSLFetchNameValueDef(papszOptions, "FSDWNG", ""),
+                      "999998"))
+            {
+                OVR(40, 286, FSDEVT, "");
+                nCOff += 40;
+            }
+            OVR(5, 286 + nCOff, FSCOP, "00000");
+            OVR(5, 291 + nCOff, FSCPYS, "00000");
+            PLACE(296 + nCOff, ENCRYP, "0");
+            OVR(27, 297 + nCOff, ONAME, "");
+            OVR(18, 324 + nCOff, OPHONE, "");
+        }
+        else
+        {
+            OVR(2, 120, FSCLSY, "");
+            OVR(11, 122, FSCODE, "");
+            OVR(2, 133, FSCTLH, "");
+            OVR(20, 135, FSREL, "");
+            OVR(2, 155, FSDCTP, "");
+            OVR(8, 157, FSDCDT, "");
+            OVR(4, 165, FSDCXM, "");
+            OVR(1, 169, FSDG, "");
+            OVR(8, 170, FSDGDT, "");
+            OVR(43, 178, FSCLTX, "");
+            OVR(1, 221, FSCATP, "");
+            OVR(40, 222, FSCAUT, "");
+            OVR(1, 262, FSCRSN, "");
+            OVR(8, 263, FSSRDT, "");
+            OVR(15, 271, FSCTLN, "");
+            OVR(5, 286, FSCOP, "00000");
+            OVR(5, 291, FSCPYS, "00000");
+            PLACE(296, ENCRYP, "0");
+            WRITE_BYTE(297, 0x00); /* FBKGC */
+            WRITE_BYTE(298, 0x00);
+            WRITE_BYTE(299, 0x00);
+            OVR(24, 300, ONAME, "");
+            OVR(18, 324, OPHONE, "");
+        }
+        PLACE(342 + nCOff, FL, "????????????");
+        PLACE(354 + nCOff, HL, "??????");
+        PLACE(360 + nCOff, NUMI, CPLSPrintf("%03d", nIM));
+
+        int nHL = 363 + nCOff;
         for (iIM = 0; iIM < nIM; iIM++)
         {
             /* Patched when image segments are written. */
@@ -956,7 +984,7 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
         }
 
         // update header length
-        PLACE(354, HL, CPLSPrintf("%06d", nHL));
+        PLACE(354 + nCOff, HL, CPLSPrintf("%06d", nHL));
 
         nCur = nHL;
         iIM = 0;
@@ -967,6 +995,14 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
         NITFFile *psFile = NITFOpenEx(fp, pszFilename);
         if (psFile == nullptr)
             return FALSE;
+
+        if (EQUAL(psFile->szVersion, "NITF02.00") &&
+            EQUAL(
+                CSLFetchNameValueDef(psFile->papszMetadata, "NITF_FSDWNG", ""),
+                "999998"))
+        {
+            nCOff = 40;
+        }
 
         iIM = -1;
         nIM = 0;
@@ -1038,25 +1074,54 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
 
         PLACE(nCur + 0, IM, "IM");
         OVR(10, nCur + 2, IID1, "Missing");
-        OVR(14, nCur + 12, IDATIM, "20021216151629");
+        OVR(14, nCur + 12, IDATIM,
+            EQUAL(pszVersion, "NITF02.00") ? "01000000ZJAN26"
+                                           : "20021216151629");
         OVR(17, nCur + 26, TGTID, "");
-        OVR(80, nCur + 43, IID2, "");
+        if (EQUAL(pszVersion, "NITF02.00"))
+        {
+            OVR(80, nCur + 43, ITITLE, "");
+        }
+        else
+        {
+            OVR(80, nCur + 43, IID2, "");
+        }
         OVR(1, nCur + 123, ISCLAS, "U");
-        OVR(2, nCur + 124, ISCLSY, "");
-        OVR(11, nCur + 126, ISCODE, "");
-        OVR(2, nCur + 137, ISCTLH, "");
-        OVR(20, nCur + 139, ISREL, "");
-        OVR(2, nCur + 159, ISDCTP, "");
-        OVR(8, nCur + 161, ISDCDT, "");
-        OVR(4, nCur + 169, ISDCXM, "");
-        OVR(1, nCur + 173, ISDG, "");
-        OVR(8, nCur + 174, ISDGDT, "");
-        OVR(43, nCur + 182, ISCLTX, "");
-        OVR(1, nCur + 225, ISCATP, "");
-        OVR(40, nCur + 226, ISCAUT, "");
-        OVR(1, nCur + 266, ISCRSN, "");
-        OVR(8, nCur + 267, ISSRDT, "");
-        OVR(15, nCur + 275, ISCTLN, "");
+        int nExtraOffset = 0;
+        if (EQUAL(pszVersion, "NITF02.00"))
+        {
+            OVR(40, nCur + 124, ISCODE, "");
+            OVR(40, nCur + 164, ISCTLH, "");
+            OVR(40, nCur + 204, ISREL, "");
+            OVR(20, nCur + 244, ISCAUT, "");
+            OVR(20, nCur + 264, ISCTLN, "");
+            OVR(6, nCur + 284, ISDWNG, "");
+            if (EQUAL(CSLFetchNameValueDef(papszOptions, "ISDWNG", ""),
+                      "999998"))
+            {
+                OVR(40, nCur + 290, ISDEVT, "");
+                nExtraOffset = 40;
+                nCur += 40;
+            }
+        }
+        else
+        {
+            OVR(2, nCur + 124, ISCLSY, "");
+            OVR(11, nCur + 126, ISCODE, "");
+            OVR(2, nCur + 137, ISCTLH, "");
+            OVR(20, nCur + 139, ISREL, "");
+            OVR(2, nCur + 159, ISDCTP, "");
+            OVR(8, nCur + 161, ISDCDT, "");
+            OVR(4, nCur + 169, ISDCXM, "");
+            OVR(1, nCur + 173, ISDG, "");
+            OVR(8, nCur + 174, ISDGDT, "");
+            OVR(43, nCur + 182, ISCLTX, "");
+            OVR(1, nCur + 225, ISCATP, "");
+            OVR(40, nCur + 226, ISCAUT, "");
+            OVR(1, nCur + 266, ISCRSN, "");
+            OVR(8, nCur + 267, ISSRDT, "");
+            OVR(15, nCur + 275, ISCTLN, "");
+        }
         PLACE(nCur + 290, ENCRYP, "0");
         OVR(42, nCur + 291, ISORCE, "Unknown");
         PLACE(nCur + 333, NROWS, CPLSPrintf("%08d", nLines));
@@ -1071,20 +1136,43 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
                                                    : nBitsPerSample));
         }
         OVR(1, nCur + 370, PJUST, "R");
-        OVR(1, nCur + 371, ICORDS, " ");
 
-        nOffset = 372;
-
+        bool bHasIGEOLO = false;
         {
-            const char *pszParamValue;
-            pszParamValue = CSLFetchNameValue(papszOptions, "ICORDS");
-            if (pszParamValue == nullptr)
+            const char *pszParamValue =
+                CSLFetchNameValueDef(papszOptions, "ICORDS", " ");
+            if (strlen(pszParamValue) != 1)
                 pszParamValue = " ";
-            if (*pszParamValue != ' ')
+            if (EQUAL(pszVersion, "NITF02.00"))
             {
-                OVR(60, nCur + nOffset, IGEOLO, "");
-                nOffset += 60;
+                if (EQUAL(pszParamValue, "N") || EQUAL(pszParamValue, "S"))
+                {
+                    bHasIGEOLO = true;
+                    pszParamValue = "U";  // UTM
+                }
+                else if (EQUAL(pszParamValue, " "))
+                {
+                    pszParamValue = "N";  // In NITF02.00, N stands for Nothing
+                }
+                else
+                {
+                    bHasIGEOLO = true;
+                }
             }
+            else
+            {
+                bHasIGEOLO = !EQUAL(pszParamValue, " ");
+            }
+            PLACE(nCur + 371, ICORDS, pszParamValue);
+        }
+
+        nCur -= nExtraOffset;
+        nOffset = 372 + nExtraOffset;
+
+        if (bHasIGEOLO)
+        {
+            OVR(60, nCur + nOffset, IGEOLO, "");
+            nOffset += 60;
         }
 
         {
@@ -1311,11 +1399,11 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
             return FALSE;
         }
 
-        PLACE(363 + iIM * 16, LISH1, CPLSPrintf("%06d", nIHSize));
+        PLACE(363 + nCOff + iIM * 16, LISH1, CPLSPrintf("%06d", nIHSize));
         if (EQUAL(pszIC, "NC"))
         {
             PLACE(
-                369 + iIM * 16, LIi,
+                369 + nCOff + iIM * 16, LIi,
                 CPLSPrintf("%010" CPL_FRMT_GB_WITHOUT_PREFIX "u", nImageSize));
         }
 
@@ -1346,7 +1434,16 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
     /*      See: http://164.214.2.51/ntb/baseline/docs/2500b/2500b_not2.pdf */
     /*            page 96u                                                  */
     /* -------------------------------------------------------------------- */
-    nCLevel = 3;
+    if (EQUAL(pszVersion, "NITF02.00") && EQUAL(pszIC, "NC") &&
+        nPixels <= 1024 && nLines <= 1024 && nPixels == nNPPBH &&
+        nLines == nNPPBV)
+    {
+        nCLevel = 2;
+    }
+    else
+    {
+        nCLevel = 3;
+    }
     if (bAppendSubdataset)
     {
         // Get existing CLEVEL
@@ -1386,7 +1483,8 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
         return FALSE;
     }
 
-    PLACE(342, FL, CPLSPrintf("%012" CPL_FRMT_GB_WITHOUT_PREFIX "d", nCur));
+    PLACE(342 + nCOff, FL,
+          CPLSPrintf("%012" CPL_FRMT_GB_WITHOUT_PREFIX "d", nCur));
 
     if (VSIFCloseL(fp) != 0)
         bOK = FALSE;

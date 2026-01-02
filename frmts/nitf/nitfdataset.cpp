@@ -5747,6 +5747,29 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
 }
 
 /************************************************************************/
+/*                         NITFHasFSDWNGField()                         */
+/************************************************************************/
+
+static bool NITFHasFSDWNGField(VSILFILE *fpVSIL)
+{
+    char szFHDR[9 + 1] = {0};
+    bool bOK = VSIFSeekL(fpVSIL, 0, SEEK_SET) == 0;
+    bOK &= VSIFReadL(szFHDR, 9, 1, fpVSIL) == 1;
+    if (EQUAL(szFHDR, "NITF02.00"))
+    {
+        // Read FSDWNG field
+        char szFSDWNG[6 + 1] = {0};
+        bOK &= VSIFSeekL(fpVSIL, 280, SEEK_SET) == 0;
+        bOK &= VSIFReadL(szFSDWNG, 1, 6, fpVSIL) == 6;
+        if (bOK && EQUAL(szFSDWNG, "999998"))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/************************************************************************/
 /*                        NITFPatchImageLength()                        */
 /*                                                                      */
 /*      Fixup various stuff we don't know till we have written the      */
@@ -5780,7 +5803,8 @@ static bool NITFPatchImageLength(const char *pszFilename, int nIMIndex,
     }
     CPLString osLen =
         CPLString().Printf("%012" CPL_FRMT_GB_WITHOUT_PREFIX "u", nFileLen);
-    if (VSIFSeekL(fpVSIL, 342, SEEK_SET) != 0 ||
+    const int nExtraOffset = NITFHasFSDWNGField(fpVSIL) ? 40 : 0;
+    if (VSIFSeekL(fpVSIL, 342 + nExtraOffset, SEEK_SET) != 0 ||
         VSIFWriteL(reinterpret_cast<const void *>(osLen.c_str()), 12, 1,
                    fpVSIL) != 1)
     {
@@ -5803,7 +5827,7 @@ static bool NITFPatchImageLength(const char *pszFilename, int nIMIndex,
     }
     osLen =
         CPLString().Printf("%010" CPL_FRMT_GB_WITHOUT_PREFIX "u", nImageSize);
-    if (VSIFSeekL(fpVSIL, 369 + 16 * nIMIndex, SEEK_SET) != 0 ||
+    if (VSIFSeekL(fpVSIL, 369 + nExtraOffset + 16 * nIMIndex, SEEK_SET) != 0 ||
         VSIFWriteL(reinterpret_cast<const void *>(osLen.c_str()), 10, 1,
                    fpVSIL) != 1)
     {
@@ -5838,7 +5862,7 @@ static bool NITFPatchImageLength(const char *pszFilename, int nIMIndex,
     }
     else
     {
-        char szCOMRAT[5];
+        char szCOMRAT[5] = "00.0";
 
         if (EQUAL(pszIC, "C8")) /* jpeg2000 */
         {
@@ -5871,10 +5895,6 @@ static bool NITFPatchImageLength(const char *pszFilename, int nIMIndex,
                          // % 10000 to please -Wformat-truncation
                          static_cast<unsigned>(dfRate * 100) % 10000);
             }
-        }
-        else if (EQUAL(pszIC, "C3") || EQUAL(pszIC, "M3")) /* jpeg */
-        {
-            strcpy(szCOMRAT, "00.0");
         }
 
         bOK &= VSIFWriteL(szCOMRAT, 4, 1, fpVSIL) == 1;
@@ -5966,8 +5986,9 @@ static bool NITFWriteCGMSegments(const char *pszFilename, VSILFILE *&fpVSIL,
     char achNUMI[4];  // 3 digits plus null character
     achNUMI[3] = '\0';
 
-    // NUMI offset is at a fixed offset 363
-    const vsi_l_offset nNumIOffset = 360;
+    // NUMI offset is at a fixed offset 360
+    const vsi_l_offset nNumIOffset =
+        360 + (NITFHasFSDWNGField(fpVSIL) ? 40 : 0);
     bool bOK = VSIFSeekL(fpVSIL, nNumIOffset, SEEK_SET) == 0;
     bOK &= VSIFReadL(achNUMI, 3, 1, fpVSIL) == 1;
     const int nIM = atoi(achNUMI);
@@ -6191,8 +6212,9 @@ static bool NITFWriteTextSegments(const char *pszFilename, VSILFILE *&fpVSIL,
 
     char achNUMI[4];  // 3 digits plus null character
     achNUMI[3] = '\0';
-    // NUMI offset is at a fixed offset 363
-    vsi_l_offset nNumIOffset = 360;
+    // NUMI offset is at a fixed offset 360
+    const vsi_l_offset nNumIOffset =
+        360 + (NITFHasFSDWNGField(fpVSIL) ? 40 : 0);
     bool bOK = VSIFSeekL(fpVSIL, nNumIOffset, SEEK_SET) == 0;
     bOK &= VSIFReadL(achNUMI, 3, 1, fpVSIL) == 1;
     int nIM = atoi(achNUMI);
@@ -6655,10 +6677,12 @@ static bool NITFWriteDES(const char *pszFilename, VSILFILE *&fpVSIL,
     if (fpVSIL == nullptr)
         return false;
 
+    // NUMI offset is at a fixed offset 360, unless there is a FSDWNG field
+    const vsi_l_offset nNumIOffset =
+        360 + (NITFHasFSDWNGField(fpVSIL) ? 40 : 0);
+
     char achNUMI[4];  // 3 digits plus null character
     achNUMI[3] = '\0';
-    // NUMI offset is at a fixed offset 363
-    vsi_l_offset nNumIOffset = 360;
     bool bOK = VSIFSeekL(fpVSIL, nNumIOffset, SEEK_SET) == 0;
     bOK &= VSIFReadL(achNUMI, 3, 1, fpVSIL) == 1;
     int nIM = atoi(achNUMI);
@@ -6770,8 +6794,10 @@ static bool UpdateFileLength(VSILFILE *fp)
     /* -------------------------------------------------------------------- */
     bool bOK = VSIFSeekL(fp, 0, SEEK_END) == 0;
     GUIntBig nFileLen = VSIFTellL(fp);
+
     // Offset to file length entry
-    bOK &= VSIFSeekL(fp, 342, SEEK_SET) == 0;
+    const vsi_l_offset nFLOffset = 342 + (NITFHasFSDWNGField(fp) ? 40 : 0);
+    bOK &= VSIFSeekL(fp, nFLOffset, SEEK_SET) == 0;
     if (nFileLen >= NITF_MAX_FILE_SIZE)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
@@ -7138,20 +7164,22 @@ static const NITFFieldDescription asFieldDescription[] = {
     {14, "FDT", "File Date and Time"},
     {80, "FTITLE", "File Title"},
     {1, "FSCLAS", "File Security Classification"},
-    {2, "FSCLSY", "File Classification Security System"},
+    {2, "FSCLSY", "File Classification Security System (NITF02.10/NSIF only)"},
     {11, "FSCODE", "File Codewords"},
     {2, "FSCTLH", "File Control and Handling"},
     {20, "FSREL", "File Releasing Instructions"},
-    {2, "FSDCTP", "File Declassification Type"},
-    {8, "FSDCDT", "File Declassification Date"},
-    {4, "FSDCXM", "File Declassification Exemption"},
-    {1, "FSDG", "File Downgrade"},
-    {8, "FSDGDT", "File Downgrade Date"},
-    {43, "FSCLTX", "File Classification Text"},
-    {1, "FSCATP", "File Classification Authority Type"},
+    {2, "FSDCTP", "File Declassification Type (NITF02.10/NSIF only)"},
+    {8, "FSDCDT", "File Declassification Date (NITF02.10/NSIF only)"},
+    {4, "FSDCXM", "File Declassification Exemption (NITF02.10/NSIF only)"},
+    {1, "FSDG", "File Downgrade (NITF02.10/NSIF only)"},
+    {8, "FSDGDT", "File Downgrade Date (NITF02.10/NSIF only)"},
+    {6, "FSDWNG", "File Security Downgrade (NITF02.00 only)"},
+    {40, "FSDEVT", "File Downgrading event (NITF02.00 only)"},
+    {43, "FSCLTX", "File Classification Text (NITF02.10/NSIF only)"},
+    {1, "FSCATP", "File Classification Authority Type (NITF02.10/NSIF only)"},
     {40, "FSCAUT", "File Classification Authority"},
-    {1, "FSCRSN", "File Classification Reason"},
-    {8, "FSSRDT", "File Security Source Date"},
+    {1, "FSCRSN", "File Classification Reason (NITF02.10/NSIF only)"},
+    {8, "FSSRDT", "File Security Source Date (NITF02.10/NSIF only)"},
     {15, "FSCTLN", "File Security Control Number"},
     {5, "FSCOP", "File Copy Number"},
     {5, "FSCPYS", "File Number of Copies"},
@@ -7160,23 +7188,26 @@ static const NITFFieldDescription asFieldDescription[] = {
     {10, "IID1", "Image Identifier 1"},
     {14, "IDATIM", "Image Date and Time"},
     {17, "TGTID", "Target Identifier"},
-    {80, "IID2", "Image Identifier 2"},
+    {80, "IID2", "Image Identifier 2 (NITF02.10/NSIF only)"},
+    {80, "ITITLE", "Image Title (NITF02.00 only)"},
     {1, "ISCLAS", "Image Security Classification"},
-    {2, "ISCLSY", "Image Classification Security System"},
+    {2, "ISCLSY", "Image Classification Security System (NITF02.10/NSIF only)"},
     {11, "ISCODE", "Image Codewords"},
     {2, "ISCTLH", "Image Control and Handling"},
-    {20, "ISREL", "Image Releasing Instructions"},
-    {2, "ISDCTP", "Image Declassification Type"},
-    {8, "ISDCDT", "Image Declassification Date"},
-    {4, "ISDCXM", "Image Declassification Exemption"},
-    {1, "ISDG", "Image Downgrade"},
-    {8, "ISDGDT", "Image Downgrade Date"},
-    {43, "ISCLTX", "Image Classification Text"},
-    {1, "ISCATP", "Image Classification Authority Type"},
+    {20, "ISREL", "Image Releasing Instructions (NITF02.10/NSIF only)"},
+    {2, "ISDCTP", "Image Declassification Type (NITF02.10/NSIF only)"},
+    {8, "ISDCDT", "Image Declassification Date (NITF02.10/NSIF only)"},
+    {4, "ISDCXM", "Image Declassification Exemption (NITF02.10/NSIF only)"},
+    {1, "ISDG", "Image Downgrade (NITF02.10/NSIF only)"},
+    {8, "ISDGDT", "Image Downgrade Date (NITF02.10/NSIF only)"},
+    {6, "ISDWNG", "Image Security Downgrade (NITF02.00 only)"},
+    {40, "ISDEVT", "Image Downgrading event (NITF02.00 only)"},
+    {43, "ISCLTX", "Image Classification Text (NITF02.10/NSIF only)"},
+    {1, "ISCATP", "Image Classification Authority Type (NITF02.10/NSIF only)"},
     {40, "ISCAUT", "Image Classification Authority"},
-    {1, "ISCRSN", "Image Classification Reason"},
-    {8, "ISSRDT", "Image Security Source Date"},
-    {15, "ISCTLN", "Image Security Control Number"},
+    {1, "ISCRSN", "Image Classification Reason (NITF02.10/NSIF only)"},
+    {8, "ISSRDT", "Image Security Source Date (NITF02.10/NSIF only)"},
+    {15, "ISCTLN", "Image Security Control Number (NITF02.10/NSIF only)"},
     {42, "ISORCE", "Image Source"},
     {8, "ICAT", "Image Category"},
     {2, "ABPP", "Actual Bits-Per-Pixel Per Band"},
@@ -7359,6 +7390,7 @@ void NITFDriver::InitCreationOptionList()
         "version' default='NITF02.10'>"
         "       <Value>NITF02.10</Value>"
         "       <Value>NSIF01.00</Value>"
+        "       <Value>NITF02.00</Value>"
         "   </Option>"
         "   <Option name='IREP' type='string' description='Set to RGB/LUT to "
         "reserve space for a color table for each output band. (Only needed "
@@ -7434,8 +7466,8 @@ void NITFDriver::InitCreationOptionList()
         "_RPC.TXT file' default='NO'/>"
         "   <Option name='USE_SRC_NITF_METADATA' type='boolean' "
         "description='Whether to use NITF source metadata in NITF-to-NITF "
-        "conversions' default='YES'/>";
-    osCreationOptions += "</CreationOptionList>";
+        "conversions' default='YES'/>"
+        "</CreationOptionList>";
 
     SetMetadataItem(GDAL_DMD_CREATIONOPTIONLIST, osCreationOptions);
 }

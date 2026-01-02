@@ -15,7 +15,8 @@ NITF -- National Imagery Transmission Format
    nitf_advanced
 
 GDAL supports reading of several subtypes of NITF (National Imagery Transmission Format)
-image files, and writing simple NITF 2.1 files. NITF 1.1, NITF 2.0, NITF 2.1 and NSIF 1.0
+image files, and writing NITF 2.1 files, and limited writing support for NITF 2.0.
+NITF 1.1, NITF 2.0, NITF 2.1 and NSIF 1.0
 files with uncompressed, ARIDPCM (Adaptive Recursive Interpolated Differential Pulse Code Modulation),
 JPEG compressed, JPEG2000 (with Kakadu, ECW SDKs or other JPEG2000 capable driver)
 or VQ (Vector Quantized) compressed images should be readable.
@@ -204,11 +205,12 @@ The following creation options are available:
       interface. If specified, ICORDS must also be specified.
 
 -  .. co:: FHDR
-      :choices: NITF02.10, NSIF01.00
+      :choices: NITF02.10, NSIF01.00, NITF02.00
       :default: NITF02.10
 
-      File version can be selected though currently the only two
-      variations supported are "NITF02.10" (the default), and "NSIF01.00".
+      File version can be selected. "NITF02.10" (the default), and "NSIF01.00"
+      are fully supported. Support for NITF02.00 has been introduced in GDAL 3.13.
+      Note that for NITF02.00 writing UTM coordinates is not supported.
 
 -  .. co:: IREP
 
@@ -359,17 +361,17 @@ The following creation options to set fields in the NITF file header are availab
 -  .. co:: FSCLAS
       :choices: string of 1 character
 
-      File Security Classification
+      File Security Classification (U/R/C/S/T)
 
 -  .. co:: FSCLSY
       :choices: string of up to 2 characters
 
-      File Classification Security System
+      File Classification Security System (NITF02.10/NSIF only)
 
 -  .. co:: FSCODE
       :choices: string of up to 11 characters
 
-      File Codewords
+      File Codewords (NITF02.10/NSIF only)
 
 -  .. co:: FSCTLH
       :choices: string of up to 2 characters
@@ -384,37 +386,47 @@ The following creation options to set fields in the NITF file header are availab
 -  .. co:: FSDCTP
       :choices: string of up to 2 characters
 
-      File Declassification Type
+      File Declassification Type (NITF02.10/NSIF only)
 
 -  .. co:: FSDCDT
       :choices: string of 8 characters
 
-      File Declassification Date
+      File Declassification Date (NITF02.10/NSIF only)
 
 -  .. co:: FSDCXM
       :choices: string of up to 4 characters
 
-      File Declassification Exemption
+      File Declassification Exemption (NITF02.10/NSIF only)
 
 -  .. co:: FSDG
       :choices: string of 1 character
 
-      File Downgrade
+      File Downgrade (NITF02.10/NSIF only)
 
 -  .. co:: FSDGDT
       :choices: string of 8 characters
 
-      File Downgrade Date
+      File Downgrade Date (NITF02.10/NSIF only)
+
+-  .. co:: FSDWNG
+      :choices: string of up to 6 characters
+
+      File Security Downgrade (NITF02.00 only)
+
+-  .. co:: FSDEVT
+      :choices: string of 40 characters
+
+      File Downgrading Event (NITF02.00 only)
 
 -  .. co:: FSCLTX
       :choices: string of up to 43 characters
 
-      File Classification Text
+      File Classification Text (NITF02.10/NSIF only)
 
 -  .. co:: FSCATP
       :choices: string of 1 character
 
-      File Classification Authority Type
+      File Classification Authority Type (NITF02.10/NSIF only)
 
 -  .. co:: FSCAUT
       :choices: string of up to 40 characters
@@ -429,12 +441,12 @@ The following creation options to set fields in the NITF file header are availab
 -  .. co:: FSSRDT
       :choices: string of 8 characters
 
-      File Security Source Date
+      File Security Source Date (NITF02.10/NSIF only)
 
 -  .. co:: FSCTLN
       :choices: string of up to 15 characters
 
-      File Security Control Number
+      File Security Control Number (NITF02.10/NSIF only)
 
 -  .. co:: FSCOP
       :choices: string of up to 5 characters
@@ -456,7 +468,8 @@ The following creation options to set fields in the NITF file header are availab
 
       Originator Phone Number
 
-The following creation options to set fields in the NITF image header are available:
+The following creation options to set fields in the NITF image header are available
+for NITF 02.10 and NSIF 1.0. For NITF 02.00, consult MIL-STD-2500A.
 
 -  .. co:: IID1
       :choices: string of up to 10 characters
@@ -476,17 +489,22 @@ The following creation options to set fields in the NITF image header are availa
 -  .. co:: IID2
       :choices: string of up to 80 characters
 
-      Image Identifier 2
+      Image Identifier 2 (NITF02.10/NSIF only)
+
+-  .. co:: ITITLE
+      :choices: string of up to 80 characters
+
+      Image Title (NITF02.00 only)
 
 -  .. co:: ISCLAS
       :choices: string of 1 character
 
-      Image Security Classification
+      Image Security Classification (U/R/C/S/T)
 
 -  .. co:: ISCLSY
       :choices: string of up to 2 characters
 
-      Image Classification Security System
+      Image Classification Security System (NITF02.10/NSIF only)
 
 -  .. co:: ISCODE
       :choices: string of up to 11 characters
@@ -501,42 +519,52 @@ The following creation options to set fields in the NITF image header are availa
 -  .. co:: ISREL
       :choices: string of up to 20 characters
 
-      Image Releasing Instructions
+      Image Releasing Instructions (NITF02.10/NSIF only)
 
 -  .. co:: ISDCTP
       :choices: string of up to 2 characters
 
-      Image Declassification Type
+      Image Declassification Type (NITF02.10/NSIF only)
 
 -  .. co:: ISDCDT
       :choices: string of 8 characters
 
-      Image Declassification Date
+      Image Declassification Date (NITF02.10/NSIF only)
 
 -  .. co:: ISDCXM
       :choices: string of up to 4 characters
 
-      Image Declassification Exemption
+      Image Declassification Exemption (NITF02.10/NSIF only)
 
 -  .. co:: ISDG
       :choices: string of 1 character
 
-      Image Downgrade
+      Image Downgrade (NITF02.10/NSIF only)
 
 -  .. co:: ISDGDT
       :choices: string of 8 characters
 
-      Image Downgrade Date
+      Image Downgrade Date (NITF02.10/NSIF only)
+
+-  .. co:: ISDWNG
+      :choices: string of up to 6 characters
+
+      Image Security Downgrade (NITF02.00 only)
+
+-  .. co:: ISDEVT
+      :choices: string of 40 characters
+
+      Image Downgrading Event (NITF02.00 only)
 
 -  .. co:: ISCLTX
       :choices: string of up to 43 characters
 
-      Image Classification Text
+      Image Classification Text (NITF02.10/NSIF only)
 
 -  .. co:: ISCATP
       :choices: string of 1 character
 
-      Image Classification Authority Type
+      Image Classification Authority Type (NITF02.10/NSIF only)
 
 -  .. co:: ISCAUT
       :choices: string of up to 40 characters
@@ -546,17 +574,17 @@ The following creation options to set fields in the NITF image header are availa
 -  .. co:: ISCRSN
       :choices: string of 1 character
 
-      Image Classification Reason
+      Image Classification Reason (NITF02.10/NSIF only)
 
 -  .. co:: ISSRDT
       :choices: string of 8 characters
 
-      Image Security Source Date
+      Image Security Source Date (NITF02.10/NSIF only)
 
 -  .. co:: ISCTLN
       :choices: string of up to 15 characters
 
-      Image Security Control Number
+      Image Security Control Number (NITF02.10/NSIF only)
 
 -  .. co:: ISORCE
       :choices: string of up to 42 characters
