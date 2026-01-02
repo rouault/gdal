@@ -422,4 +422,19 @@ CPLXMLNode *NITFCreateXMLTre(NITFFile *psFile, const char *pszTREName,
 
 CPL_C_END
 
+#ifdef __cplusplus
+
+namespace GDALOffsetPatcher
+{
+class OffsetPatcher;
+}
+
+int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
+                 int nBitsPerSample, const char *pszPVType, CSLConstList papszOptions,
+                 int *pnIndex, int *pnImageCount, vsi_l_offset *pnImageOffset,
+                 vsi_l_offset *pnICOffset,
+                 GDALOffsetPatcher::OffsetPatcher *offsetPatcher);
+
+#endif  // __cplusplus
+
 #endif /* ndef NITFLIB_H_INCLUDED */

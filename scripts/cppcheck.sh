@@ -147,6 +147,9 @@ done
 
 ret_code=0
 
+grep -v "libdivide" ${LOG_FILE} > ${LOG_FILE}.tmp
+mv ${LOG_FILE}.tmp ${LOG_FILE}
+
 grep -v "unmatchedSuppression" ${LOG_FILE} | grep -v -e " yacc.c" -e PublicDecompWT -e "kdu_cache_wrapper.h" > ${LOG_FILE}.tmp
 mv ${LOG_FILE}.tmp ${LOG_FILE}
 

@@ -24,11 +24,16 @@
 #include "embedded_resources.h"
 #endif
 
-static bool NITFWriteBLOCKA(VSILFILE *fp, vsi_l_offset nOffsetUDIDL,
+#include "offsetpatcher.h"
+#include "rpfframewriter.h"
+
+static bool NITFWriteBLOCKA(VSILFILE *fp, vsi_l_offset nOffsetIXSHDL,
                             int *pnOffset, CSLConstList papszOptions);
-static bool NITFWriteTREsFromOptions(VSILFILE *fp, vsi_l_offset nOffsetUDIDL,
-                                     int *pnOffset, CSLConstList papszOptions,
-                                     const char *pszTREPrefix);
+static bool
+NITFWriteTREsFromOptions(VSILFILE *fp, vsi_l_offset nOffsetIXSHDL,
+                         int *pnOffset, CSLConstList papszOptions,
+                         const char *pszTREPrefix,
+                         GDALOffsetPatcher::OffsetPatcher *offsetPatcher);
 
 static int NITFCollectSegmentInfo(NITFFile *psFile, int nFileHeaderLenSize,
                                   int nOffset, const char szType[3],
@@ -533,13 +538,14 @@ int NITFCreate(const char *pszFilename, int nPixels, int nLines, int nBands,
 {
     return NITFCreateEx(pszFilename, nPixels, nLines, nBands, nBitsPerSample,
                         pszPVType, papszOptions, nullptr, nullptr, nullptr,
-                        nullptr);
+                        nullptr, nullptr);
 }
 
 int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
-                 int nBitsPerSample, const char *pszPVType,
-                 CSLConstList papszOptions, int *pnIndex, int *pnImageCount,
-                 vsi_l_offset *pnImageOffset, vsi_l_offset *pnICOffset)
+                 int nBitsPerSample, const char *pszPVType, CSLConstList papszOptions,
+                 int *pnIndex, int *pnImageCount, vsi_l_offset *pnImageOffset,
+                 vsi_l_offset *pnICOffset,
+                 GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
 
 {
     VSILFILE *fp;
@@ -552,7 +558,7 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
     int nCLevel;
     const char *pszNUMT;
     int nNUMT = 0;
-    vsi_l_offset nOffsetUDIDL;
+    vsi_l_offset nOffsetIXSHDL;
     const char *pszVersion;
     int iIM, nIM = 1;
     const char *pszNUMI;
@@ -662,9 +668,8 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
         nDES = atoi(pszNUMDES);
     else
     {
-        char **papszSubList = CSLFetchNameValueMultiple(papszOptions, "DES");
-        nDES = CSLCount(papszSubList);
-        CSLDestroy(papszSubList);
+        nDES = CPLStringList(CSLFetchNameValueMultiple(papszOptions, "DES"))
+                   .size();
     }
 
     /* -------------------------------------------------------------------- */
@@ -964,15 +969,65 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
 
         PLACE(nHL, NUMRES, "000");
         nHL += 3;
-        PLACE(nHL, UDHDL, "00000");
-        nHL += 5;
+
+        // The RPFHDR TRE must be written in UDID and not in IXSHD
+        const int nRPFHDRPos =
+            CSLPartialFindString(papszOptions, "FILE_TRE=RPFHDR=");
+        if (nRPFHDRPos >= 0)
+        {
+            int nContentLength = 0;
+            char *pszUnescapedContents = CPLUnescapeString(
+                papszOptions[nRPFHDRPos] + strlen("FILE_TRE=RPFHDR="),
+                &nContentLength, CPLES_BackslashQuotable);
+            if (nContentLength != 48)
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Invalid length for RPFHDR : %d", nContentLength);
+                CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
+                CPLFree(pszUnescapedContents);
+                return FALSE;
+            }
+
+            constexpr const char *pszUDOFL = "000";
+            const char *pszTREPrefix = CPLSPrintf("RPFHDR%05d", nContentLength);
+            PLACE(nHL, UDHDL,
+                  CPLSPrintf("%05d", static_cast<int>(strlen(pszUDOFL) +
+                                                      strlen(pszTREPrefix) +
+                                                      nContentLength)));
+            nHL += 5;
+
+            PLACE(nHL, UDOFL, pszUDOFL);
+            nHL += static_cast<int>(strlen(pszUDOFL));
+
+            PLACE(nHL, UDID, pszTREPrefix);
+            nHL += static_cast<int>(strlen(pszTREPrefix));
+
+            if (offsetPatcher)
+            {
+                auto poBuffer = offsetPatcher->GetBufferFromName("RPFHDR");
+                if (poBuffer)
+                {
+                    poBuffer->DeclareBufferWrittenAtPosition(VSIFTellL(fp));
+                }
+            }
+
+            bOK &= VSIFWriteL(pszUnescapedContents, 1, nContentLength, fp) ==
+                   static_cast<size_t>(nContentLength);
+            nHL += nContentLength;
+            CPLFree(pszUnescapedContents);
+        }
+        else
+        {
+            PLACE(nHL, UDHDL, "00000");
+            nHL += 5;
+        }
         PLACE(nHL, XHDL, "00000");
         nHL += 5;
 
         if (CSLFetchNameValue(papszOptions, "FILE_TRE") != nullptr)
         {
             bOK &= NITFWriteTREsFromOptions(fp, nHL - 10, &nHL, papszOptions,
-                                            "FILE_TRE=");
+                                            "FILE_TRE=", offsetPatcher);
         }
 
         if (nHL > 999999)
@@ -1360,11 +1415,23 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
               CPLSPrintf("%05d", atoi(CSLFetchNameValueDef(papszOptions,
                                                            "ILOCCOL", "0"))));
         PLACE(nCur + nOffset + 36, IMAG, "1.0 ");
-        PLACE(nCur + nOffset + 40, UDIDL, "00000");
-        PLACE(nCur + nOffset + 45, IXSHDL, "00000");
 
-        nOffsetUDIDL = nCur + nOffset + 40;
-        nOffset += 50;
+        // The RPFIMG TRE must be written in UDID and not in IXSHD
+        int nUDIDL = 0;
+        if (offsetPatcher &&
+            offsetPatcher->GetBufferFromName("LocationComponent"))
+        {
+            bOK &= RPFFrameWriteCADRG_RPFIMG(offsetPatcher, fp, nUDIDL);
+        }
+        else
+        {
+            PLACE(nCur + nOffset + 40, UDIDL, "00000");
+        }
+
+        PLACE(nCur + nOffset + 45 + nUDIDL, IXSHDL, "00000");
+
+        nOffsetIXSHDL = nCur + nOffset + 45 + nUDIDL;
+        nOffset += 50 + nUDIDL;
 
         /* --------------------------------------------------------------------
          */
@@ -1373,15 +1440,16 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
          */
         if (CSLFetchNameValue(papszOptions, "BLOCKA_BLOCK_COUNT") != nullptr)
         {
-            NITFWriteBLOCKA(fp, nOffsetUDIDL, &nOffset, papszOptions);
+            NITFWriteBLOCKA(fp, nOffsetIXSHDL, &nOffset, papszOptions);
         }
 
         if (CSLFetchNameValue(papszOptions, "TRE") != nullptr ||
             CSLFetchNameValue(papszOptions, "RESERVE_SPACE_FOR_TRE_OVERFLOW") !=
                 nullptr)
         {
-            bOK &= NITFWriteTREsFromOptions(fp, nOffsetUDIDL, &nOffset,
-                                            papszOptions, "TRE=");
+            bOK &=
+                NITFWriteTREsFromOptions(fp, nOffsetIXSHDL, &nOffset,
+                                         papszOptions, "TRE=", offsetPatcher);
         }
 
         /* --------------------------------------------------------------------
@@ -1525,19 +1593,23 @@ static bool NITFWriteOption(VSILFILE *psFile, CSLConstList papszOptions,
 /*                            NITFWriteTRE()                            */
 /************************************************************************/
 
-static bool NITFWriteTRE(VSILFILE *fp, vsi_l_offset nOffsetUDIDL, int *pnOffset,
-                         const char *pszTREName, char *pabyTREData,
-                         int nTREDataSize)
+static bool NITFWriteTRE(VSILFILE *fp, vsi_l_offset nOffsetIXSHDL,
+                         int *pnOffset, const char *pszTREName,
+                         char *pabyTREData, int nTREDataSize,
+                         GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
 
 {
     char szTemp[12];
     int nOldOffset;
     bool bOK = true;
 
+    if (EQUAL(pszTREName, "RPFHDR") || EQUAL(pszTREName, "RPFIMG"))
+        return true;
+
     /* -------------------------------------------------------------------- */
     /*      Update IXSHDL.                                                  */
     /* -------------------------------------------------------------------- */
-    bOK &= VSIFSeekL(fp, nOffsetUDIDL + 5, SEEK_SET) == 0;
+    bOK &= VSIFSeekL(fp, nOffsetIXSHDL, SEEK_SET) == 0;
     bOK &= VSIFReadL(szTemp, 1, 5, fp) == 5;
     szTemp[5] = 0;
     nOldOffset = atoi(szTemp);
@@ -1545,7 +1617,7 @@ static bool NITFWriteTRE(VSILFILE *fp, vsi_l_offset nOffsetUDIDL, int *pnOffset,
     if (nOldOffset == 0)
     {
         nOldOffset = 3;
-        PLACE(nOffsetUDIDL + 10, IXSOFL, "000");
+        PLACE(nOffsetIXSHDL + 5, IXSOFL, "000");
         *pnOffset += 3;
     }
 
@@ -1557,14 +1629,24 @@ static bool NITFWriteTRE(VSILFILE *fp, vsi_l_offset nOffsetUDIDL, int *pnOffset,
     }
 
     snprintf(szTemp, sizeof(szTemp), "%05d", nOldOffset + 11 + nTREDataSize);
-    PLACE(nOffsetUDIDL + 5, IXSHDL, szTemp);
+    PLACE(nOffsetIXSHDL, IXSHDL, szTemp);
 
     /* -------------------------------------------------------------------- */
     /*      Create TRE prefix.                                              */
     /* -------------------------------------------------------------------- */
     snprintf(szTemp, sizeof(szTemp), "%-6s%05d", pszTREName, nTREDataSize);
-    bOK &= VSIFSeekL(fp, nOffsetUDIDL + 10 + nOldOffset, SEEK_SET) == 0;
+    bOK &= VSIFSeekL(fp, nOffsetIXSHDL + 5 + nOldOffset, SEEK_SET) == 0;
     bOK &= VSIFWriteL(szTemp, 11, 1, fp) == 1;
+
+    if (offsetPatcher)
+    {
+        auto poBuffer = offsetPatcher->GetBufferFromName(pszTREName);
+        if (poBuffer)
+        {
+            poBuffer->DeclareBufferWrittenAtPosition(VSIFTellL(fp));
+        }
+    }
+
     bOK &= static_cast<int>(VSIFWriteL(pabyTREData, 1, nTREDataSize, fp)) ==
            nTREDataSize;
 
@@ -1580,9 +1662,11 @@ static bool NITFWriteTRE(VSILFILE *fp, vsi_l_offset nOffsetUDIDL, int *pnOffset,
 /*                      NITFWriteTREsFromOptions()                      */
 /************************************************************************/
 
-static bool NITFWriteTREsFromOptions(VSILFILE *fp, vsi_l_offset nOffsetUDIDL,
-                                     int *pnOffset, CSLConstList papszOptions,
-                                     const char *pszTREPrefix)
+static bool
+NITFWriteTREsFromOptions(VSILFILE *fp, vsi_l_offset nOffsetIXSHDL,
+                         int *pnOffset, CSLConstList papszOptions,
+                         const char *pszTREPrefix,
+                         GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
 
 {
     int bIgnoreBLOCKA =
@@ -1664,8 +1748,8 @@ static bool NITFWriteTREsFromOptions(VSILFILE *fp, vsi_l_offset nOffsetUDIDL,
             pszUnescapedContents[nContentLength] = '\0';
         }
 
-        if (!NITFWriteTRE(fp, nOffsetUDIDL, pnOffset, pszTREName,
-                          pszUnescapedContents, nContentLength))
+        if (!NITFWriteTRE(fp, nOffsetIXSHDL, pnOffset, pszTREName,
+                          pszUnescapedContents, nContentLength, offsetPatcher))
         {
             CPLFree(pszTREName);
             CPLFree(pszUnescapedContents);
@@ -1685,16 +1769,16 @@ static bool NITFWriteTREsFromOptions(VSILFILE *fp, vsi_l_offset nOffsetUDIDL,
          */
         int nOldOffset;
         char szTemp[6];
-        bool bOK = VSIFSeekL(fp, nOffsetUDIDL + 5, SEEK_SET) == 0;
+        bool bOK = VSIFSeekL(fp, nOffsetIXSHDL, SEEK_SET) == 0;
         bOK &= VSIFReadL(szTemp, 1, 5, fp) == 5;
         szTemp[5] = 0;
         nOldOffset = atoi(szTemp);
 
         if (nOldOffset == 0)
         {
-            PLACE(nOffsetUDIDL + 5, IXSHDL, "00003");
+            PLACE(nOffsetIXSHDL, IXSHDL, "00003");
 
-            PLACE(nOffsetUDIDL + 10, IXSOFL, "000");
+            PLACE(nOffsetIXSHDL + 5, IXSOFL, "000");
             *pnOffset += 3;
         }
 
@@ -1708,7 +1792,7 @@ static bool NITFWriteTREsFromOptions(VSILFILE *fp, vsi_l_offset nOffsetUDIDL,
 /*                          NITFWriteBLOCKA()                           */
 /************************************************************************/
 
-static bool NITFWriteBLOCKA(VSILFILE *fp, vsi_l_offset nOffsetUDIDL,
+static bool NITFWriteBLOCKA(VSILFILE *fp, vsi_l_offset nOffsetIXSHDL,
                             int *pnOffset, CSLConstList papszOptions)
 
 {
@@ -1772,7 +1856,8 @@ static bool NITFWriteBLOCKA(VSILFILE *fp, vsi_l_offset nOffsetUDIDL,
         // required field - semantics unknown.
         memcpy(szBLOCKA + 118, "010.0", 5);
 
-        if (!NITFWriteTRE(fp, nOffsetUDIDL, pnOffset, "BLOCKA", szBLOCKA, 123))
+        if (!NITFWriteTRE(fp, nOffsetIXSHDL, pnOffset, "BLOCKA", szBLOCKA, 123,
+                          nullptr))
             return false;
     }
 

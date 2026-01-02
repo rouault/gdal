@@ -2680,6 +2680,15 @@
             <field name="IMAGE_CODE_BIT_LENGTH" length="1" type="UnsignedInt_BigEndian"/>
         </rpf_component>
 
+        <rpf_component id="MaskSubsection">
+            <field name="SUBFRAME_SEQUENCE_RECORD_LENGTH" length="2" type="UnsignedInt_BigEndian"/>
+            <field name="TRANSPARENCY_SEQUENCE_RECORD_LENGTH" length="2" type="UnsignedInt_BigEndian"/>
+            <field name="TRANSPARENT_OUTPUT_PIXEL_CODE_LENGTH" length="2" type="UnsignedInt_BigEndian"/>
+            <if cond="TRANSPARENT_OUTPUT_PIXEL_CODE_LENGTH=8">
+                <field name="TRANSPARENT_OUTPUT_PIXEL_CODE_" length="1" type="UnsignedInt_BigEndian"/>
+            </if>
+        </rpf_component>
+
         <rpf_component id="AttributeSectionSubheader">
             <field name="NUMBER_OF_ATTRIBUTE_OFFSET_RECORDS" length="2" type="UnsignedInt_BigEndian"/>
             <field name="NUMBER_OF_EXPLICIT_AREAL_COVERAGE_RECORDS" length="2" type="UnsignedInt_BigEndian"/>

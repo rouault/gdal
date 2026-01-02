@@ -7027,3 +7027,93 @@ def test_nitf_create_02_00(tmp_path):
 """
 
     assert data == expected_data
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg(tmp_path):
+
+    gdal.alg.raster.rgb_to_palette(
+        input="data/small_world.tif", output=tmp_path / "in.tif", color_count=216
+    )
+
+    gdal.Mkdir(tmp_path / "1", 0o755)
+
+    gdal.Translate(
+        tmp_path / "1" / "out_cadrg.ntf",
+        gdal.Open(tmp_path / "in.tif"),
+        width=1536,
+        height=1536,
+        creationOptions=["PRODUCT_TYPE=CADRG"],
+    )
+    gdal.Unlink(tmp_path / "1" / "out_cadrg.ntf.aux.xml")
+
+    ds = gdal.Open(tmp_path / "1" / "out_cadrg.ntf")
+    assert ds.RasterCount == 1
+    assert ds.GetRasterBand(1).GetColorTable().GetCount() == 217
+    assert ds.GetRasterBand(1).Checksum() == 33977
+    assert ds.GetMetadata_Dict() == {
+        "NITF_ABPP": "08",
+        "NITF_CCS_COLUMN": "0",
+        "NITF_CCS_ROW": "0",
+        "NITF_CLEVEL": "03",
+        "NITF_ENCRYP": "0",
+        "NITF_FDT": "01000000ZJAN26",
+        "NITF_FHDR": "NITF02.00",
+        "NITF_FSCAUT": "",
+        "NITF_FSCLAS": "U",
+        "NITF_FSCODE": "",
+        "NITF_FSCOP": "00000",
+        "NITF_FSCPYS": "00000",
+        "NITF_FSCTLH": "",
+        "NITF_FSCTLN": "",
+        "NITF_FSDWNG": "",
+        "NITF_FSREL": "",
+        "NITF_FTITLE": "",
+        "NITF_IALVL": "0",
+        "NITF_IC": "C4",
+        "NITF_ICAT": "VIS",
+        "NITF_ICORDS": "G",
+        "NITF_IDATIM": "01000000ZJAN26",
+        "NITF_IDLVL": "1",
+        "NITF_IGEOLO": "895629N1795258W895629N1795258E895629S1795258E895629S1795258W",
+        "NITF_IID1": "Missing",
+        "NITF_ILOC_COLUMN": "0",
+        "NITF_ILOC_ROW": "0",
+        "NITF_IMAG": "1.0 ",
+        "NITF_IMODE": "B",
+        "NITF_IREP": "RGB/LUT",
+        "NITF_ISCAUT": "",
+        "NITF_ISCLAS": "U",
+        "NITF_ISCODE": "",
+        "NITF_ISCTLH": "",
+        "NITF_ISCTLN": "",
+        "NITF_ISDWNG": "",
+        "NITF_ISORCE": "Unknown",
+        "NITF_ISREL": "",
+        "NITF_ITITLE": "",
+        "NITF_ONAME": "",
+        "NITF_OPHONE": "",
+        "NITF_OSTAID": "GDAL",
+        "NITF_PJUST": "R",
+        "NITF_PVTYPE": "INT",
+        "NITF_STYPE": "",
+        "NITF_TGTID": "",
+    }
+
+    gdal.Mkdir(tmp_path / "2", 0o755)
+
+    gdal.Translate(
+        tmp_path / "2" / "out_cadrg.ntf",
+        gdal.Open(tmp_path / "1" / "out_cadrg.ntf"),
+        creationOptions=["PRODUCT_TYPE=CADRG"],
+    )
+
+    alg = gdal.alg.raster.compare(
+        input=tmp_path / "2" / "out_cadrg.ntf",
+        reference=tmp_path / "1" / "out_cadrg.ntf",
+        skip_binary=True,
+    )
+    assert alg.Outputs()["return-code"] == 0

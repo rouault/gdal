@@ -3957,6 +3957,9 @@ NITFLocation *NITFReadRPFLocationTable(VSILFILE *fp, int *pnLocCount)
         pasLocations[iLoc].nLocId = NITFReadMSBGUInt16(fp, &bSuccess);
         pasLocations[iLoc].nLocSize = NITFReadMSBGUInt32(fp, &bSuccess);
         pasLocations[iLoc].nLocOffset = NITFReadMSBGUInt32(fp, &bSuccess);
+        CPLDebugOnly("NITF", "Location[%d]: id=%d, size=%u, offset=%u", iLoc,
+                     pasLocations[iLoc].nLocId, pasLocations[iLoc].nLocSize,
+                     pasLocations[iLoc].nLocOffset);
     }
 
     if (!bSuccess)
