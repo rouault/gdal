@@ -109,6 +109,8 @@ Create_CADRG_LocationComponent(GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
         {LID_LocationComponent /* 129 */, "LocationComponent",
          "LOCATION_COMPONENT_LOCATION"},
 #endif
+        {LID_CoverageSectionSubheader /* 130 */, "CoverageSectionSubheader",
+         "COVERAGE_SECTION_LOCATION"},
         {LID_CompressionSectionSubsection /* 131 */, "CompressionSection",
          "COMPRESSION_SECTION_LOCATION"},
         {LID_CompressionLookupSubsection /* 132 */,
@@ -152,6 +154,132 @@ Create_CADRG_LocationComponent(GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
         poBuffer->AppendUInt32RefForSizeOfBuffer(sLocation.locationBufferName);
         poBuffer->AppendUInt32RefForOffset(sLocation.locationOffsetName);
     }
+}
+
+/************************************************************************/
+/*                    Create_CADRG_CoverageSection()                    */
+/************************************************************************/
+
+constexpr double ARC_B = 400384;
+
+// Content of MIL-A-89007 (ADRG specification), appendix 70, table III
+static constexpr struct
+{
+    int nZone;  // zone number (for northern hemisphere. Add 9 for southern hemisphere)
+    int minLat;     // minimum latitude of the zone
+    int maxLat;     // maximum latitude of the zone
+    double A;       // longitudinal pixel spacing constant at 1:1M
+    double B;       // latitudinal pixel spacing constant at 1:1M
+    double latRes;  // in microns
+    double lonRes;  // in microns
+} asARCZoneDefinitions[] = {
+    {1, 0, 32, 369664, ARC_B, 99.9, 99.9},
+    {2, 32, 48, 302592, ARC_B, 99.9, 99.9},
+    {3, 48, 56, 245760, ARC_B, 100.0, 99.9},
+    {4, 56, 64, 199168, ARC_B, 99.9, 99.9},
+    {5, 64, 68, 163328, ARC_B, 99.7, 99.9},
+    {6, 68, 72, 137216, ARC_B, 99.7, 99.9},
+    {7, 72, 76, 110080, ARC_B, 99.8, 99.9},
+    {8, 76, 80, 82432, ARC_B, 100.0, 99.9},
+    {9, 80, 90, ARC_B, ARC_B, 99.9, 99.9},
+};
+
+static int GetARCZoneFromLat(double dfLat)
+{
+    for (const auto &sZoneDef : asARCZoneDefinitions)
+    {
+        if (std::fabs(dfLat) >= sZoneDef.minLat &&
+            std::fabs(dfLat) <= sZoneDef.maxLat)
+        {
+            return dfLat >= 0 ? sZoneDef.nZone : sZoneDef.nZone + 9;
+        }
+    }
+    return 0;
+}
+
+/************************************************************************/
+/*                    Create_CADRG_CoverageSection()                    */
+/************************************************************************/
+
+static bool
+Create_CADRG_CoverageSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                             GDALDataset *poSrcDS)
+{
+    auto poBuffer = offsetPatcher->CreateBuffer(
+        "CoverageSectionSubheader", /* bEndiannessIsLittle = */ false);
+    CPLAssert(poBuffer);
+    poBuffer->DeclareOffsetAtCurrentPosition("COVERAGE_SECTION_LOCATION");
+
+    GDALGeoTransform gt;
+    if (poSrcDS->GetGeoTransform(gt) != CE_None)
+        return false;
+
+    const auto RoundIfCloseToInt = [](double dfX)
+    {
+        double dfRounded = std::round(dfX);
+        if (std::abs(dfX - dfRounded) < 1e-12)
+            return dfRounded;
+        return dfX;
+    };
+
+    // Upper left corner lat, lon
+    poBuffer->AppendFloat64(RoundIfCloseToInt(gt[3]));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(gt[0]));
+    // Lower left corner lat, lon
+    poBuffer->AppendFloat64(
+        RoundIfCloseToInt(gt[3] + gt[5] * poSrcDS->GetRasterYSize()));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(gt[0]));
+    // Upper right corner lat, lon
+    poBuffer->AppendFloat64(RoundIfCloseToInt(gt[3]));
+    poBuffer->AppendFloat64(
+        RoundIfCloseToInt(gt[0] + gt[1] * poSrcDS->GetRasterXSize()));
+    // Lower right corner lat, lon
+    poBuffer->AppendFloat64(
+        RoundIfCloseToInt(gt[3] + gt[5] * poSrcDS->GetRasterYSize()));
+    poBuffer->AppendFloat64(
+        RoundIfCloseToInt(gt[0] + gt[1] * poSrcDS->GetRasterXSize()));
+
+    const double dfMeanLat = gt[3] + gt[5] / 2 * poSrcDS->GetRasterYSize();
+    const int nZone = GetARCZoneFromLat(dfMeanLat);
+    if (nZone == 0)
+        return false;
+    const int nZoneIdx = (nZone - 1) % 9;
+    const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
+
+    const double REF_SCALE = 1e6;
+    // Cf MIL-A-89007 (ADRG specification), appendix 70, table III
+    const double SCALE = 1e6;  // FIXME
+    const double N = REF_SCALE / SCALE;
+
+    constexpr double RATIO_DPI_CADRG_OVER_ADRG = 150.0 / 100.0;
+
+    // Cf MIL-C-89038 (CADRG specification), para 60.1.1 and following
+    const double B_s = sZoneDef.B * N;
+    constexpr int ADRG_BLOCK_SIZE = 512;
+    const double latCst_ADRG =
+        std::ceil(B_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
+    const double latCst_CADRG =
+        std::round(latCst_ADRG / RATIO_DPI_CADRG_OVER_ADRG / 4 / BLOCK_SIZE) *
+        BLOCK_SIZE;
+    const double latInterval = 90.0 / latCst_CADRG;
+    const double latResolution =
+        sZoneDef.latRes / N * latCst_ADRG / (4 * latCst_CADRG);
+
+    const double A_s = sZoneDef.A * N;
+    const double lonCst_ADRG =
+        std::ceil(A_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
+    const double lonCst_CADRG =
+        std::round(lonCst_ADRG / RATIO_DPI_CADRG_OVER_ADRG / BLOCK_SIZE) *
+        BLOCK_SIZE;
+    const double lonInterval = 360.0 / lonCst_CADRG;
+    const double lonResolution =
+        sZoneDef.lonRes / N * lonCst_ADRG / lonCst_CADRG;
+
+    poBuffer->AppendFloat64(latResolution);
+    poBuffer->AppendFloat64(lonResolution);
+    poBuffer->AppendFloat64(latInterval);
+    poBuffer->AppendFloat64(lonInterval);
+    return true;
 }
 
 /************************************************************************/
@@ -273,10 +401,11 @@ bool RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 
     // Create buffers that will be written into file by RPFFrameWriteCADRG_RPFIMG()s
     Create_CADRG_LocationComponent(offsetPatcher);
+    bool bRet = Create_CADRG_CoverageSection(offsetPatcher, poSrcDS);
     Create_CADRG_ColorGrayscaleSection(offsetPatcher);
     Create_CADRG_ColormapSection(offsetPatcher, poSrcDS);
     Create_CADRG_ImageDescriptionSection(offsetPatcher, poSrcDS);
-    return true;
+    return bRet;
 }
 
 /************************************************************************/
@@ -289,8 +418,9 @@ bool RPFFrameWriteCADRG_RPFIMG(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     std::vector<GDALOffsetPatcher::OffsetPatcherBuffer *> apoBuffers;
     int nContentLength = 0;
     for (const char *pszName :
-         {"LocationComponent", "ColorGrayscaleSectionSubheader",
-          "ColormapSubsection", "ImageDescriptionSubheader"})
+         {"LocationComponent", "CoverageSectionSubheader",
+          "ColorGrayscaleSectionSubheader", "ColormapSubsection",
+          "ImageDescriptionSubheader"})
     {
         const auto poBuffer = offsetPatcher->GetBufferFromName(pszName);
         CPLAssert(poBuffer);
