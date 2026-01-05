@@ -1414,7 +1414,7 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
         PLACE(nCur + nOffset + 31, ILOCCOL,
               CPLSPrintf("%05d", atoi(CSLFetchNameValueDef(papszOptions,
                                                            "ILOCCOL", "0"))));
-        PLACE(nCur + nOffset + 36, IMAG, "1.0 ");
+        OVR(4, nCur + nOffset + 36, IMAG, "1.0 ");
 
         // The RPFIMG TRE must be written in UDID and not in IXSHD
         int nUDIDL = 0;

@@ -5426,6 +5426,23 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
         aosOptions.SetNameValue("FHDR", "NITF02.00");
         pszIC = "C4";
         aosOptions.SetNameValue("IC", pszIC);
+        if (aosOptions.FetchNameValue("IID1") == nullptr)
+        {
+            aosOptions.SetNameValue("IID1", "CADRG");
+        }
+        if (aosOptions.FetchNameValue("ITITLE") == nullptr)
+        {
+            aosOptions.SetNameValue("ITITLE", CPLGetFilename(pszFilename));
+        }
+        if (aosOptions.FetchNameValue("ICAT") == nullptr)
+        {
+            aosOptions.SetNameValue("ICAT", "MAP");
+        }
+        if (aosOptions.FetchNameValue("IMAG") == nullptr)
+        {
+            // 0.67 = 100 (microns ADRG) / 150 (microns CADRG)
+            aosOptions.SetNameValue("IMAG", "0.67");
+        }
         aosOptions.SetNameValue("LUT_SIZE", "216");
 
         const int nRPFDESIdx = aosOptions.PartialFindString("DES=RPFDES=");
