@@ -7103,6 +7103,191 @@ def test_nitf_create_cadrg(tmp_path):
         "NITF_TGTID": "",
     }
 
+    tres = ds.GetMetadata("xml:TRE")[0]
+    assert """<tre name="RPFHDR" location="file">
+    <field name="LITTLE_BIG_ENDIAN_INDICATOR" value="0" />
+    <field name="HEADER_SECTION_LENGTH" value="48" />
+    <field name="FILENAME" value="out_cadrg.nt" />
+    <field name="NEW_REPLACEMENT_UPDATE_INDICATOR" value="1" />
+    <field name="GOVERNING_STANDARD_NUMBER" value="MIL-C-89038" />
+    <field name="GOVERNING_STANDARD_DATE" value="19941006" />
+    <field name="SECURITY_CLASSIFICATION" value="U" />
+    <field name="SECURITY_COUNTRY_INTERNATIONAL_CODE" value="" />
+    <field name="SECURITY_RELEASE_MARKING" value="" />
+    <field name="LOCATION_SECTION_LOCATION" value="1644" />
+  </tre>""" in tres
+
+    assert """<tre name="RPFIMG" location="image">
+    <field name="LOCATION_SECTION_LENGTH" value="124" />
+    <field name="COMPONENT_LOCATION_OFFSET" value="14" />
+    <field name="NUMBER_OF_COMPONENT_LOCATION_RECORDS" value="11" />
+    <field name="COMPONENT_LOCATION_RECORD_LENGTH" value="10" />
+    <field name="COMPONENT_AGGREGATE_LENGTH" value="288714" />
+    <repeated name="CLR" number="11">
+      <group index="0">
+        <field name="COMPONENT_ID" value="130" />
+        <field name="COMPONENT_LENGTH" value="96" />
+        <field name="COMPONENT_LOCATION" value="1768" />
+        <content ComponentName="CoverageSectionSubheader">
+          <field name="NORTHWEST_LATITUDE" value="90" />
+          <field name="NORTHWEST_LONGITUDE" value="-180" />
+          <field name="SOUTHWEST_LATITUDE" value="-90" />
+          <field name="SOUTHWEST_LONGITUDE" value="-180" />
+          <field name="NORTHEAST_LATITUDE" value="90" />
+          <field name="NORTHEAST_LONGITUDE" value="180" />
+          <field name="SOUTHEAST_LATITUDE" value="-90" />
+          <field name="SOUTHEAST_LONGITUDE" value="180" />""" in tres
+    assert """<group index="1">
+        <field name="COMPONENT_ID" value="131" />
+        <field name="COMPONENT_LENGTH" value="6" />
+        <field name="COMPONENT_LOCATION" value="3668" />
+        <content ComponentName="CompressionSectionSubsection">
+          <field name="COMPRESSION_ALGORITHM_ID" value="1" />
+          <field name="NUMBER_OF_COMPRESSION_LOOKUP_OFFSET_RECORDS" value="4" />
+          <field name="NUMBER_OF_COMPRESSION_PARAMETER_OFFSET_RECORDS" value="0" />
+        </content>
+      </group>
+      <group index="2">
+        <field name="COMPONENT_ID" value="132" />
+        <field name="COMPONENT_LENGTH" value="65598" />
+        <field name="COMPONENT_LOCATION" value="3683" />
+        <content ComponentName="CompressionLookupSubsection">
+          <field name="COMPRESSION_LOOKUP_OFFSET_TABLE_OFFSET" value="6" />
+          <field name="COMPRESSION_LOOKUP_TABLE_OFFSET_RECORD_LENGTH" value="14" />
+          <repeated name="COMP_LOOKUP_OFFSET" number="4">
+            <group index="0">
+              <field name="COMPRESSION_LOOKUP_TABLE_ID" value="1" />
+              <field name="NUMBER_OF_COMPRESSION_LOOKUP_RECORDS" value="4096" />
+              <field name="NUMBER_OF_VALUES_PER_COMPRESSION_RECORDS" value="4" />
+              <field name="COMPRESSION_RECORD_VALUE_BIT_LENGTH" value="8" />
+              <field name="COMPRESSION_LOOKUP_TABLE_OFFSET" value="62" />
+            </group>
+            <group index="1">
+              <field name="COMPRESSION_LOOKUP_TABLE_ID" value="2" />
+              <field name="NUMBER_OF_COMPRESSION_LOOKUP_RECORDS" value="4096" />
+              <field name="NUMBER_OF_VALUES_PER_COMPRESSION_RECORDS" value="4" />
+              <field name="COMPRESSION_RECORD_VALUE_BIT_LENGTH" value="8" />
+              <field name="COMPRESSION_LOOKUP_TABLE_OFFSET" value="16446" />
+            </group>
+            <group index="2">
+              <field name="COMPRESSION_LOOKUP_TABLE_ID" value="3" />
+              <field name="NUMBER_OF_COMPRESSION_LOOKUP_RECORDS" value="4096" />
+              <field name="NUMBER_OF_VALUES_PER_COMPRESSION_RECORDS" value="4" />
+              <field name="COMPRESSION_RECORD_VALUE_BIT_LENGTH" value="8" />
+              <field name="COMPRESSION_LOOKUP_TABLE_OFFSET" value="32830" />
+            </group>
+            <group index="3">
+              <field name="COMPRESSION_LOOKUP_TABLE_ID" value="4" />
+              <field name="NUMBER_OF_COMPRESSION_LOOKUP_RECORDS" value="4096" />
+              <field name="NUMBER_OF_VALUES_PER_COMPRESSION_RECORDS" value="4" />
+              <field name="COMPRESSION_RECORD_VALUE_BIT_LENGTH" value="8" />
+              <field name="COMPRESSION_LOOKUP_TABLE_OFFSET" value="49214" />
+            </group>
+          </repeated>
+        </content>
+      </group>
+      <group index="3">
+        <field name="COMPONENT_ID" value="134" />
+        <field name="COMPONENT_LENGTH" value="14" />
+        <field name="COMPONENT_LOCATION" value="1864" />
+        <content ComponentName="ColorGrayscaleSectionSubheader">
+          <field name="NUMBER_OF_COLOR_GRAYSCALE_OFFSET_RECORDS" value="1" />
+          <field name="NUMBER_OF_COLOR_CONVERTER_OFFSET_RECORDS" value="0" />
+          <field name="EXTERNAL_COLOR_GRAYSCALE_FILENAME" value="" />
+        </content>
+      </group>
+      <group index="4">
+        <field name="COMPONENT_ID" value="135" />
+        <field name="COMPONENT_LENGTH" value="1751" />
+        <field name="COMPONENT_LOCATION" value="1878" />
+        <content ComponentName="ColormapSubsection">
+          <field name="COLORMAP_OFFSET_TABLE_OFFSET" value="4" />
+          <field name="COLOR_GRAYSCALE_OFFSET_RECORD_LENGTH" value="17" />
+          <repeated name="COLOR_OFFSET_RECORD" number="1">
+            <group index="0">
+              <field name="COLOR_GRAYSCALE_TABLE_ID" value="2" />
+              <field name="NUMBER_OF_COLOR_GRAYSCALE_RECORDS" value="216" />
+              <field name="COLOR_GRAYSCALE_ELEMENT_LENGTH" value="4" />
+              <field name="HISTOGRAM_RECORD_LENGTH" value="4" />
+              <field name="COLOR_GRAYSCALE_TABLE_OFFSET" value="23" />
+              <field name="HISTOGRAM_TABLE_OFFSET" value="14694" />
+            </group>
+          </repeated>
+        </content>
+      </group>
+      <group index="5">
+        <field name="COMPONENT_ID" value="136" />
+        <field name="COMPONENT_LENGTH" value="28" />
+        <field name="COMPONENT_LOCATION" value="3629" />
+        <content ComponentName="ImageDescriptionSubheader">
+          <field name="NUMBER_OF_SPECTRAL_GROUPS" value="1" />
+          <field name="NUMBER_OF_SUBFRAME_TABLES" value="36" />
+          <field name="NUMBER_OF_SPECTRAL_BAND_TABLES" value="1" />
+          <field name="NUMBER_OF_SPECTRAL_BAND_LINES_PER_IMAGE_ROW" value="1" />
+          <field name="NUMBER_OF_SUBFRAME_IN_EAST_WEST_DIRECTION" value="6" />
+          <field name="NUMBER_OF_SUBFRAME_IN_NORTH_SOUTH_DIRECTION" value="6" />
+          <field name="NUMBER_OF_OUTPUT_COLUMNS_PER_SUBFRAME" value="256" />
+          <field name="NUMBER_OF_OUTPUT_ROWS_PER_SUBFRAME" value="256" />
+          <field name="SUBFRAME_MASK_TABLE_OFFSET" value="4294967295" />
+          <field name="TRANSPARENCY_MASK_TABLE_OFFSET" value="4294967295" />
+        </content>
+      </group>
+      <group index="6">
+        <field name="COMPONENT_ID" value="137" />
+        <field name="COMPONENT_LENGTH" value="9" />
+        <field name="COMPONENT_LOCATION" value="3674" />
+        <content ComponentName="ImageDisplayParametersSubheader">
+          <field name="NUMBER_OF_IMAGE_ROWS" value="64" />
+          <field name="NUMBER_OF_CODES_PER_ROW" value="64" />
+          <field name="IMAGE_CODE_BIT_LENGTH" value="12" />
+        </content>
+      </group>
+      <group index="7">
+        <field name="COMPONENT_ID" value="138" />
+        <field name="COMPONENT_LENGTH" value="6" />
+        <field name="COMPONENT_LOCATION" value="3662" />
+        <content ComponentName="MaskSubsection">
+          <field name="SUBFRAME_SEQUENCE_RECORD_LENGTH" value="0" />
+          <field name="TRANSPARENCY_SEQUENCE_RECORD_LENGTH" value="0" />
+          <field name="TRANSPARENT_OUTPUT_PIXEL_CODE_LENGTH" value="0" />
+        </content>
+      </group>
+      <group index="8">
+        <field name="COMPONENT_ID" value="140" />
+        <field name="COMPONENT_LENGTH" value="221184" />
+        <field name="COMPONENT_LOCATION" value="69281" />
+      </group>
+      <group index="9">
+        <field name="COMPONENT_ID" value="141" />
+        <field name="COMPONENT_LENGTH" value="10" />
+        <field name="COMPONENT_LOCATION" value="290685" />
+        <content ComponentName="AttributeSectionSubheader">
+          <field name="NUMBER_OF_ATTRIBUTE_OFFSET_RECORDS" value="1" />
+          <field name="NUMBER_OF_EXPLICIT_AREAL_COVERAGE_RECORDS" value="0" />
+          <field name="ATTRIBUTE_OFFSET_TABLE_OFFSET" value="0" />
+          <field name="ATTRIBUTE_OFFSET_RECORD_LENGTH" value="8" />
+        </content>
+      </group>
+      <group index="10">
+        <field name="COMPONENT_ID" value="142" />
+        <field name="COMPONENT_LENGTH" value="12" />
+        <field name="COMPONENT_LOCATION" value="290695" />
+        <content ComponentName="AttributeSubsection">
+          <repeated name="AOR" number="1">
+            <group index="0">
+              <field name="ATTRIBUTE_ID" value="7" />
+              <field name="PARAMETER_ID" value="1" />
+              <field name="AREAL_COVERAGE_SEQUENCE_NUMBER" value="0" />
+              <field name="ATTRIBUTE_RECORD_OFFSET" value="8" />
+            </group>
+          </repeated>
+        </content>
+      </group>
+    </repeated>
+  </tre>
+</tres>
+""" in tres
+
     gdal.Mkdir(tmp_path / "2", 0o755)
 
     gdal.Translate(
