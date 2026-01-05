@@ -60,6 +60,9 @@ static void Create_CADRG_RPFHDR(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     auto poRPFHDR = offsetPatcher->CreateBuffer(
         "RPFHDR", /* bEndiannessIsLittle = */ false);
     CPLAssert(poRPFHDR);
+#ifdef INCLUDE_HEADER_AND_LOCATION
+    poRPFHDR->DeclareOffsetAtCurrentPosition("HEADER_COMPONENT_LOCATION");
+#endif
     poRPFHDR->AppendByte(0);  // big endian order
     poRPFHDR->AppendUInt16RefForSizeOfBuffer("RPFHDR");
     poRPFHDR->AppendString(
@@ -99,10 +102,27 @@ Create_CADRG_LocationComponent(GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
         const char *locationBufferName;
         const char *locationOffsetName;
     } asLocations[] = {
+#ifdef INCLUDE_HEADER_AND_LOCATION
+        // While it shouldn't hurt, it doesn't seem idiomatical to include
+        // those locations in the location table.
+        {LID_HeaderComponent /* 128 */, "RPFHDR", "HEADER_COMPONENT_LOCATION"},
+        {LID_LocationComponent /* 129 */, "LocationComponent",
+         "LOCATION_COMPONENT_LOCATION"},
+#endif
+        {LID_CompressionSectionSubsection /* 131 */, "CompressionSection",
+         "COMPRESSION_SECTION_LOCATION"},
         {LID_CompressionLookupSubsection /* 132 */,
          "CompressionLookupSubsection", "COMPRESSION_LOOKUP_LOCATION"},
+        /* no LID_CompressionParameterSubsection = 133 in CADRG */
+        {LID_ColorGrayscaleSectionSubheader /* 134 */,
+         "ColorGrayscaleSectionSubheader", "COLOR_GRAYSCALE_LOCATION"},
         {LID_ColormapSubsection /* 135 */, "ColormapSubsection",
          "COLORMAP_LOCATION"},
+        {LID_ImageDescriptionSubheader /* 136 */, "ImageDescriptionSubheader",
+         "IMAGE_DESCRIPTION_SECTION_LOCATION"},
+        {LID_ImageDisplayParametersSubheader /* 137 */,
+         "ImageDisplayParametersSubheader",
+         "IMAGE_DISPLAY_PARAMETERS_SECTION_LOCATION"},
         {LID_SpatialDataSubsection /* 140 */, "SpatialDataSubsection",
          "SPATIAL_DATA_SUBSECTION_LOCATION"},
     };
@@ -132,6 +152,61 @@ Create_CADRG_LocationComponent(GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
         poBuffer->AppendUInt32RefForSizeOfBuffer(sLocation.locationBufferName);
         poBuffer->AppendUInt32RefForOffset(sLocation.locationOffsetName);
     }
+}
+
+/************************************************************************/
+/*                 Create_CADRG_ColorGrayscaleSection()                 */
+/************************************************************************/
+
+static void Create_CADRG_ColorGrayscaleSection(
+    GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
+{
+    auto poBuffer = offsetPatcher->CreateBuffer(
+        "ColorGrayscaleSectionSubheader", /* bEndiannessIsLittle = */ false);
+    CPLAssert(poBuffer);
+    poBuffer->DeclareOffsetAtCurrentPosition("COLOR_GRAYSCALE_LOCATION");
+    poBuffer->AppendByte(1);  // NUMBER_OF_COLOR_GRAYSCALE_OFFSET_RECORDS
+    poBuffer->AppendByte(0);  // NUMBER_OF_COLOR_CONVERTER_OFFSET_RECORDS
+    // EXTERNAL_COLOR_GRAYSCALE_FILENAME
+    poBuffer->AppendString(std::string(12, ' '));
+}
+
+/************************************************************************/
+/*                Create_CADRG_ImageDescriptionSection()                */
+/************************************************************************/
+
+static void Create_CADRG_ImageDescriptionSection(
+    GDALOffsetPatcher::OffsetPatcher *offsetPatcher, GDALDataset *poSrcDS)
+{
+    CPLAssert((poSrcDS->GetRasterXSize() % BLOCK_SIZE) == 0);
+    CPLAssert((poSrcDS->GetRasterYSize() % BLOCK_SIZE) == 0);
+    CPLAssert(poSrcDS->GetRasterXSize() <= UINT16_MAX * BLOCK_SIZE);
+    CPLAssert(poSrcDS->GetRasterYSize() <= UINT16_MAX * BLOCK_SIZE);
+    const uint16_t nSubFramesPerRow =
+        static_cast<uint16_t>(poSrcDS->GetRasterXSize() / BLOCK_SIZE);
+    const uint16_t nSubFramesPerCol =
+        static_cast<uint16_t>(poSrcDS->GetRasterYSize() / BLOCK_SIZE);
+    CPLAssert(nSubFramesPerRow * nSubFramesPerCol < UINT16_MAX);
+
+    auto poBuffer = offsetPatcher->CreateBuffer(
+        "ImageDescriptionSubheader", /* bEndiannessIsLittle = */ false);
+    CPLAssert(poBuffer);
+    poBuffer->DeclareOffsetAtCurrentPosition(
+        "IMAGE_DESCRIPTION_SECTION_LOCATION");
+    poBuffer->AppendUInt16(1);  // NUMBER_OF_SPECTRAL_GROUPS
+    poBuffer->AppendUInt16(static_cast<uint16_t>(
+        nSubFramesPerRow * nSubFramesPerCol));  // NUMBER_OF_SUBFRAME_TABLES
+    poBuffer->AppendUInt16(1);  // NUMBER_OF_SPECTRAL_BAND_TABLES
+    poBuffer->AppendUInt16(1);  // NUMBER_OF_SPECTRAL_BAND_LINES_PER_IMAGE_ROW
+    poBuffer->AppendUInt16(
+        nSubFramesPerRow);  // NUMBER_OF_SUBFRAME_IN_EAST_WEST_DIRECTION
+    poBuffer->AppendUInt16(
+        nSubFramesPerCol);  // NUMBER_OF_SUBFRAME_IN_NORTH_SOUTH_DIRECTION
+    poBuffer->AppendUInt32(
+        BLOCK_SIZE);  // NUMBER_OF_OUTPUT_COLUMNS_PER_SUBFRAME
+    poBuffer->AppendUInt32(BLOCK_SIZE);  // NUMBER_OF_OUTPUT_ROWS_PER_SUBFRAME
+    poBuffer->AppendUInt32(UINT32_MAX);  // SUBFRAME_MASK_TABLE_OFFSET
+    poBuffer->AppendUInt32(UINT32_MAX);  // TRANSPARENCY_MASK_TABLE_OFFSET
 }
 
 /************************************************************************/
@@ -198,7 +273,9 @@ bool RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 
     // Create buffers that will be written into file by RPFFrameWriteCADRG_RPFIMG()s
     Create_CADRG_LocationComponent(offsetPatcher);
+    Create_CADRG_ColorGrayscaleSection(offsetPatcher);
     Create_CADRG_ColormapSection(offsetPatcher, poSrcDS);
+    Create_CADRG_ImageDescriptionSection(offsetPatcher, poSrcDS);
     return true;
 }
 
@@ -211,7 +288,9 @@ bool RPFFrameWriteCADRG_RPFIMG(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 {
     std::vector<GDALOffsetPatcher::OffsetPatcherBuffer *> apoBuffers;
     int nContentLength = 0;
-    for (const char *pszName : {"LocationComponent", "ColormapSubsection"})
+    for (const char *pszName :
+         {"LocationComponent", "ColorGrayscaleSectionSubheader",
+          "ColormapSubsection", "ImageDescriptionSubheader"})
     {
         const auto poBuffer = offsetPatcher->GetBufferFromName(pszName);
         CPLAssert(poBuffer);
@@ -244,6 +323,56 @@ bool RPFFrameWriteCADRG_RPFIMG(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     }
 
     return bOK;
+}
+
+/************************************************************************/
+/*                   Write_CADRG_CompressionSection()                   */
+/************************************************************************/
+
+constexpr uint16_t NUMBER_OF_COMPRESSION_LOOKUP_OFFSET_RECORDS = 4;
+
+static bool
+Write_CADRG_CompressionSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                               VSILFILE *fp)
+{
+    auto poBuffer = offsetPatcher->CreateBuffer(
+        "CompressionSection", /* bEndiannessIsLittle = */ false);
+    CPLAssert(poBuffer);
+    poBuffer->DeclareBufferWrittenAtPosition(fp->Tell());
+    poBuffer->DeclareOffsetAtCurrentPosition("COMPRESSION_SECTION_LOCATION");
+    poBuffer->AppendUInt16(1);  // COMPRESSION_ALGORITHM_ID = VQ
+    poBuffer->AppendUInt16(NUMBER_OF_COMPRESSION_LOOKUP_OFFSET_RECORDS);
+    // NUMBER_OF_COMPRESSION_PARAMETER_OFFSET_RECORDS
+    poBuffer->AppendUInt16(0);
+
+    return fp->Write(poBuffer->GetBuffer().data(), 1,
+                     poBuffer->GetBuffer().size()) ==
+           poBuffer->GetBuffer().size();
+}
+
+/************************************************************************/
+/*             Write_CADRG_ImageDisplayParametersSection()              */
+/************************************************************************/
+
+static bool Write_CADRG_ImageDisplayParametersSection(
+    GDALOffsetPatcher::OffsetPatcher *offsetPatcher, VSILFILE *fp)
+{
+    auto poBuffer = offsetPatcher->CreateBuffer(
+        "ImageDisplayParametersSubheader", /* bEndiannessIsLittle = */ false);
+    CPLAssert(poBuffer);
+    poBuffer->DeclareBufferWrittenAtPosition(fp->Tell());
+    poBuffer->DeclareOffsetAtCurrentPosition(
+        "IMAGE_DISPLAY_PARAMETERS_SECTION_LOCATION");
+    poBuffer->AppendUInt32(BLOCK_SIZE / SUBSAMPLING);  // NUMBER_OF_IMAGE_ROWS
+    poBuffer->AppendUInt32(BLOCK_SIZE /
+                           SUBSAMPLING);  // NUMBER_OF_CODES_PER_ROW
+    constexpr GByte CODE_WORD_BIT_LENGTH = 12;
+    static_assert((1 << CODE_WORD_BIT_LENGTH) == CODEBOOK_MAX_SIZE);
+    poBuffer->AppendByte(CODE_WORD_BIT_LENGTH);  // IMAGE_CODE_BIT_LENGTH
+
+    return fp->Write(poBuffer->GetBuffer().data(), 1,
+                     poBuffer->GetBuffer().size()) ==
+           poBuffer->GetBuffer().size();
 }
 
 /************************************************************************/
@@ -382,7 +511,6 @@ static bool Write_CADRG_CompressionLookupSubSection(
     constexpr int OFFSET_OF_FIRST_LOOKUP_TABLE = 62;
     constexpr uint16_t NUMBER_OF_VALUES_PER_COMPRESSION_RECORDS =
         static_cast<uint16_t>(SUBSAMPLING);
-    constexpr int NUMBER_OF_COMPRESSION_LOOKUP_OFFSET_RECORDS = 4;
     for (int i = 0; i < NUMBER_OF_COMPRESSION_LOOKUP_OFFSET_RECORDS; ++i)
     {
         // COMPRESSION_LOOKUP_TABLE_ID
@@ -501,6 +629,8 @@ bool RPFFrameCreateCADRG_ImageContent(
     std::vector<short> VQImage;
     return Perform_CADRG_VQ_Compression(poSrcDS, ctxt, codebook, VQImage) &&
            fp->Seek(0, SEEK_END) == 0 &&
+           Write_CADRG_CompressionSection(offsetPatcher, fp) &&
+           Write_CADRG_ImageDisplayParametersSection(offsetPatcher, fp) &&
            Write_CADRG_CompressionLookupSubSection(offsetPatcher, fp,
                                                    codebook) &&
            Write_CADRG_SpatialDataSubsection(offsetPatcher, fp, poSrcDS,
