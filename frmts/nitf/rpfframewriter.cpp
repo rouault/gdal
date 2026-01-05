@@ -363,10 +363,13 @@ Create_CADRG_ColormapSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     constexpr GByte COLOR_TABLE_ENTRY_SIZE = 4;
     poBuffer->AppendByte(
         COLOR_TABLE_ENTRY_SIZE);  // color/grayscale element length
-    poBuffer->AppendUInt16(0);    // histogram record length (omitted)
-    poBuffer->AppendUInt32(HEADER_LENGTH + RECORD_LENGTH);
-    // color/grayscale table offset (omitted)
-    poBuffer->AppendUInt32(UINT32_MAX);
+    poBuffer->AppendUInt16(
+        static_cast<uint16_t>(sizeof(uint32_t)));  // histogram record length
+    poBuffer->AppendUInt32(HEADER_LENGTH +
+                           RECORD_LENGTH);  // color/grayscale table offset
+    poBuffer->AppendUInt32(HEADER_LENGTH + RECORD_LENGTH *
+                                               CADRG_MAX_COLOR_ENTRY_COUNT *
+                                               COLOR_TABLE_ENTRY_SIZE);
 
     // Write color table
     const auto poCT = poSrcDS->GetRasterBand(1)->GetColorTable();
@@ -388,6 +391,13 @@ Create_CADRG_ColormapSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
         {
             poBuffer->AppendUInt32(0);
         }
+    }
+
+    // Reserve space for histogram. Will be patched in Patch_CADRG_Histogram()
+    poBuffer->DeclareOffsetAtCurrentPosition("HISTOGRAM_LOCATION");
+    for (int i = 0; i < CADRG_MAX_COLOR_ENTRY_COUNT; ++i)
+    {
+        poBuffer->AppendUInt32(0);
     }
 }
 
@@ -757,6 +767,62 @@ static bool Write_CADRG_SpatialDataSubsection(
 }
 
 /************************************************************************/
+/*                       Patch_CADRG_Histogram()                        */
+/************************************************************************/
+
+static bool Patch_CADRG_Histogram(
+    GDALOffsetPatcher::OffsetPatcher *offsetPatcher, VSILFILE *fp,
+    [[maybe_unused]] GDALDataset *poSrcDS,
+    const std::vector<BucketItem<ColorTableBased4x4Pixels>> &codebook)
+{
+    auto poColormapBuffer =
+        offsetPatcher->GetBufferFromName("ColormapSubsection");
+    CPLAssert(poColormapBuffer);
+    const auto nColormapFileLocation = poColormapBuffer->GetFileLocation();
+    CPLAssert(nColormapFileLocation != GDALOffsetPatcher::INVALID_OFFSET);
+    auto poHistogramLocDecl =
+        offsetPatcher->GetOffsetDeclaration("HISTOGRAM_LOCATION");
+    CPLAssert(poHistogramLocDecl);
+    CPLAssert(poHistogramLocDecl->GetLocation().offsetInBuffer != 0);
+    poHistogramLocDecl->MarkAsConsumed();
+
+    // Compute the number of pixels in the output image per colormap entry
+    std::vector<uint32_t> anHistogram(CADRG_MAX_COLOR_ENTRY_COUNT);
+    const size_t nOffsetInBuffer =
+        poHistogramLocDecl->GetLocation().offsetInBuffer;
+    CPLAssert(nOffsetInBuffer + anHistogram.size() * sizeof(anHistogram[0]) ==
+              poColormapBuffer->GetBuffer().size());
+#ifdef DEBUG
+    size_t nTotalCount = 0;
+#endif
+    for (const auto &item : codebook)
+    {
+        for (GByte byVal : item.m_vec.vals())
+        {
+            anHistogram[byVal] += item.m_count;
+#ifdef DEBUG
+            nTotalCount += item.m_count;
+#endif
+        }
+    }
+#ifdef DEBUG
+    CPLAssert(nTotalCount == static_cast<size_t>(poSrcDS->GetRasterXSize()) *
+                                 poSrcDS->GetRasterYSize());
+#endif
+
+#ifdef CPL_IS_LSB
+    for (auto &nCount : anHistogram)
+    {
+        CPL_SWAP32PTR(&nCount);
+    }
+#endif
+
+    return fp->Seek(nColormapFileLocation + nOffsetInBuffer, SEEK_SET) == 0 &&
+           fp->Write(anHistogram.data(), sizeof(anHistogram[0]),
+                     anHistogram.size()) == anHistogram.size();
+}
+
+/************************************************************************/
 /*                  RPFFrameCreateCADRG_ImageContent()                  */
 /************************************************************************/
 
@@ -782,6 +848,7 @@ bool RPFFrameCreateCADRG_ImageContent(
     std::vector<BucketItem<ColorTableBased4x4Pixels>> codebook;
     std::vector<short> VQImage;
     return Perform_CADRG_VQ_Compression(poSrcDS, ctxt, codebook, VQImage) &&
+           Patch_CADRG_Histogram(offsetPatcher, fp, poSrcDS, codebook) &&
            fp->Seek(0, SEEK_END) == 0 &&
            Write_CADRG_MaskSubsection(offsetPatcher, fp) &&
            Write_CADRG_CompressionSection(offsetPatcher, fp) &&
