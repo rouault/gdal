@@ -101,6 +101,8 @@ Create_CADRG_LocationComponent(GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
     } asLocations[] = {
         {LID_CompressionLookupSubsection /* 132 */,
          "CompressionLookupSubsection", "COMPRESSION_LOOKUP_LOCATION"},
+        {LID_ColormapSubsection /* 135 */, "ColormapSubsection",
+         "COLORMAP_LOCATION"},
         {LID_SpatialDataSubsection /* 140 */, "SpatialDataSubsection",
          "SPATIAL_DATA_SUBSECTION_LOCATION"},
     };
@@ -133,17 +135,70 @@ Create_CADRG_LocationComponent(GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
 }
 
 /************************************************************************/
+/*                    Create_CADRG_ColormapSection()                    */
+/************************************************************************/
+
+static void
+Create_CADRG_ColormapSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                             GDALDataset *poSrcDS)
+{
+    auto poBuffer = offsetPatcher->CreateBuffer(
+        "ColormapSubsection", /* bEndiannessIsLittle = */ false);
+    CPLAssert(poBuffer);
+    poBuffer->DeclareOffsetAtCurrentPosition("COLORMAP_LOCATION");
+    poBuffer->AppendUInt32(4);  // COLORMAP_OFFSET_TABLE_OFFSET
+    constexpr uint16_t RECORD_LENGTH = 17;
+    poBuffer->AppendUInt16(
+        RECORD_LENGTH);  // COLOR_GRAYSCALE_OFFSET_RECORD_LENGTH
+    const int HEADER_LENGTH = static_cast<int>(poBuffer->GetBuffer().size());
+
+    poBuffer->AppendUInt16(2);  // color/grayscale table id
+    poBuffer->AppendUInt32(CADRG_MAX_COLOR_ENTRY_COUNT);  // number of colors
+    // 4=R,G,B,M
+    constexpr GByte COLOR_TABLE_ENTRY_SIZE = 4;
+    poBuffer->AppendByte(
+        COLOR_TABLE_ENTRY_SIZE);  // color/grayscale element length
+    poBuffer->AppendUInt16(0);    // histogram record length (omitted)
+    poBuffer->AppendUInt32(HEADER_LENGTH + RECORD_LENGTH);
+    // color/grayscale table offset (omitted)
+    poBuffer->AppendUInt32(UINT32_MAX);
+
+    // Write color table
+    const auto poCT = poSrcDS->GetRasterBand(1)->GetColorTable();
+    for (int i = 0; i < CADRG_MAX_COLOR_ENTRY_COUNT; ++i)
+    {
+        if (i < poCT->GetColorEntryCount())
+        {
+            auto psEntry = poCT->GetColorEntry(i);
+            poBuffer->AppendByte(static_cast<GByte>(psEntry->c1));
+            poBuffer->AppendByte(static_cast<GByte>(psEntry->c2));
+            poBuffer->AppendByte(static_cast<GByte>(psEntry->c3));
+            // Standard formula to convert R,G,B to gray scale level
+            const int M =
+                (psEntry->c1 * 299 + psEntry->c2 * 587 + psEntry->c3 * 114) /
+                1000;
+            poBuffer->AppendByte(static_cast<GByte>(M));
+        }
+        else
+        {
+            poBuffer->AppendUInt32(0);
+        }
+    }
+}
+
+/************************************************************************/
 /*                      RPFFrameCreateCADRG_TREs()                      */
 /************************************************************************/
 
 bool RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                              const std::string &osFilename, GDALDataset *,
-                              CPLStringList &aosOptions)
+                              const std::string &osFilename,
+                              GDALDataset *poSrcDS, CPLStringList &aosOptions)
 {
     Create_CADRG_RPFHDR(offsetPatcher, osFilename, aosOptions);
 
     // Create buffers that will be written into file by RPFFrameWriteCADRG_RPFIMG()s
     Create_CADRG_LocationComponent(offsetPatcher);
+    Create_CADRG_ColormapSection(offsetPatcher, poSrcDS);
     return true;
 }
 
@@ -156,7 +211,7 @@ bool RPFFrameWriteCADRG_RPFIMG(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 {
     std::vector<GDALOffsetPatcher::OffsetPatcherBuffer *> apoBuffers;
     int nContentLength = 0;
-    for (const char *pszName : {"LocationComponent"})
+    for (const char *pszName : {"LocationComponent", "ColormapSubsection"})
     {
         const auto poBuffer = offsetPatcher->GetBufferFromName(pszName);
         CPLAssert(poBuffer);
