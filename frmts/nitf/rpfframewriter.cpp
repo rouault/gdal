@@ -125,6 +125,8 @@ Create_CADRG_LocationComponent(GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
         {LID_ImageDisplayParametersSubheader /* 137 */,
          "ImageDisplayParametersSubheader",
          "IMAGE_DISPLAY_PARAMETERS_SECTION_LOCATION"},
+        {LID_MaskSubsection /* 138 */, "MaskSubsection",
+         "MASK_SUBSECTION_LOCATION"},
         {LID_SpatialDataSubsection /* 140 */, "SpatialDataSubsection",
          "SPATIAL_DATA_SUBSECTION_LOCATION"},
     };
@@ -456,6 +458,28 @@ bool RPFFrameWriteCADRG_RPFIMG(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 }
 
 /************************************************************************/
+/*                     Write_CADRG_MaskSubsection()                     */
+/************************************************************************/
+
+static bool
+Write_CADRG_MaskSubsection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                           VSILFILE *fp)
+{
+    auto poBuffer = offsetPatcher->CreateBuffer(
+        "MaskSubsection", /* bEndiannessIsLittle = */ false);
+    CPLAssert(poBuffer);
+    poBuffer->DeclareBufferWrittenAtPosition(fp->Tell());
+    poBuffer->DeclareOffsetAtCurrentPosition("MASK_SUBSECTION_LOCATION");
+    poBuffer->AppendUInt16(0);  // SUBFRAME_SEQUENCE_RECORD_LENGTH
+    poBuffer->AppendUInt16(0);  // TRANSPARENCY_SEQUENCE_RECORD_LENGTH
+    poBuffer->AppendUInt16(0);  // TRANSPARENT_OUTPUT_PIXEL_CODE_LENGTH
+
+    return fp->Write(poBuffer->GetBuffer().data(), 1,
+                     poBuffer->GetBuffer().size()) ==
+           poBuffer->GetBuffer().size();
+}
+
+/************************************************************************/
 /*                   Write_CADRG_CompressionSection()                   */
 /************************************************************************/
 
@@ -759,6 +783,7 @@ bool RPFFrameCreateCADRG_ImageContent(
     std::vector<short> VQImage;
     return Perform_CADRG_VQ_Compression(poSrcDS, ctxt, codebook, VQImage) &&
            fp->Seek(0, SEEK_END) == 0 &&
+           Write_CADRG_MaskSubsection(offsetPatcher, fp) &&
            Write_CADRG_CompressionSection(offsetPatcher, fp) &&
            Write_CADRG_ImageDisplayParametersSection(offsetPatcher, fp) &&
            Write_CADRG_CompressionLookupSubSection(offsetPatcher, fp,
