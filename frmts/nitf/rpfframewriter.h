@@ -37,4 +37,8 @@ bool RPFFrameCreateCADRG_ImageContent(
     GDALOffsetPatcher::OffsetPatcher *offsetPatcher, VSILFILE *fp,
     GDALDataset *poSrcDS);
 
+bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                               VSILFILE *fp, vsi_l_offset nOffsetLDSH,
+                               const CPLStringList &aosOptions);
+
 #endif  // RPFFRAME_WRITER_INCLUDED

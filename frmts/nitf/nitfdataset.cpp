@@ -56,10 +56,11 @@ static bool NITFPatchImageLength(const char *pszFilename, VSILFILE *fp,
                                  GIntBig nPixelCount, const char *pszIC,
                                  vsi_l_offset nICOffset,
                                  CSLConstList papszCreationOptions);
-static bool NITFWriteExtraSegments(const char *pszFilename, VSILFILE *fpIn,
-                                   CSLConstList papszCgmMD,
-                                   CSLConstList papszTextMD,
-                                   const CPLStringList &aosOptions);
+static bool
+NITFWriteExtraSegments(const char *pszFilename, VSILFILE *fpIn,
+                       CSLConstList papszCgmMD, CSLConstList papszTextMD,
+                       GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                       const CPLStringList &aosOptions);
 
 #ifdef JPEG_SUPPORTED
 static bool NITFWriteJPEGImage(GDALDataset *, VSILFILE *, vsi_l_offset,
@@ -206,7 +207,7 @@ CPLErr NITFDataset::Close(int &bHasDroppedRef)
             eErr = GDAL::Combine(
                 eErr, NITFWriteExtraSegments(
                           GetDescription(), nullptr, papszCgmMDToWrite,
-                          papszTextMDToWrite, aosCreationOptions));
+                          papszTextMDToWrite, nullptr, aosCreationOptions));
         }
 
         CSLDestroy(papszTextMDToWrite);
@@ -5427,6 +5428,16 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
         aosOptions.SetNameValue("IC", pszIC);
         aosOptions.SetNameValue("LUT_SIZE", "216");
 
+        const int nRPFDESIdx = aosOptions.PartialFindString("DES=RPFDES=");
+        if (nRPFDESIdx >= 0)
+            aosOptions.Remove(nRPFDESIdx);
+        // +1 for the created RPFDES
+        const int nDES =
+            1 +
+            CPLStringList(CSLFetchNameValueMultiple(aosOptions.List(), "DES"))
+                .size();
+        aosOptions.SetNameValue("NUMDES", CPLSPrintf("%d", nDES));
+
         if (!RPFFrameCreateCADRG_TREs(&offsetPatcher, pszFilename, poSrcDS,
                                       aosOptions))
         {
@@ -5496,8 +5507,9 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
                                         nICOffset, aosOptions.List());
         if (nIMIndex + 1 == nImageCount)
         {
-            bOK &= NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
-                                          aosTextMD.List(), aosOptions);
+            bOK &=
+                NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
+                                       aosTextMD.List(), nullptr, aosOptions);
         }
         if (!bOK)
         {
@@ -5548,8 +5560,9 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
                                         nICOffset, aosOptions.List());
         if (nIMIndex + 1 == nImageCount)
         {
-            bOK &= NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
-                                          aosTextMD.List(), aosOptions);
+            bOK &=
+                NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
+                                       aosTextMD.List(), nullptr, aosOptions);
         }
         if (!bOK)
         {
@@ -5594,8 +5607,10 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
                                         nImageOffset, nPixelCount, pszIC,
                                         nICOffset, aosOptions.List());
 
+        // This will call RPFFrameWriteCADRG_RPFDES()
         bOK &= NITFWriteExtraSegments(pszFilename, fp.get(), aosCgmMD.List(),
-                                      aosTextMD.List(), aosOptions);
+                                      aosTextMD.List(), &offsetPatcher,
+                                      aosOptions);
 
         if (!bOK || !offsetPatcher.Finalize(fp.get()))
             return nullptr;
@@ -5633,7 +5648,7 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
         {
             bool bOK =
                 NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
-                                       aosTextMD.List(), aosOptions);
+                                       aosTextMD.List(), nullptr, aosOptions);
             if (!bOK)
             {
                 return nullptr;
@@ -6703,9 +6718,10 @@ static bool NITFWriteDES(VSILFILE *&fp, const char *pszFilename,
 /************************************************************************/
 
 static bool NITFWriteDES(const char *pszFilename, VSILFILE *&fpVSIL,
+                         GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                          const CPLStringList &aosOptions)
 {
-    int nDESFound = 0;
+    int nDESFound = offsetPatcher ? 1 : 0;
     for (const char *pszOpt : aosOptions)
     {
         if (cpl::starts_with(std::string_view(pszOpt),
@@ -6776,6 +6792,13 @@ static bool NITFWriteDES(const char *pszFilename, VSILFILE *&fpVSIL,
     const auto nOffsetLDSH = nNumDESOffset + 3;
 
     int iDES = 0;
+    if (bOK && offsetPatcher)
+    {
+        bOK &= RPFFrameWriteCADRG_RPFDES(offsetPatcher, fpVSIL, nOffsetLDSH,
+                                         aosOptions);
+        iDES = 1;
+    }
+
     for (int iOption = 0; bOK && iOption < aosOptions.size(); iOption++)
     {
         if (!cpl::starts_with(std::string_view(aosOptions[iOption]),
@@ -6868,15 +6891,16 @@ static bool UpdateFileLength(VSILFILE *fp)
 /*                       NITFWriteExtraSegments()                       */
 /************************************************************************/
 
-static bool NITFWriteExtraSegments(const char *pszFilename, VSILFILE *fpIn,
-                                   CSLConstList papszCgmMD,
-                                   CSLConstList papszTextMD,
-                                   const CPLStringList &aosOptions)
+static bool
+NITFWriteExtraSegments(const char *pszFilename, VSILFILE *fpIn,
+                       CSLConstList papszCgmMD, CSLConstList papszTextMD,
+                       GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                       const CPLStringList &aosOptions)
 {
     VSILFILE *fp = fpIn;
     bool bOK = NITFWriteCGMSegments(pszFilename, fp, papszCgmMD);
     bOK &= NITFWriteTextSegments(pszFilename, fp, papszTextMD);
-    bOK &= NITFWriteDES(pszFilename, fp, aosOptions);
+    bOK &= NITFWriteDES(pszFilename, fp, offsetPatcher, aosOptions);
     if (fp)
     {
         bOK &= UpdateFileLength(fp);

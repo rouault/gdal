@@ -129,6 +129,10 @@ Create_CADRG_LocationComponent(GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
          "MASK_SUBSECTION_LOCATION"},
         {LID_SpatialDataSubsection /* 140 */, "SpatialDataSubsection",
          "SPATIAL_DATA_SUBSECTION_LOCATION"},
+        {LID_AttributeSectionSubheader /* 141 */, "AttributeSectionSubheader",
+         "ATTRIBUTE_SECTION_SUBHEADER_LOCATION"},
+        {LID_AttributeSubsection /* 142 */, "AttributeSubsection",
+         "ATTRIBUTE_SUBSECTION_LOCATION"},
     };
 
     std::string sumOfSizes;
@@ -857,4 +861,154 @@ bool RPFFrameCreateCADRG_ImageContent(
                                                    codebook) &&
            Write_CADRG_SpatialDataSubsection(offsetPatcher, fp, poSrcDS,
                                              VQImage);
+}
+
+/************************************************************************/
+/*                             RPFAttribute                             */
+/************************************************************************/
+
+namespace
+{
+struct RPFAttribute
+{
+    uint16_t nAttrId = 0;
+    uint8_t nParamId = 0;
+    std::string osValue{};
+
+    RPFAttribute(int nAttrIdIn, int nParamIdIn, const std::string &osValueIn)
+        : nAttrId(static_cast<uint16_t>(nAttrIdIn)),
+          nParamId(static_cast<uint8_t>(nParamIdIn)), osValue(osValueIn)
+    {
+    }
+};
+}  // namespace
+
+/************************************************************************/
+/*                     RPFFrameWriteCADRG_RPFDES()                      */
+/************************************************************************/
+
+bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                               VSILFILE *fp, vsi_l_offset nOffsetLDSH,
+                               const CPLStringList &aosOptions)
+{
+    bool bOK = fp->Seek(0, SEEK_END) == 0;
+
+    constexpr const char *pszDESHeader =
+        "DE"                                           // Segment type
+        "Registered Extensions    "                    // DESID
+        "01"                                           // DESVER
+        "U"                                            // DECLAS
+        "  "                                           // DESCLSY
+        "           "                                  // DESCODE
+        "  "                                           // DESCTLH
+        "                    "                         // DESREL
+        "  "                                           // DESDCDT
+        "        "                                     // DESDCDT
+        "    "                                         // DESDCXM
+        " "                                            // DESDG
+        "        "                                     // DESDGDT
+        "                                           "  // DESCLTX
+        " "                                            // DESCATP
+        "                                        "     // DESCAUT
+        " "                                            // DESCRSN
+        "        "                                     // DESSRDT
+        "               "                              // DESCTLN
+        "UDID  "                                       // DESOVFL
+        "001"                                          // DESITEM
+        "0000"                                         // DESSHL
+        ;
+
+    bOK &= fp->Write(pszDESHeader, 1, strlen(pszDESHeader)) ==
+           strlen(pszDESHeader);
+
+    std::string osDESData("RPFDES");
+    std::string osDESDataPayload;
+    const auto nPosAttributeSectionSubheader =
+        fp->Tell() + osDESData.size() + strlen("XXXXX");
+
+    auto poBufferASSH = offsetPatcher->CreateBuffer(
+        "AttributeSectionSubheader", /* bEndiannessIsLittle = */ false);
+    CPLAssert(poBufferASSH);
+    poBufferASSH->DeclareBufferWrittenAtPosition(nPosAttributeSectionSubheader);
+    poBufferASSH->DeclareOffsetAtCurrentPosition(
+        "ATTRIBUTE_SECTION_SUBHEADER_LOCATION");
+
+    std::vector<RPFAttribute> asAttributes{
+        // Horizontal datum code
+        {7, 1, "WGE " /* trailing space intended */},
+    };
+
+    if (const char *pszV =
+            aosOptions.FetchNameValue("RPF_DataSeriesDesignation"))
+    {
+        asAttributes.emplace_back(4, 1, StrPadTruncate(pszV, 10));
+    }
+
+    if (const char *pszV = aosOptions.FetchNameValue("RPF_MapDesignation"))
+    {
+        asAttributes.emplace_back(4, 2, StrPadTruncate(pszV, 8));
+    }
+
+    const auto nAttrCount = static_cast<uint16_t>(asAttributes.size());
+    poBufferASSH->AppendUInt16(nAttrCount);
+    poBufferASSH->AppendUInt16(0);  // NUMBER_OF_EXPLICIT_AREAL_COVERAGE_RECORDS
+    poBufferASSH->AppendUInt32(0);  // ATTRIBUTE_OFFSET_TABLE_OFFSET
+    constexpr uint16_t ATTRIBUTE_OFFSET_RECORD_LENGTH =
+        static_cast<uint16_t>(8);
+    poBufferASSH->AppendUInt16(ATTRIBUTE_OFFSET_RECORD_LENGTH);
+
+    osDESDataPayload.insert(
+        osDESDataPayload.end(),
+        reinterpret_cast<const char *>(poBufferASSH->GetBuffer().data()),
+        reinterpret_cast<const char *>(poBufferASSH->GetBuffer().data() +
+                                       poBufferASSH->GetBuffer().size()));
+
+    auto poBufferAS = offsetPatcher->CreateBuffer(
+        "AttributeSubsection", /* bEndiannessIsLittle = */ false);
+    CPLAssert(poBufferAS);
+    poBufferAS->DeclareBufferWrittenAtPosition(
+        nPosAttributeSectionSubheader + poBufferASSH->GetBuffer().size());
+    poBufferAS->DeclareOffsetAtCurrentPosition("ATTRIBUTE_SUBSECTION_LOCATION");
+
+    size_t nAttrValueOffset =
+        ATTRIBUTE_OFFSET_RECORD_LENGTH * asAttributes.size();
+
+    // Attribute definitions
+    for (const auto &sAttr : asAttributes)
+    {
+        poBufferAS->AppendUInt16(sAttr.nAttrId);
+        poBufferAS->AppendByte(sAttr.nParamId);
+        poBufferAS->AppendByte(0);  // Areal coverage sequence number
+        poBufferAS->AppendUInt32(static_cast<uint32_t>(
+            nAttrValueOffset));  // Attribute record offset
+        nAttrValueOffset += sAttr.osValue.size();
+    }
+
+    // Attribute values
+    for (const auto &sAttr : asAttributes)
+    {
+        poBufferAS->AppendString(sAttr.osValue);
+    }
+
+    osDESDataPayload.insert(
+        osDESDataPayload.end(),
+        reinterpret_cast<const char *>(poBufferAS->GetBuffer().data()),
+        reinterpret_cast<const char *>(poBufferAS->GetBuffer().data() +
+                                       poBufferAS->GetBuffer().size()));
+
+    CPLAssert(osDESDataPayload.size() <= 99999U);
+    osDESData += CPLSPrintf("%05d", static_cast<int>(osDESDataPayload.size()));
+    osDESData += osDESDataPayload;
+    bOK &=
+        fp->Write(osDESData.c_str(), 1, osDESData.size()) == osDESData.size();
+
+    // Update LDSH and LD in the NITF Header
+    const int iDES = 0;
+    bOK &= fp->Seek(nOffsetLDSH + iDES * 13, SEEK_SET) == 0;
+    bOK &= fp->Write(CPLSPrintf("%04d", static_cast<int>(strlen(pszDESHeader))),
+                     1, 4) == 4;
+    bOK &= fp->Write(CPLSPrintf("%09d", static_cast<int>(osDESData.size())), 1,
+                     9) == 9;
+
+    return bOK;
 }
