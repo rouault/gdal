@@ -7302,3 +7302,68 @@ def test_nitf_create_cadrg(tmp_path):
         skip_binary=True,
     )
     assert alg.Outputs()["return-code"] == 0
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_with_transparency(tmp_path):
+
+    gdal.alg.raster.pipeline(
+        input="data/small_world.tif",
+        output=tmp_path / "in.tif",
+        pipeline="read ! rgb-to-palette --color-count=216 ! resize --size 1536,1536 ! write",
+    )
+
+    with gdal.Open(tmp_path / "in.tif", gdal.GA_Update) as ds:
+        ds.GetRasterBand(1).SetNoDataValue(216)
+        ds.GetRasterBand(1).WriteRaster(1535, 0, 1, 1, b"\xd8")
+
+    with gdal.Open(tmp_path / "in.tif") as ds:
+        assert ds.GetRasterBand(1).GetNoDataValue() == 216
+        assert ds.GetRasterBand(1).GetColorTable().GetColorEntry(216) == (0, 0, 0, 0)
+
+    gdal.Mkdir(tmp_path / "1", 0o755)
+
+    ds = gdal.Translate(
+        tmp_path / "1" / "out_cadrg.ntf",
+        gdal.Open(tmp_path / "in.tif"),
+        creationOptions=["PRODUCT_TYPE=CADRG"],
+    )
+    assert ds.GetRasterBand(1).ReadRaster(1534, 0, 2, 2) == b"\xd8" * 4
+    assert ds.GetRasterBand(1).GetColorTable().GetCount() == 217
+    assert ds.GetRasterBand(1).Checksum() == 35506
+
+    tres = ds.GetMetadata("xml:TRE")[0]
+    # print(tres)
+
+    assert """ <group index="5">
+        <field name="COMPONENT_ID" value="136" />
+        <field name="COMPONENT_LENGTH" value="28" />
+        <field name="COMPONENT_LOCATION" value="3636" />
+        <content ComponentName="ImageDescriptionSubheader">
+          <field name="NUMBER_OF_SPECTRAL_GROUPS" value="1" />
+          <field name="NUMBER_OF_SUBFRAME_TABLES" value="36" />
+          <field name="NUMBER_OF_SPECTRAL_BAND_TABLES" value="1" />
+          <field name="NUMBER_OF_SPECTRAL_BAND_LINES_PER_IMAGE_ROW" value="1" />
+          <field name="NUMBER_OF_SUBFRAME_IN_EAST_WEST_DIRECTION" value="6" />
+          <field name="NUMBER_OF_SUBFRAME_IN_NORTH_SOUTH_DIRECTION" value="6" />
+          <field name="NUMBER_OF_OUTPUT_COLUMNS_PER_SUBFRAME" value="256" />
+          <field name="NUMBER_OF_OUTPUT_ROWS_PER_SUBFRAME" value="256" />
+          <field name="SUBFRAME_MASK_TABLE_OFFSET" value="4294967295" />
+          <field name="TRANSPARENCY_MASK_TABLE_OFFSET" value="7" />
+        </content>
+      </group>""" in tres
+
+    assert """<group index="7">
+        <field name="COMPONENT_ID" value="138" />
+        <field name="COMPONENT_LENGTH" value="151" />
+        <field name="COMPONENT_LOCATION" value="3669" />
+        <content ComponentName="MaskSubsection">
+          <field name="SUBFRAME_SEQUENCE_RECORD_LENGTH" value="0" />
+          <field name="TRANSPARENCY_SEQUENCE_RECORD_LENGTH" value="0" />
+          <field name="TRANSPARENT_OUTPUT_PIXEL_CODE_LENGTH" value="8" />
+          <field name="TRANSPARENT_OUTPUT_PIXEL_CODE_" value="216" />
+        </content>
+      </group>""" in tres

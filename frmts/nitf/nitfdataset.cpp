@@ -5444,7 +5444,6 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
             // 0.67 = 100 (microns ADRG) / 150 (microns CADRG)
             aosOptions.SetNameValue("IMAG", "0.67");
         }
-        aosOptions.SetNameValue("LUT_SIZE", "216");
 
         const int nRPFDESIdx = aosOptions.PartialFindString("DES=RPFDES=");
         if (nRPFDESIdx >= 0)
@@ -5462,6 +5461,9 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
         {
             return nullptr;
         }
+
+        aosOptions.SetNameValue(
+            "LUT_SIZE", CADRGInfo->HasTransparentPixels() ? "217" : "216");
     }
 
     int nIMIndex = 0;
@@ -5645,7 +5647,9 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
 
         const GDALColorTable *poCT = poSrcDS->GetRasterBand(1)->GetColorTable();
         GDALColorTable oDstCT;
-        for (int i = 0; i < 216; ++i)
+        const int nMaxCTEntries = CADRG_MAX_COLOR_ENTRY_COUNT +
+                                  (CADRGInfo->HasTransparentPixels() ? 1 : 0);
+        for (int i = 0; i < nMaxCTEntries; ++i)
         {
             if (i < poCT->GetColorEntryCount())
                 oDstCT.SetColorEntry(i, poCT->GetColorEntry(i));

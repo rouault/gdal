@@ -114,7 +114,10 @@ struct ColorTableBased4x4Pixels
 
 template <> class Vector<ColorTableBased4x4Pixels>
 {
+  public:
     static constexpr int PIX_COUNT = 4 * 4;
+
+  private:
     static constexpr int COMP_COUNT = ColorTableBased4x4Pixels::COMP_COUNT;
 
     std::array<GByte, PIX_COUNT> m_vals;

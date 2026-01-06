@@ -34,6 +34,8 @@ class CADRGInformation
     explicit CADRGInformation(std::unique_ptr<Private>);
     ~CADRGInformation();
 
+    bool HasTransparentPixels() const;
+
     std::unique_ptr<Private> m_private{};
 };
 

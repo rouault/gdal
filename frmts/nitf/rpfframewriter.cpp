@@ -12,6 +12,7 @@
 
 #include "rpfframewriter.h"
 
+#include "cpl_enumerate.h"
 #include "cpl_string.h"
 #include "gdal_colortable.h"
 #include "gdal_dataset.h"
@@ -37,6 +38,8 @@
 constexpr int SUBSAMPLING = 4;
 constexpr int BLOCK_SIZE = 256;
 constexpr int CODEBOOK_MAX_SIZE = 4096;
+constexpr int TRANSPARENT_CODEBOOK_CODE = CODEBOOK_MAX_SIZE - 1;
+constexpr int TRANSPARENT_COLOR_TABLE_ENTRY = CADRG_MAX_COLOR_ENTRY_COUNT;
 
 /************************************************************************/
 /*                      CADRGInformation::Private                       */
@@ -47,6 +50,7 @@ class CADRGInformation::Private
   public:
     std::vector<BucketItem<ColorTableBased4x4Pixels>> codebook{};
     std::vector<short> VQImage{};
+    bool bHasTransparentPixels = false;
 };
 
 /************************************************************************/
@@ -63,6 +67,15 @@ CADRGInformation::CADRGInformation(std::unique_ptr<Private> priv)
 /************************************************************************/
 
 CADRGInformation::~CADRGInformation() = default;
+
+/************************************************************************/
+/*               CADRGInformation::HasTransparentPixels()               */
+/************************************************************************/
+
+bool CADRGInformation::HasTransparentPixels() const
+{
+    return m_private->bHasTransparentPixels;
+}
 
 /************************************************************************/
 /*                           StrPadTruncate()                           */
@@ -336,7 +349,8 @@ static void Create_CADRG_ColorGrayscaleSection(
 /************************************************************************/
 
 static void Create_CADRG_ImageDescriptionSection(
-    GDALOffsetPatcher::OffsetPatcher *offsetPatcher, GDALDataset *poSrcDS)
+    GDALOffsetPatcher::OffsetPatcher *offsetPatcher, GDALDataset *poSrcDS,
+    bool bHasTransparentPixels)
 {
     CPLAssert((poSrcDS->GetRasterXSize() % BLOCK_SIZE) == 0);
     CPLAssert((poSrcDS->GetRasterYSize() % BLOCK_SIZE) == 0);
@@ -366,7 +380,16 @@ static void Create_CADRG_ImageDescriptionSection(
         BLOCK_SIZE);  // NUMBER_OF_OUTPUT_COLUMNS_PER_SUBFRAME
     poBuffer->AppendUInt32(BLOCK_SIZE);  // NUMBER_OF_OUTPUT_ROWS_PER_SUBFRAME
     poBuffer->AppendUInt32(UINT32_MAX);  // SUBFRAME_MASK_TABLE_OFFSET
-    poBuffer->AppendUInt32(UINT32_MAX);  // TRANSPARENCY_MASK_TABLE_OFFSET
+    if (!bHasTransparentPixels)
+    {
+        poBuffer->AppendUInt32(UINT32_MAX);  // TRANSPARENCY_MASK_TABLE_OFFSET
+    }
+    else
+    {
+        // Offset in bytes from the beginning of the mask subsection to the
+        // beginning of the transparency mask table.
+        poBuffer->AppendUInt32(7);
+    }
 }
 
 /************************************************************************/
@@ -375,6 +398,7 @@ static void Create_CADRG_ImageDescriptionSection(
 
 static void Create_CADRG_ColormapSection(
     GDALOffsetPatcher::OffsetPatcher *offsetPatcher, GDALDataset *poSrcDS,
+    bool bHasTransparentPixels,
     const std::vector<BucketItem<ColorTableBased4x4Pixels>> &codebook)
 {
     auto poBuffer = offsetPatcher->CreateBuffer(
@@ -403,7 +427,9 @@ static void Create_CADRG_ColormapSection(
 
     // Write color table
     const auto poCT = poSrcDS->GetRasterBand(1)->GetColorTable();
-    for (int i = 0; i < CADRG_MAX_COLOR_ENTRY_COUNT; ++i)
+    const int nMaxCTEntries =
+        CADRG_MAX_COLOR_ENTRY_COUNT + (bHasTransparentPixels ? 1 : 0);
+    for (int i = 0; i < nMaxCTEntries; ++i)
     {
         if (i < poCT->GetColorEntryCount())
         {
@@ -424,24 +450,27 @@ static void Create_CADRG_ColormapSection(
     }
 
     // Compute the number of pixels in the output image per colormap entry
+    // (exclude the entry for transparent pixels)
     std::vector<uint32_t> anHistogram(CADRG_MAX_COLOR_ENTRY_COUNT);
-#ifdef DEBUG
     size_t nTotalCount = 0;
-#endif
-    for (const auto &item : codebook)
+    for (const auto &[i, item] : cpl::enumerate(codebook))
     {
-        for (GByte byVal : item.m_vec.vals())
+        if (bHasTransparentPixels && i == TRANSPARENT_CODEBOOK_CODE)
         {
-            anHistogram[byVal] += item.m_count;
-#ifdef DEBUG
             nTotalCount += item.m_count;
-#endif
+        }
+        else
+        {
+            for (GByte byVal : item.m_vec.vals())
+            {
+                anHistogram[byVal] += item.m_count;
+                nTotalCount += item.m_count;
+            }
         }
     }
-#ifdef DEBUG
     CPLAssert(nTotalCount == static_cast<size_t>(poSrcDS->GetRasterXSize()) *
                                  poSrcDS->GetRasterYSize());
-#endif
+    CPL_IGNORE_RET_VAL(nTotalCount);
 
     // Write histogram
     for (auto nCount : anHistogram)
@@ -457,7 +486,7 @@ static void Create_CADRG_ColormapSection(
 static bool Perform_CADRG_VQ_Compression(
     GDALDataset *poSrcDS,
     std::vector<BucketItem<ColorTableBased4x4Pixels>> &codebook,
-    std::vector<short> &VQImage)
+    std::vector<short> &VQImage, bool &bHasTransparentPixels)
 {
     const int nY = poSrcDS->GetRasterYSize();
     const int nX = poSrcDS->GetRasterXSize();
@@ -475,6 +504,12 @@ static bool Perform_CADRG_VQ_Compression(
     std::vector<GByte> vR, vG, vB;
     const int nColorCount =
         std::min(CADRG_MAX_COLOR_ENTRY_COUNT, poCT->GetColorEntryCount());
+    const bool bHasTransparentEntry =
+        poCT->GetColorEntryCount() >= CADRG_MAX_COLOR_ENTRY_COUNT + 1 &&
+        poCT->GetColorEntry(TRANSPARENT_COLOR_TABLE_ENTRY)->c1 == 0 &&
+        poCT->GetColorEntry(TRANSPARENT_COLOR_TABLE_ENTRY)->c2 == 0 &&
+        poCT->GetColorEntry(TRANSPARENT_COLOR_TABLE_ENTRY)->c3 == 0 &&
+        poCT->GetColorEntry(TRANSPARENT_COLOR_TABLE_ENTRY)->c4 == 0;
     for (int i = 0; i < nColorCount; ++i)
     {
         const auto entry = poCT->GetColorEntry(i);
@@ -492,31 +527,54 @@ static bool Perform_CADRG_VQ_Compression(
         std::vector<int> anIndicesToOutputImage{};
     };
 
+    VQImage.resize((nY / SUBSAMPLING) * (nX / SUBSAMPLING));
+
     // Collect all the occurences of 4x4 pixel values into a map indexed by them
     std::map<Vector<ColorTableBased4x4Pixels>, Occurences> vectorMap;
+    bHasTransparentPixels = false;
+    std::array<GByte, SUBSAMPLING * SUBSAMPLING> vals;
+    std::fill(vals.begin(), vals.end(), static_cast<GByte>(0));
+    int nTransparentPixels = 0;
     for (int j = 0, nOutputIdx = 0; j < nY / SUBSAMPLING; ++j)
     {
         for (int i = 0; i < nX / SUBSAMPLING; ++i, ++nOutputIdx)
         {
-            std::array<GByte, SUBSAMPLING * SUBSAMPLING> vals;
             for (int y = 0; y < SUBSAMPLING; ++y)
             {
                 for (int x = 0; x < SUBSAMPLING; ++x)
                 {
                     const GByte val = pixels[(j * SUBSAMPLING + y) * nX +
                                              (i * SUBSAMPLING + x)];
-                    if (val >= nColorCount)
+                    if (bHasTransparentEntry &&
+                        val == TRANSPARENT_COLOR_TABLE_ENTRY)
                     {
-                        CPLError(CE_Failure, CPLE_AppDefined,
-                                 "Out of range pixel value found: %d", val);
-                        return false;
+                        // As soon as one of the pixels in the 4x4 block is
+                        // transparent, the whole block is flagged as transparent
+                        bHasTransparentPixels = true;
+                        VQImage[nOutputIdx] = TRANSPARENT_CODEBOOK_CODE;
                     }
-                    vals[SUBSAMPLING * y + x] = val;
+                    else
+                    {
+                        if (val >= nColorCount)
+                        {
+                            CPLError(CE_Failure, CPLE_AppDefined,
+                                     "Out of range pixel value found: %d", val);
+                            return false;
+                        }
+                        vals[SUBSAMPLING * y + x] = val;
+                    }
                 }
             }
-            auto &elt = vectorMap[Vector<ColorTableBased4x4Pixels>(vals)];
-            ++elt.nCount;
-            elt.anIndicesToOutputImage.push_back(nOutputIdx);
+            if (VQImage[nOutputIdx] == TRANSPARENT_CODEBOOK_CODE)
+            {
+                nTransparentPixels += SUBSAMPLING * SUBSAMPLING;
+            }
+            else
+            {
+                auto &elt = vectorMap[Vector<ColorTableBased4x4Pixels>(vals)];
+                ++elt.nCount;
+                elt.anIndicesToOutputImage.push_back(nOutputIdx);
+            }
         }
     }
 
@@ -534,15 +592,17 @@ static bool Perform_CADRG_VQ_Compression(
     PNNKDTree<ColorTableBased4x4Pixels> kdtree;
 
     // Insert the initial items
+    const bool bEmptyImage = vectors.empty();
     int nCodeCount = kdtree.insert(std::move(vectors), ctxt);
-    if (nCodeCount == 0)
+    if (!bEmptyImage && nCodeCount == 0)
         return false;
 
     // Reduce to the maximum target
-    if (nCodeCount > CODEBOOK_MAX_SIZE)
+    const int nMaxCodes =
+        bHasTransparentPixels ? CODEBOOK_MAX_SIZE - 1 : CODEBOOK_MAX_SIZE;
+    if (nCodeCount > nMaxCodes)
     {
-        const int nNewCodeCount =
-            kdtree.cluster(nCodeCount, CODEBOOK_MAX_SIZE, ctxt);
+        const int nNewCodeCount = kdtree.cluster(nCodeCount, nMaxCodes, ctxt);
         if (nNewCodeCount == 0)
             return false;
         CPLDebug("NITF", "VQ compression: reducing from %d codes to %d",
@@ -553,12 +613,11 @@ static bool Perform_CADRG_VQ_Compression(
     {
         CPLDebug("NITF",
                  "Already less than %d codes. VQ compression is lossless",
-                 CODEBOOK_MAX_SIZE);
+                 nMaxCodes);
     }
 
     // Create the code book and the target VQ-compressed image.
-    codebook.reserve(nCodeCount);
-    VQImage.resize((nY / SUBSAMPLING) * (nX / SUBSAMPLING));
+    codebook.reserve(CODEBOOK_MAX_SIZE);
     kdtree.iterateOverLeaves(
         [&codebook, &VQImage](PNNKDTree<ColorTableBased4x4Pixels> &node)
         {
@@ -573,6 +632,31 @@ static bool Perform_CADRG_VQ_Compression(
             }
         });
 
+    // Add dummy entries until CODEBOOK_MAX_SIZE is reached. In theory we
+    // could provide less code if we don't reach it, but for broader
+    // compatibility it seems best to go up to the typical max value.
+    // Furthermore when there is transparency, the CADRG spec mentions 4095
+    // to be reserved for a transparent 4x4 kernel pointing to color table entry
+    // 216.
+    while (codebook.size() < CODEBOOK_MAX_SIZE)
+    {
+        codebook.emplace_back(
+            Vector<ColorTableBased4x4Pixels>(
+                filled_array<GByte,
+                             Vector<ColorTableBased4x4Pixels>::PIX_COUNT>(0)),
+            0, std::vector<int>());
+    }
+
+    if (bHasTransparentPixels)
+    {
+        codebook[TRANSPARENT_CODEBOOK_CODE]
+            .m_vec = Vector<ColorTableBased4x4Pixels>(
+            filled_array<GByte, Vector<ColorTableBased4x4Pixels>::PIX_COUNT>(
+                static_cast<GByte>(TRANSPARENT_COLOR_TABLE_ENTRY)));
+        codebook[TRANSPARENT_CODEBOOK_CODE].m_count = nTransparentPixels;
+        codebook[TRANSPARENT_CODEBOOK_CODE].m_origVectorIndices.clear();
+    }
+
     return true;
 }
 
@@ -586,7 +670,8 @@ RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                          CPLStringList &aosOptions)
 {
     auto priv = std::make_unique<CADRGInformation::Private>();
-    if (!Perform_CADRG_VQ_Compression(poSrcDS, priv->codebook, priv->VQImage))
+    if (!Perform_CADRG_VQ_Compression(poSrcDS, priv->codebook, priv->VQImage,
+                                      priv->bHasTransparentPixels))
     {
         return nullptr;
     }
@@ -598,8 +683,10 @@ RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     if (!Create_CADRG_CoverageSection(offsetPatcher, poSrcDS))
         return nullptr;
     Create_CADRG_ColorGrayscaleSection(offsetPatcher);
-    Create_CADRG_ColormapSection(offsetPatcher, poSrcDS, priv->codebook);
-    Create_CADRG_ImageDescriptionSection(offsetPatcher, poSrcDS);
+    Create_CADRG_ColormapSection(offsetPatcher, poSrcDS,
+                                 priv->bHasTransparentPixels, priv->codebook);
+    Create_CADRG_ImageDescriptionSection(offsetPatcher, poSrcDS,
+                                         priv->bHasTransparentPixels);
     return std::make_unique<CADRGInformation>(std::move(priv));
 }
 
@@ -656,7 +743,9 @@ bool RPFFrameWriteCADRG_RPFIMG(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 
 static bool
 Write_CADRG_MaskSubsection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                           VSILFILE *fp)
+                           VSILFILE *fp, GDALDataset *poSrcDS,
+                           bool bHasTransparentPixels,
+                           const std::vector<short> &VQImage)
 {
     auto poBuffer = offsetPatcher->CreateBuffer(
         "MaskSubsection", /* bEndiannessIsLittle = */ false);
@@ -665,7 +754,64 @@ Write_CADRG_MaskSubsection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     poBuffer->DeclareOffsetAtCurrentPosition("MASK_SUBSECTION_LOCATION");
     poBuffer->AppendUInt16(0);  // SUBFRAME_SEQUENCE_RECORD_LENGTH
     poBuffer->AppendUInt16(0);  // TRANSPARENCY_SEQUENCE_RECORD_LENGTH
-    poBuffer->AppendUInt16(0);  // TRANSPARENT_OUTPUT_PIXEL_CODE_LENGTH
+    if (bHasTransparentPixels)
+    {
+        poBuffer->AppendUInt16(8);  // TRANSPARENT_OUTPUT_PIXEL_CODE_LENGTH
+        // TRANSPARENT_OUTPUT_PIXEL_CODE
+        poBuffer->AppendByte(static_cast<GByte>(TRANSPARENT_COLOR_TABLE_ENTRY));
+
+        const int nWidth = poSrcDS->GetRasterXSize();
+        const int nHeight = poSrcDS->GetRasterYSize();
+        CPLAssert((nWidth % BLOCK_SIZE) == 0);
+        CPLAssert((nHeight % BLOCK_SIZE) == 0);
+        const int nSubFramesPerRow = nWidth / BLOCK_SIZE;
+        const int nSubFramesPerCol = nHeight / BLOCK_SIZE;
+        static_assert((BLOCK_SIZE % SUBSAMPLING) == 0);
+        constexpr int SUBFRAME_YSIZE = BLOCK_SIZE / SUBSAMPLING;
+        constexpr int SUBFRAME_XSIZE = BLOCK_SIZE / SUBSAMPLING;
+        const int nPixelsPerRow = nSubFramesPerRow * SUBFRAME_XSIZE;
+        constexpr GByte CODE_WORD_BIT_LENGTH = 12;
+        static_assert((1 << CODE_WORD_BIT_LENGTH) == CODEBOOK_MAX_SIZE);
+        static_assert(
+            ((SUBFRAME_XSIZE * SUBFRAME_YSIZE * CODE_WORD_BIT_LENGTH) % 8) ==
+            0);
+        constexpr int SIZEOF_SUBFRAME_IN_BYTES =
+            (SUBFRAME_XSIZE * SUBFRAME_YSIZE * CODE_WORD_BIT_LENGTH) / 8;
+
+        CPLAssert(VQImage.size() == static_cast<size_t>(nSubFramesPerRow) *
+                                        nSubFramesPerCol * SUBFRAME_YSIZE *
+                                        SUBFRAME_XSIZE);
+
+        for (int yBlock = 0, nIdxBlock = 0; yBlock < nSubFramesPerCol; ++yBlock)
+        {
+            int nOffsetBlock = yBlock * SUBFRAME_YSIZE * nPixelsPerRow;
+            for (int xBlock = 0; xBlock < nSubFramesPerRow;
+                 ++xBlock, nOffsetBlock += SUBFRAME_XSIZE, ++nIdxBlock)
+            {
+                bool bBlockHasTransparentPixels = false;
+                for (int ySubBlock = 0; ySubBlock < SUBFRAME_YSIZE; ySubBlock++)
+                {
+                    int nOffset = nOffsetBlock + ySubBlock * nPixelsPerRow;
+                    for (int xSubBlock = 0; xSubBlock < SUBFRAME_XSIZE;
+                         ++xSubBlock, ++nOffset)
+                    {
+                        if (VQImage[nOffset] == TRANSPARENT_CODEBOOK_CODE)
+                            bBlockHasTransparentPixels = true;
+                    }
+                }
+                // Cf MIL-STD-2411 page 23
+                if (!bBlockHasTransparentPixels)
+                    poBuffer->AppendUInt32(UINT32_MAX);
+                else
+                    poBuffer->AppendUInt32(nIdxBlock *
+                                           SIZEOF_SUBFRAME_IN_BYTES);
+            }
+        }
+    }
+    else
+    {
+        poBuffer->AppendUInt16(0);  // TRANSPARENT_OUTPUT_PIXEL_CODE_LENGTH
+    }
 
     return fp->Write(poBuffer->GetBuffer().data(), 1,
                      poBuffer->GetBuffer().size()) ==
@@ -842,7 +988,9 @@ bool RPFFrameWriteCADRG_ImageContent(
     GDALDataset *poSrcDS, CADRGInformation *info)
 {
     return fp->Seek(0, SEEK_END) == 0 &&
-           Write_CADRG_MaskSubsection(offsetPatcher, fp) &&
+           Write_CADRG_MaskSubsection(offsetPatcher, fp, poSrcDS,
+                                      info->m_private->bHasTransparentPixels,
+                                      info->m_private->VQImage) &&
            Write_CADRG_CompressionSection(offsetPatcher, fp) &&
            Write_CADRG_ImageDisplayParametersSection(offsetPatcher, fp) &&
            Write_CADRG_CompressionLookupSubSection(offsetPatcher, fp,
