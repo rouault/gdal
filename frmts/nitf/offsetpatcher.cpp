@@ -289,7 +289,7 @@ bool OffsetPatcher::Finalize(VSILFILE *fp)
             return false;
         }
 
-        if (declaration->m_references.empty() && !declaration->m_consumed)
+        if (declaration->m_references.empty())
         {
             CPLError(CE_Warning, CPLE_AppDefined,
                      "No reference found to offset '%s'", offsetName.c_str());

@@ -81,18 +81,12 @@ class OffsetOrSizeDeclaration
     void SetReference(OffsetPatcherBuffer *buffer, size_t offsetInBuffer,
                       int objectSizeBytes, bool bEndiannessIsLittle);
 
-    void MarkAsConsumed()
-    {
-        m_consumed = true;
-    }
-
   private:
     friend class OffsetPatcher;
 
     const std::string m_osName;
     OffsetOrSizeLocation m_location{};
     std::vector<OffsetOrSizeReference> m_references{};
-    bool m_consumed = false;
 };
 
 /************************************************************************/

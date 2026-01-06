@@ -5420,6 +5420,7 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
     }
 
     GDALOffsetPatcher::OffsetPatcher offsetPatcher;
+    std::unique_ptr<CADRGInformation> CADRGInfo;
 
     if (bIsCADRG)
     {
@@ -5455,8 +5456,9 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
                 .size();
         aosOptions.SetNameValue("NUMDES", CPLSPrintf("%d", nDES));
 
-        if (!RPFFrameCreateCADRG_TREs(&offsetPatcher, pszFilename, poSrcDS,
-                                      aosOptions))
+        CADRGInfo = RPFFrameCreateCADRG_TREs(&offsetPatcher, pszFilename,
+                                             poSrcDS, aosOptions);
+        if (!CADRGInfo)
         {
             return nullptr;
         }
@@ -5607,11 +5609,11 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
             return nullptr;
         }
 
-        if (!RPFFrameCreateCADRG_ImageContent(&offsetPatcher, fp.get(),
-                                              poSrcDS))
+        if (!RPFFrameWriteCADRG_ImageContent(&offsetPatcher, fp.get(), poSrcDS,
+                                             CADRGInfo.get()))
         {
             CPLError(CE_Failure, CPLE_AppDefined,
-                     "RPFFrameCreateCADRG_ImageContent() failed");
+                     "RPFFrameWriteCADRG_ImageContent() failed");
             return nullptr;
         }
 

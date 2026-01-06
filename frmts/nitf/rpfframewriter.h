@@ -26,16 +26,28 @@ class GDALDataset;
 
 constexpr int CADRG_MAX_COLOR_ENTRY_COUNT = 216;
 
-bool RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                              const std::string &osFilename,
-                              GDALDataset *poSrcDS, CPLStringList &aosOptions);
+/** Opaque class containing CADRG related information */
+class CADRGInformation
+{
+  public:
+    class Private;
+    explicit CADRGInformation(std::unique_ptr<Private>);
+    ~CADRGInformation();
+
+    std::unique_ptr<Private> m_private{};
+};
+
+std::unique_ptr<CADRGInformation>
+RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                         const std::string &osFilename, GDALDataset *poSrcDS,
+                         CPLStringList &aosOptions);
 
 bool RPFFrameWriteCADRG_RPFIMG(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                                VSILFILE *fp, int &nUDIDL);
 
-bool RPFFrameCreateCADRG_ImageContent(
+bool RPFFrameWriteCADRG_ImageContent(
     GDALOffsetPatcher::OffsetPatcher *offsetPatcher, VSILFILE *fp,
-    GDALDataset *poSrcDS);
+    GDALDataset *poSrcDS, CADRGInformation *info);
 
 bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                                VSILFILE *fp, vsi_l_offset nOffsetLDSH,

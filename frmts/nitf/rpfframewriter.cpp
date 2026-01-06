@@ -39,6 +39,32 @@ constexpr int BLOCK_SIZE = 256;
 constexpr int CODEBOOK_MAX_SIZE = 4096;
 
 /************************************************************************/
+/*                      CADRGInformation::Private                       */
+/************************************************************************/
+
+class CADRGInformation::Private
+{
+  public:
+    std::vector<BucketItem<ColorTableBased4x4Pixels>> codebook{};
+    std::vector<short> VQImage{};
+};
+
+/************************************************************************/
+/*                 CADRGInformation::CADRGInformation()                 */
+/************************************************************************/
+
+CADRGInformation::CADRGInformation(std::unique_ptr<Private> priv)
+    : m_private(std::move(priv))
+{
+}
+
+/************************************************************************/
+/*                CADRGInformation::~CADRGInformation()                 */
+/************************************************************************/
+
+CADRGInformation::~CADRGInformation() = default;
+
+/************************************************************************/
 /*                           StrPadTruncate()                           */
 /************************************************************************/
 
@@ -347,9 +373,9 @@ static void Create_CADRG_ImageDescriptionSection(
 /*                    Create_CADRG_ColormapSection()                    */
 /************************************************************************/
 
-static void
-Create_CADRG_ColormapSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                             GDALDataset *poSrcDS)
+static void Create_CADRG_ColormapSection(
+    GDALOffsetPatcher::OffsetPatcher *offsetPatcher, GDALDataset *poSrcDS,
+    const std::vector<BucketItem<ColorTableBased4x4Pixels>> &codebook)
 {
     auto poBuffer = offsetPatcher->CreateBuffer(
         "ColormapSubsection", /* bEndiannessIsLittle = */ false);
@@ -397,31 +423,184 @@ Create_CADRG_ColormapSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
         }
     }
 
-    // Reserve space for histogram. Will be patched in Patch_CADRG_Histogram()
-    poBuffer->DeclareOffsetAtCurrentPosition("HISTOGRAM_LOCATION");
-    for (int i = 0; i < CADRG_MAX_COLOR_ENTRY_COUNT; ++i)
+    // Compute the number of pixels in the output image per colormap entry
+    std::vector<uint32_t> anHistogram(CADRG_MAX_COLOR_ENTRY_COUNT);
+#ifdef DEBUG
+    size_t nTotalCount = 0;
+#endif
+    for (const auto &item : codebook)
     {
-        poBuffer->AppendUInt32(0);
+        for (GByte byVal : item.m_vec.vals())
+        {
+            anHistogram[byVal] += item.m_count;
+#ifdef DEBUG
+            nTotalCount += item.m_count;
+#endif
+        }
     }
+#ifdef DEBUG
+    CPLAssert(nTotalCount == static_cast<size_t>(poSrcDS->GetRasterXSize()) *
+                                 poSrcDS->GetRasterYSize());
+#endif
+
+    // Write histogram
+    for (auto nCount : anHistogram)
+    {
+        poBuffer->AppendUInt32(nCount);
+    }
+}
+
+/************************************************************************/
+/*                    Perform_CADRG_VQ_Compression()                    */
+/************************************************************************/
+
+static bool Perform_CADRG_VQ_Compression(
+    GDALDataset *poSrcDS,
+    std::vector<BucketItem<ColorTableBased4x4Pixels>> &codebook,
+    std::vector<short> &VQImage)
+{
+    const int nY = poSrcDS->GetRasterYSize();
+    const int nX = poSrcDS->GetRasterXSize();
+    CPLAssert((nY % SUBSAMPLING) == 0);
+    CPLAssert((nX % SUBSAMPLING) == 0);
+
+    auto poBand = poSrcDS->GetRasterBand(1);
+
+    std::vector<GByte> pixels;
+    if (poBand->ReadRaster(pixels) != CE_None)
+        return false;
+
+    const auto poCT = poBand->GetColorTable();
+    CPLAssert(poCT);
+    std::vector<GByte> vR, vG, vB;
+    const int nColorCount =
+        std::min(CADRG_MAX_COLOR_ENTRY_COUNT, poCT->GetColorEntryCount());
+    for (int i = 0; i < nColorCount; ++i)
+    {
+        const auto entry = poCT->GetColorEntry(i);
+        vR.push_back(static_cast<GByte>(entry->c1));
+        vG.push_back(static_cast<GByte>(entry->c2));
+        vB.push_back(static_cast<GByte>(entry->c3));
+    }
+    ColorTableBased4x4Pixels ctxt(vR, vG, vB);
+
+    struct Occurences
+    {
+        // number of 4x4 pixel blocks using those 4x4 pixel values
+        int nCount = 0;
+        // Point to indices in the output image that use that 4x4 pixel blocks
+        std::vector<int> anIndicesToOutputImage{};
+    };
+
+    // Collect all the occurences of 4x4 pixel values into a map indexed by them
+    std::map<Vector<ColorTableBased4x4Pixels>, Occurences> vectorMap;
+    for (int j = 0, nOutputIdx = 0; j < nY / SUBSAMPLING; ++j)
+    {
+        for (int i = 0; i < nX / SUBSAMPLING; ++i, ++nOutputIdx)
+        {
+            std::array<GByte, SUBSAMPLING * SUBSAMPLING> vals;
+            for (int y = 0; y < SUBSAMPLING; ++y)
+            {
+                for (int x = 0; x < SUBSAMPLING; ++x)
+                {
+                    const GByte val = pixels[(j * SUBSAMPLING + y) * nX +
+                                             (i * SUBSAMPLING + x)];
+                    if (val >= nColorCount)
+                    {
+                        CPLError(CE_Failure, CPLE_AppDefined,
+                                 "Out of range pixel value found: %d", val);
+                        return false;
+                    }
+                    vals[SUBSAMPLING * y + x] = val;
+                }
+            }
+            auto &elt = vectorMap[Vector<ColorTableBased4x4Pixels>(vals)];
+            ++elt.nCount;
+            elt.anIndicesToOutputImage.push_back(nOutputIdx);
+        }
+    }
+
+    // Convert that map into a std::vector
+    std::vector<BucketItem<ColorTableBased4x4Pixels>> vectors;
+    vectors.reserve(vectorMap.size());
+    for (auto &[key, value] : vectorMap)
+    {
+        vectors.emplace_back(key, value.nCount,
+                             std::move(value.anIndicesToOutputImage));
+    }
+    vectorMap.clear();
+
+    // Create the KD-Tree
+    PNNKDTree<ColorTableBased4x4Pixels> kdtree;
+
+    // Insert the initial items
+    int nCodeCount = kdtree.insert(std::move(vectors), ctxt);
+    if (nCodeCount == 0)
+        return false;
+
+    // Reduce to the maximum target
+    if (nCodeCount > CODEBOOK_MAX_SIZE)
+    {
+        const int nNewCodeCount =
+            kdtree.cluster(nCodeCount, CODEBOOK_MAX_SIZE, ctxt);
+        if (nNewCodeCount == 0)
+            return false;
+        CPLDebug("NITF", "VQ compression: reducing from %d codes to %d",
+                 nCodeCount, nNewCodeCount);
+        nCodeCount = nNewCodeCount;
+    }
+    else
+    {
+        CPLDebug("NITF",
+                 "Already less than %d codes. VQ compression is lossless",
+                 CODEBOOK_MAX_SIZE);
+    }
+
+    // Create the code book and the target VQ-compressed image.
+    codebook.reserve(nCodeCount);
+    VQImage.resize((nY / SUBSAMPLING) * (nX / SUBSAMPLING));
+    kdtree.iterateOverLeaves(
+        [&codebook, &VQImage](PNNKDTree<ColorTableBased4x4Pixels> &node)
+        {
+            for (auto &item : node.bucketItems())
+            {
+                const int i = static_cast<int>(codebook.size());
+                for (const auto idx : item.m_origVectorIndices)
+                {
+                    VQImage[idx] = static_cast<short>(i);
+                }
+                codebook.push_back(std::move(item));
+            }
+        });
+
+    return true;
 }
 
 /************************************************************************/
 /*                      RPFFrameCreateCADRG_TREs()                      */
 /************************************************************************/
 
-bool RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                              const std::string &osFilename,
-                              GDALDataset *poSrcDS, CPLStringList &aosOptions)
+std::unique_ptr<CADRGInformation>
+RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                         const std::string &osFilename, GDALDataset *poSrcDS,
+                         CPLStringList &aosOptions)
 {
+    auto priv = std::make_unique<CADRGInformation::Private>();
+    if (!Perform_CADRG_VQ_Compression(poSrcDS, priv->codebook, priv->VQImage))
+    {
+        return nullptr;
+    }
+
     Create_CADRG_RPFHDR(offsetPatcher, osFilename, aosOptions);
 
     // Create buffers that will be written into file by RPFFrameWriteCADRG_RPFIMG()s
     Create_CADRG_LocationComponent(offsetPatcher);
-    bool bRet = Create_CADRG_CoverageSection(offsetPatcher, poSrcDS);
+    if (!Create_CADRG_CoverageSection(offsetPatcher, poSrcDS))
+        return nullptr;
     Create_CADRG_ColorGrayscaleSection(offsetPatcher);
-    Create_CADRG_ColormapSection(offsetPatcher, poSrcDS);
+    Create_CADRG_ColormapSection(offsetPatcher, poSrcDS, priv->codebook);
     Create_CADRG_ImageDescriptionSection(offsetPatcher, poSrcDS);
-    return bRet;
+    return std::make_unique<CADRGInformation>(std::move(priv));
 }
 
 /************************************************************************/
@@ -544,122 +723,6 @@ static bool Write_CADRG_ImageDisplayParametersSection(
 }
 
 /************************************************************************/
-/*                    Perform_CADRG_VQ_Compression()                    */
-/************************************************************************/
-
-static bool Perform_CADRG_VQ_Compression(
-    GDALDataset *poSrcDS, const ColorTableBased4x4Pixels &ctxt,
-    std::vector<BucketItem<ColorTableBased4x4Pixels>> &codebook,
-    std::vector<short> &VQImage)
-{
-    const int nY = poSrcDS->GetRasterYSize();
-    const int nX = poSrcDS->GetRasterXSize();
-    CPLAssert((nY % SUBSAMPLING) == 0);
-    CPLAssert((nX % SUBSAMPLING) == 0);
-
-    auto poBand = poSrcDS->GetRasterBand(1);
-
-    std::vector<GByte> pixels;
-    if (poBand->ReadRaster(pixels) != CE_None)
-        return false;
-
-    const auto poCT = poBand->GetColorTable();
-    const int nColorCount =
-        std::min(CADRG_MAX_COLOR_ENTRY_COUNT, poCT->GetColorEntryCount());
-
-    struct Occurences
-    {
-        // number of 4x4 pixel blocks using those 4x4 pixel values
-        int nCount = 0;
-        // Point to indices in the output image that use that 4x4 pixel blocks
-        std::vector<int> anIndicesToOutputImage{};
-    };
-
-    // Collect all the occurences of 4x4 pixel values into a map indexed by them
-    std::map<Vector<ColorTableBased4x4Pixels>, Occurences> vectorMap;
-    for (int j = 0, nOutputIdx = 0; j < nY / SUBSAMPLING; ++j)
-    {
-        for (int i = 0; i < nX / SUBSAMPLING; ++i, ++nOutputIdx)
-        {
-            std::array<GByte, SUBSAMPLING * SUBSAMPLING> vals;
-            for (int y = 0; y < SUBSAMPLING; ++y)
-            {
-                for (int x = 0; x < SUBSAMPLING; ++x)
-                {
-                    const GByte val = pixels[(j * SUBSAMPLING + y) * nX +
-                                             (i * SUBSAMPLING + x)];
-                    if (val >= nColorCount)
-                    {
-                        CPLError(CE_Failure, CPLE_AppDefined,
-                                 "Out of range pixel value found: %d", val);
-                        return false;
-                    }
-                    vals[SUBSAMPLING * y + x] = val;
-                }
-            }
-            auto &elt = vectorMap[Vector<ColorTableBased4x4Pixels>(vals)];
-            ++elt.nCount;
-            elt.anIndicesToOutputImage.push_back(nOutputIdx);
-        }
-    }
-
-    // Convert that map into a std::vector
-    std::vector<BucketItem<ColorTableBased4x4Pixels>> vectors;
-    vectors.reserve(vectorMap.size());
-    for (auto &[key, value] : vectorMap)
-    {
-        vectors.emplace_back(key, value.nCount,
-                             std::move(value.anIndicesToOutputImage));
-    }
-    vectorMap.clear();
-
-    // Create the KD-Tree
-    PNNKDTree<ColorTableBased4x4Pixels> kdtree;
-
-    // Insert the initial items
-    int nCodeCount = kdtree.insert(std::move(vectors), ctxt);
-    if (nCodeCount == 0)
-        return false;
-
-    // Reduce to the maximum target
-    if (nCodeCount > CODEBOOK_MAX_SIZE)
-    {
-        const int nNewCodeCount =
-            kdtree.cluster(nCodeCount, CODEBOOK_MAX_SIZE, ctxt);
-        if (nNewCodeCount == 0)
-            return false;
-        CPLDebug("NITF", "VQ compression: reducing from %d codes to %d",
-                 nCodeCount, nNewCodeCount);
-        nCodeCount = nNewCodeCount;
-    }
-    else
-    {
-        CPLDebug("NITF",
-                 "Already less than %d codes. VQ compression is lossless",
-                 CODEBOOK_MAX_SIZE);
-    }
-
-    // Create the code book and the target VQ-compressed image.
-    codebook.reserve(nCodeCount);
-    VQImage.resize((nY / SUBSAMPLING) * (nX / SUBSAMPLING));
-    kdtree.iterateOverLeaves(
-        [&codebook, &VQImage](PNNKDTree<ColorTableBased4x4Pixels> &node)
-        {
-            for (auto &item : node.bucketItems())
-            {
-                const int i = static_cast<int>(codebook.size());
-                for (const auto idx : item.m_origVectorIndices)
-                {
-                    VQImage[idx] = static_cast<short>(i);
-                }
-                codebook.push_back(std::move(item));
-            }
-        });
-
-    return true;
-}
-
-/************************************************************************/
 /*              Write_CADRG_CompressionLookupSubSection()               */
 /************************************************************************/
 
@@ -771,96 +834,21 @@ static bool Write_CADRG_SpatialDataSubsection(
 }
 
 /************************************************************************/
-/*                       Patch_CADRG_Histogram()                        */
+/*                  RPFFrameWriteCADRG_ImageContent()                   */
 /************************************************************************/
 
-static bool Patch_CADRG_Histogram(
+bool RPFFrameWriteCADRG_ImageContent(
     GDALOffsetPatcher::OffsetPatcher *offsetPatcher, VSILFILE *fp,
-    [[maybe_unused]] GDALDataset *poSrcDS,
-    const std::vector<BucketItem<ColorTableBased4x4Pixels>> &codebook)
+    GDALDataset *poSrcDS, CADRGInformation *info)
 {
-    auto poColormapBuffer =
-        offsetPatcher->GetBufferFromName("ColormapSubsection");
-    CPLAssert(poColormapBuffer);
-    const auto nColormapFileLocation = poColormapBuffer->GetFileLocation();
-    CPLAssert(nColormapFileLocation != GDALOffsetPatcher::INVALID_OFFSET);
-    auto poHistogramLocDecl =
-        offsetPatcher->GetOffsetDeclaration("HISTOGRAM_LOCATION");
-    CPLAssert(poHistogramLocDecl);
-    CPLAssert(poHistogramLocDecl->GetLocation().offsetInBuffer != 0);
-    poHistogramLocDecl->MarkAsConsumed();
-
-    // Compute the number of pixels in the output image per colormap entry
-    std::vector<uint32_t> anHistogram(CADRG_MAX_COLOR_ENTRY_COUNT);
-    const size_t nOffsetInBuffer =
-        poHistogramLocDecl->GetLocation().offsetInBuffer;
-    CPLAssert(nOffsetInBuffer + anHistogram.size() * sizeof(anHistogram[0]) ==
-              poColormapBuffer->GetBuffer().size());
-#ifdef DEBUG
-    size_t nTotalCount = 0;
-#endif
-    for (const auto &item : codebook)
-    {
-        for (GByte byVal : item.m_vec.vals())
-        {
-            anHistogram[byVal] += item.m_count;
-#ifdef DEBUG
-            nTotalCount += item.m_count;
-#endif
-        }
-    }
-#ifdef DEBUG
-    CPLAssert(nTotalCount == static_cast<size_t>(poSrcDS->GetRasterXSize()) *
-                                 poSrcDS->GetRasterYSize());
-#endif
-
-#ifdef CPL_IS_LSB
-    for (auto &nCount : anHistogram)
-    {
-        CPL_SWAP32PTR(&nCount);
-    }
-#endif
-
-    return fp->Seek(nColormapFileLocation + nOffsetInBuffer, SEEK_SET) == 0 &&
-           fp->Write(anHistogram.data(), sizeof(anHistogram[0]),
-                     anHistogram.size()) == anHistogram.size();
-}
-
-/************************************************************************/
-/*                  RPFFrameCreateCADRG_ImageContent()                  */
-/************************************************************************/
-
-bool RPFFrameCreateCADRG_ImageContent(
-    GDALOffsetPatcher::OffsetPatcher *offsetPatcher, VSILFILE *fp,
-    GDALDataset *poSrcDS)
-{
-    auto poBand = poSrcDS->GetRasterBand(1);
-    const auto poCT = poBand->GetColorTable();
-    CPLAssert(poCT);
-    std::vector<GByte> vR, vG, vB;
-    const int nColorCount =
-        std::min(CADRG_MAX_COLOR_ENTRY_COUNT, poCT->GetColorEntryCount());
-    for (int i = 0; i < nColorCount; ++i)
-    {
-        const auto entry = poCT->GetColorEntry(i);
-        vR.push_back(static_cast<GByte>(entry->c1));
-        vG.push_back(static_cast<GByte>(entry->c2));
-        vB.push_back(static_cast<GByte>(entry->c3));
-    }
-    ColorTableBased4x4Pixels ctxt(vR, vG, vB);
-
-    std::vector<BucketItem<ColorTableBased4x4Pixels>> codebook;
-    std::vector<short> VQImage;
-    return Perform_CADRG_VQ_Compression(poSrcDS, ctxt, codebook, VQImage) &&
-           Patch_CADRG_Histogram(offsetPatcher, fp, poSrcDS, codebook) &&
-           fp->Seek(0, SEEK_END) == 0 &&
+    return fp->Seek(0, SEEK_END) == 0 &&
            Write_CADRG_MaskSubsection(offsetPatcher, fp) &&
            Write_CADRG_CompressionSection(offsetPatcher, fp) &&
            Write_CADRG_ImageDisplayParametersSection(offsetPatcher, fp) &&
            Write_CADRG_CompressionLookupSubSection(offsetPatcher, fp,
-                                                   codebook) &&
+                                                   info->m_private->codebook) &&
            Write_CADRG_SpatialDataSubsection(offsetPatcher, fp, poSrcDS,
-                                             VQImage);
+                                             info->m_private->VQImage);
 }
 
 /************************************************************************/
