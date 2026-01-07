@@ -1288,3 +1288,32 @@ def test_gdalbuildvrt_preserve_band_metadata_separate_mode(
 
         assert desc == expected_desc_i
         assert rt_ds.GetRasterBand(i + 1).GetMetadata_Dict() == expected_metadata_i
+
+
+def test_gdalbuildvrt_cadrg_frames_mixing_transparent_and_not():
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 1, 1)
+    src_ds.SetGeoTransform([0, 1, 0, 0, 0, -1])
+    src_ds.GetRasterBand(1).SetNoDataValue(216)
+    ct = gdal.ColorTable()
+    ct.SetColorEntry(215, (255, 255, 255, 255))
+    ct.SetColorEntry(216, (0, 0, 0, 0))
+    src_ds.GetRasterBand(1).SetColorTable(ct)
+
+    src2_ds = gdal.GetDriverByName("MEM").Create("", 1, 1)
+    src2_ds.SetGeoTransform([1, 1, 0, 0, 0, -1])
+    ct = gdal.ColorTable()
+    ct.SetColorEntry(215, (255, 255, 255, 255))
+    src2_ds.GetRasterBand(1).SetColorTable(ct)
+
+    vrt_ds = gdal.BuildVRT("", [src_ds])
+    assert vrt_ds.GetRasterBand(1).GetNoDataValue() == 216
+    assert vrt_ds.GetRasterBand(1).GetColorTable().GetCount() == 217
+
+    vrt_ds = gdal.BuildVRT("", [src_ds, src2_ds])
+    assert vrt_ds.GetRasterBand(1).GetNoDataValue() == 216
+    assert vrt_ds.GetRasterBand(1).GetColorTable().GetCount() == 217
+
+    vrt_ds = gdal.BuildVRT("", [src2_ds, src_ds])
+    assert vrt_ds.GetRasterBand(1).GetNoDataValue() == 216
+    assert vrt_ds.GetRasterBand(1).GetColorTable().GetCount() == 217

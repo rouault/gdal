@@ -939,7 +939,16 @@ std::string VRTBuilder::AnalyseRaster(GDALDatasetH hDS,
                     int nRefColorEntryCount =
                         asBandProperties[j].colorTable->GetColorEntryCount();
                     if (colorTable == nullptr ||
-                        colorTable->GetColorEntryCount() != nRefColorEntryCount)
+                        (colorTable->GetColorEntryCount() !=
+                             nRefColorEntryCount &&
+                         // For NITF CADRG tiles that may have 256 or 257 colors,
+                         // with the 257th color when present being transparent
+                         !(std::min(colorTable->GetColorEntryCount(),
+                                    nRefColorEntryCount) +
+                               1 ==
+                           std::max(colorTable->GetColorEntryCount(),
+                                    nRefColorEntryCount))))
+
                     {
                         return m_osProgramName +
                                " does not support rasters with "
@@ -951,7 +960,10 @@ std::string VRTBuilder::AnalyseRaster(GDALDatasetH hDS,
                     /* We just warn and still process the file. It is not a
                      * technical no-go, but the user */
                     /* should check that the end result is OK for him. */
-                    for (int i = 0; i < nRefColorEntryCount; i++)
+                    for (int i = 0;
+                         i < std::min(nRefColorEntryCount,
+                                      colorTable->GetColorEntryCount());
+                         i++)
                     {
                         const GDALColorEntry *psEntry =
                             colorTable->GetColorEntry(i);
@@ -986,6 +998,32 @@ std::string VRTBuilder::AnalyseRaster(GDALDatasetH hDS,
                             bFirstWarningPCT = FALSE;
                             break;
                         }
+                    }
+
+                    // For NITF CADRG tiles that may have 256 or 257 colors,
+                    // with the 257th color when present being transparent
+                    if (nRefColorEntryCount + 1 ==
+                            colorTable->GetColorEntryCount() &&
+                        colorTable->GetColorEntry(nRefColorEntryCount)->c1 ==
+                            0 &&
+                        colorTable->GetColorEntry(nRefColorEntryCount)->c2 ==
+                            0 &&
+                        colorTable->GetColorEntry(nRefColorEntryCount)->c3 ==
+                            0 &&
+                        colorTable->GetColorEntry(nRefColorEntryCount)->c4 == 0)
+                    {
+                        int bHasNoData = false;
+                        const double dfNoData =
+                            poBand->GetNoDataValue(&bHasNoData);
+                        if (bHasNoData && !asBandProperties[j].bHasNoData &&
+                            dfNoData == nRefColorEntryCount)
+                        {
+                            asBandProperties[j].bHasNoData = true;
+                            asBandProperties[j].noDataValue = dfNoData;
+                        }
+
+                        asBandProperties[j].colorTable.reset(
+                            colorTable->Clone());
                     }
                 }
 
