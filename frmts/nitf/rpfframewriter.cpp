@@ -406,11 +406,13 @@ static void Create_CADRG_ColormapSection(
         "ColormapSubsection", /* bEndiannessIsLittle = */ false);
     CPLAssert(poBuffer);
     poBuffer->DeclareOffsetAtCurrentPosition("COLORMAP_LOCATION");
-    poBuffer->AppendUInt32(4);  // COLORMAP_OFFSET_TABLE_OFFSET
+    constexpr uint32_t HEADER_LENGTH =
+        static_cast<uint32_t>(sizeof(uint32_t) + sizeof(uint16_t));
+    poBuffer->AppendUInt32(HEADER_LENGTH);  // COLORMAP_OFFSET_TABLE_OFFSET
     constexpr uint16_t RECORD_LENGTH = 17;
     poBuffer->AppendUInt16(
         RECORD_LENGTH);  // COLOR_GRAYSCALE_OFFSET_RECORD_LENGTH
-    const int HEADER_LENGTH = static_cast<int>(poBuffer->GetBuffer().size());
+    CPLAssert(poBuffer->GetBuffer().size() == HEADER_LENGTH);
 
     poBuffer->AppendUInt16(2);  // color/grayscale table id
     poBuffer->AppendUInt32(CADRG_MAX_COLOR_ENTRY_COUNT);  // number of colors

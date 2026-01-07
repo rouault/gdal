@@ -7205,7 +7205,7 @@ def test_nitf_create_cadrg(tmp_path):
         <field name="COMPONENT_LENGTH" value="1751" />
         <field name="COMPONENT_LOCATION" value="1878" />
         <content ComponentName="ColormapSubsection">
-          <field name="COLORMAP_OFFSET_TABLE_OFFSET" value="4" />
+          <field name="COLORMAP_OFFSET_TABLE_OFFSET" value="6" />
           <field name="COLOR_GRAYSCALE_OFFSET_RECORD_LENGTH" value="17" />
           <repeated name="COLOR_OFFSET_RECORD" number="1">
             <group index="0">
