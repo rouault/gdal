@@ -7071,7 +7071,7 @@ def test_nitf_create_cadrg(tmp_path):
         "NITF_FSCTLN": "",
         "NITF_FSDWNG": "",
         "NITF_FSREL": "",
-        "NITF_FTITLE": "",
+        "NITF_FTITLE": "out_cadrg.ntf",
         "NITF_IALVL": "0",
         "NITF_IC": "C4",
         "NITF_ICAT": "MAP",

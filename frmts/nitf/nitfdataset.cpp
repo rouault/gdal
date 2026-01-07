@@ -5431,6 +5431,10 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
         {
             aosOptions.SetNameValue("IID1", "CADRG");
         }
+        if (aosOptions.FetchNameValue("FTITLE") == nullptr)
+        {
+            aosOptions.SetNameValue("FTITLE", CPLGetFilename(pszFilename));
+        }
         if (aosOptions.FetchNameValue("ITITLE") == nullptr)
         {
             aosOptions.SetNameValue("ITITLE", CPLGetFilename(pszFilename));
