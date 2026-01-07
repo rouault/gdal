@@ -215,7 +215,7 @@ class RPFTOCProxyRasterDataSet final : public GDALProxyPoolDataset
     bool checkOK = false;
     const double nwLong;
     const double nwLat;
-    GDALColorTable *colorTableRef = nullptr;
+    std::unique_ptr<GDALColorTable> colorTableRef{};
     int bHasNoDataValue = false;
     double noDataValue = 0;
     RPFTOCSubDataset *const subdataset;
@@ -249,14 +249,14 @@ class RPFTOCProxyRasterDataSet final : public GDALProxyPoolDataset
         GDALProxyPoolDataset::UnrefUnderlyingDataset(poUnderlyingDataset);
     }
 
-    void SetReferenceColorTable(GDALColorTable *colorTableRefIn)
+    void SetReferenceColorTable(std::unique_ptr<GDALColorTable> colorTableRefIn)
     {
-        this->colorTableRef = colorTableRefIn;
+        this->colorTableRef = std::move(colorTableRefIn);
     }
 
-    const GDALColorTable *GetReferenceColorTable() const
+    GDALColorTable *GetReferenceColorTable() const
     {
-        return colorTableRef;
+        return colorTableRef.get();
     }
 
     int SanityCheckOK(GDALDataset *sourceDS);
@@ -485,16 +485,14 @@ class RPFTOCProxyRasterBandPalette final : public GDALPamRasterBand
 
     double GetNoDataValue(int *bHasNoDataValue) override
     {
-        return (reinterpret_cast<RPFTOCProxyRasterDataSet *>(poDS))
-            ->GetNoDataValue(bHasNoDataValue);
+        auto poRPFTOCDS = cpl::down_cast<RPFTOCProxyRasterDataSet *>(poDS);
+        return poRPFTOCDS->GetNoDataValue(bHasNoDataValue);
     }
 
     GDALColorTable *GetColorTable() override
     {
-        // TODO: This casting is a bit scary.
-        return const_cast<GDALColorTable *>(
-            reinterpret_cast<RPFTOCProxyRasterDataSet *>(poDS)
-                ->GetReferenceColorTable());
+        auto poRPFTOCDS = cpl::down_cast<RPFTOCProxyRasterDataSet *>(poDS);
+        return poRPFTOCDS->GetReferenceColorTable();
     }
 
   protected:
@@ -894,8 +892,9 @@ GDALDataset *RPFTOCSubDataset::CreateDataSetFromTocEntry(
                 continue;
 
             bool bAllBlack = true;
-            GDALDataset *poSrcDS = GDALDataset::FromHandle(GDALOpenShared(
-                entry->frameEntries[i].fullFilePath, GA_ReadOnly));
+            auto poSrcDS = std::unique_ptr<GDALDataset>(
+                GDALDataset::Open(entry->frameEntries[i].fullFilePath,
+                                  GDAL_OF_RASTER | GDAL_OF_VERBOSE_ERROR));
             if (poSrcDS != nullptr)
             {
                 if (poSrcDS->GetRasterCount() == 1)
@@ -910,18 +909,23 @@ GDALDataset *RPFTOCSubDataset::CreateDataSetFromTocEntry(
                     /* Avoid setting a color table that is all black (which
                      * might be */
                     /* the case of the edge tiles of a RPF subdataset) */
-                    GDALColorTable *poCT =
+                    const GDALColorTable *poSrcCT =
                         poSrcDS->GetRasterBand(1)->GetColorTable();
-                    if (poCT != nullptr)
+                    if (poSrcCT != nullptr)
                     {
-                        for (int iC = 0; iC < poCT->GetColorEntryCount(); iC++)
+                        bool bTransparentEntryFound = false;
+                        for (int iC = 0; iC < poSrcCT->GetColorEntryCount();
+                             iC++)
                         {
                             if (bHasNoDataValue &&
                                 iC == static_cast<int>(noDataValue))
+                            {
+                                bTransparentEntryFound = true;
                                 continue;
+                            }
 
                             const GDALColorEntry *psColorEntry =
-                                poCT->GetColorEntry(iC);
+                                poSrcCT->GetColorEntry(iC);
                             if (psColorEntry->c1 != 0 ||
                                 psColorEntry->c2 != 0 || psColorEntry->c3 != 0)
                             {
@@ -930,10 +934,22 @@ GDALDataset *RPFTOCSubDataset::CreateDataSetFromTocEntry(
                             }
                         }
 
+                        // If the frame we explore does not have a transparency
+                        // entry, create one in case other frames do have one
+                        std::unique_ptr<GDALColorTable> poCT(poSrcCT->Clone());
+                        if (!bTransparentEntryFound &&
+                            poCT->GetColorEntryCount() == 216)
+                        {
+                            if (!bHasNoDataValue)
+                                poBand->SetNoDataValue(216);
+                            GDALColorEntry sEntry = {0, 0, 0, 0};
+                            poCT->SetColorEntry(216, &sEntry);
+                        }
+
                         /* Assign it temporarily, in the hope of a better match
                          */
                         /* afterwards */
-                        poBand->SetColorTable(poCT);
+                        poBand->SetColorTable(poCT.get());
                         if (bAllBlack)
                         {
                             CPLDebug("RPFTOC",
@@ -942,7 +958,6 @@ GDALDataset *RPFTOCSubDataset::CreateDataSetFromTocEntry(
                         }
                     }
                 }
-                GDALClose(poSrcDS);
             }
             if (!bAllBlack)
                 break;
@@ -1010,7 +1025,12 @@ GDALDataset *RPFTOCSubDataset::CreateDataSetFromTocEntry(
         if (nBands == 1)
         {
             GDALRasterBand *poBand = poVirtualDS->GetRasterBand(1);
-            ds->SetReferenceColorTable(poBand->GetColorTable());
+            const auto poSrcCT = poBand->GetColorTable();
+            if (poSrcCT)
+            {
+                ds->SetReferenceColorTable(
+                    std::unique_ptr<GDALColorTable>(poSrcCT->Clone()));
+            }
             int bHasNoDataValue;
             const double noDataValue = poBand->GetNoDataValue(&bHasNoDataValue);
             if (bHasNoDataValue)
@@ -1020,7 +1040,7 @@ GDALDataset *RPFTOCSubDataset::CreateDataSetFromTocEntry(
         for (int j = 0; j < nBands; j++)
         {
             VRTSourcedRasterBand *poBand =
-                reinterpret_cast<VRTSourcedRasterBand *>(
+                cpl::down_cast<VRTSourcedRasterBand *>(
                     poVirtualDS->GetRasterBand(j + 1));
             /* Place the raster band at the right position in the VRT */
             poBand->AddSimpleSource(

@@ -44,6 +44,10 @@ def test_rpftoc_1():
     )
     tst.testOpen(check_gt=gt)
 
+    ds = gdal.Open("NITF_TOC_ENTRY:CADRG_ONC_1,000,000_2_0:data/nitf/A.TOC")
+    assert ds.GetRasterBand(1).GetColorTable().GetCount() == 217
+    assert ds.GetRasterBand(1).GetNoDataValue() == 216
+
 
 ###############################################################################
 # Same test as rpftoc_1, but the dataset is forced to be opened in RGBA mode
