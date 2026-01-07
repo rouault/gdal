@@ -19,6 +19,8 @@
 #include "cpl_conv.h"
 #include "cpl_string.h"
 
+#include <inttypes.h>
+
 #ifndef CPL_IGNORE_RET_VAL_INT_defined
 #define CPL_IGNORE_RET_VAL_INT_defined
 
@@ -35,7 +37,8 @@ static void NITFSwapWords(NITFImage *psImage, void *pData, int nWordCount);
 
 static void NITFLoadLocationTable(NITFImage *psImage);
 static void NITFLoadColormapSubSection(NITFImage *psImage);
-static void NITFLoadSubframeMaskTable(NITFImage *psImage);
+static void NITFLoadSubframeMaskTable(NITFImage *psImage,
+                                      bool *pbBlockStartRead);
 static int NITFLoadVQTables(NITFImage *psImage, int bTryGuessingOffset);
 static int NITFReadGEOLOB(NITFImage *psImage);
 static void NITFLoadAttributeSection(NITFImage *psImage);
@@ -68,7 +71,6 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
     int nNICOM;
     const char *pszIID1;
     int nFaultyLine = -1;
-    int bGotWrongOffset = FALSE;
 
     /* -------------------------------------------------------------------- */
     /*      Verify segment, and return existing image accessor if there     */
@@ -822,6 +824,13 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
     }
 
     /* -------------------------------------------------------------------- */
+    /*  Load subframe mask table if present (typically, for CADRG/CIB       */
+    /*  images with IC=C4/M4)                                               */
+    /* -------------------------------------------------------------------- */
+    bool bBlockStartRead = false;
+    NITFLoadSubframeMaskTable(psImage, &bBlockStartRead);
+
+    /* -------------------------------------------------------------------- */
     /*      Offsets to VQ compressed tiles are based on a fixed block       */
     /*      size, and are offset from the spatial data location kept in     */
     /*      the location table ... which is generally not the beginning     */
@@ -829,20 +838,25 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
     /* -------------------------------------------------------------------- */
     if (EQUAL(psImage->szIC, "C4"))
     {
-        GUIntBig nLocBase = psSegInfo->nSegmentStart;
-
-        for (i = 0; i < psImage->nLocCount; i++)
+        if (!bBlockStartRead)
         {
-            if (psImage->pasLocations[i].nLocId == LID_SpatialDataSubsection)
-                nLocBase = psImage->pasLocations[i].nLocOffset;
+            GUIntBig nLocBase = psSegInfo->nSegmentStart;
+
+            for (i = 0; i < psImage->nLocCount; i++)
+            {
+                if (psImage->pasLocations[i].nLocId ==
+                    LID_SpatialDataSubsection)
+                    nLocBase = psImage->pasLocations[i].nLocOffset;
+            }
+
+            if (nLocBase == psSegInfo->nSegmentStart)
+                CPLError(CE_Warning, CPLE_AppDefined,
+                         "Failed to find spatial data location, guessing.");
+
+            for (i = 0; i < psImage->nBlocksPerRow * psImage->nBlocksPerColumn;
+                 i++)
+                psImage->panBlockStart[i] = nLocBase + (GUIntBig)(6144) * i;
         }
-
-        if (nLocBase == psSegInfo->nSegmentStart)
-            CPLError(CE_Warning, CPLE_AppDefined,
-                     "Failed to find spatial data location, guessing.");
-
-        for (i = 0; i < psImage->nBlocksPerRow * psImage->nBlocksPerColumn; i++)
-            psImage->panBlockStart[i] = nLocBase + (GUIntBig)(6144) * i;
     }
 
     /* -------------------------------------------------------------------- */
@@ -947,51 +961,8 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
         }
         else if (nBMRLNTH == 4)
         {
-            int isM4 = EQUAL(psImage->szIC, "M4");
-            for (i = 0; bOK && i < nBlockCount; i++)
+            if (!bBlockStartRead)
             {
-                GUInt32 l_nOffset;
-                bOK &= VSIFReadL(&l_nOffset, 4, 1, psFile->fp) == 1;
-                CPL_MSBPTR32(&l_nOffset);
-                psImage->panBlockStart[i] = l_nOffset;
-                if (psImage->panBlockStart[i] != UINT_MAX)
-                {
-                    if (isM4 && (psImage->panBlockStart[i] % 6144) != 0)
-                    {
-                        break;
-                    }
-                    psImage->panBlockStart[i] +=
-                        psSegInfo->nSegmentStart + nIMDATOFF;
-                }
-            }
-            /* This is a fix for a problem with rpf/cjga/cjgaz01/0105f033.ja1
-             * and */
-            /* rpf/cjga/cjgaz03/0034t0b3.ja3 CADRG products (bug 1754). */
-            /* These products have the strange particularity that their block
-             * start table begins */
-            /* one byte after its theoretical beginning, for an unknown reason
-             */
-            /* We detect this situation when the block start offset is not a
-             * multiple of 6144 */
-            /* Hopefully there's something in the NITF/CADRG standard that can
-             * account for it,  */
-            /* but I've not found it */
-            if (isM4 && i != nBlockCount)
-            {
-                bGotWrongOffset = TRUE;
-                CPLError(CE_Warning, CPLE_AppDefined,
-                         "Block start for block %d is wrong. Retrying with one "
-                         "extra byte shift...",
-                         i);
-                bOK &= VSIFSeekL(psFile->fp,
-                                 psSegInfo->nSegmentStart + 4 + /* nIMDATOFF */
-                                     2 +                        /* nBMRLNTH */
-                                     2 +                        /* nTMRLNTH */
-                                     2 +                        /* nTPXCDLNTH */
-                                     (nTPXCDLNTH + 7) / 8 +
-                                     1, /* MAGIC here ! One byte shift... */
-                                 SEEK_SET) == 0;
-
                 for (i = 0; bOK && i < nBlockCount; i++)
                 {
                     GUInt32 l_nOffset;
@@ -1000,14 +971,6 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
                     psImage->panBlockStart[i] = l_nOffset;
                     if (psImage->panBlockStart[i] != UINT_MAX)
                     {
-                        if ((psImage->panBlockStart[i] % 6144) != 0)
-                        {
-                            CPLError(CE_Warning, CPLE_AppDefined,
-                                     "Block start for block %d is still wrong. "
-                                     "Display will be wrong.",
-                                     i);
-                            break;
-                        }
                         psImage->panBlockStart[i] +=
                             psSegInfo->nSegmentStart + nIMDATOFF;
                     }
@@ -1018,10 +981,13 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
         {
             if (EQUAL(psImage->szIC, "M4"))
             {
-                for (i = 0; i < nBlockCount; i++)
-                    psImage->panBlockStart[i] = (GUIntBig)6144 * i +
-                                                psSegInfo->nSegmentStart +
-                                                nIMDATOFF;
+                if (!bBlockStartRead)
+                {
+                    for (i = 0; i < nBlockCount; i++)
+                        psImage->panBlockStart[i] = (GUIntBig)6144 * i +
+                                                    psSegInfo->nSegmentStart +
+                                                    nIMDATOFF;
+                }
             }
             else if (EQUAL(psImage->szIC, "NM"))
             {
@@ -1066,13 +1032,6 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
             return NULL;
         }
     }
-
-    /* -------------------------------------------------------------------- */
-    /*  Load subframe mask table if present (typically, for CADRG/CIB       */
-    /*  images with IC=C4/M4)                                               */
-    /* -------------------------------------------------------------------- */
-    if (!bGotWrongOffset)
-        NITFLoadSubframeMaskTable(psImage);
 
     /* -------------------------------------------------------------------- */
     /*      Bug #1751: Add a transparent color if there are none. Absent    */
@@ -3788,16 +3747,18 @@ static void NITFLoadColormapSubSection(NITFImage *psImage)
 /************************************************************************/
 
 /* Fixes bug #913 */
-static void NITFLoadSubframeMaskTable(NITFImage *psImage)
+static void NITFLoadSubframeMaskTable(NITFImage *psImage,
+                                      bool *pbBlockStartRead)
 {
     int i;
     NITFFile *psFile = psImage->psFile;
     NITFSegmentInfo *psSegInfo = psFile->pasSegmentInfo + psImage->iSegment;
-    GUIntBig nLocBaseSpatialDataSubsection = psSegInfo->nSegmentStart;
+    vsi_l_offset nLocBaseSpatialDataSubsection = psSegInfo->nSegmentStart;
     GUInt32 nLocBaseMaskSubsection = 0;
+    vsi_l_offset nLocImageDescriptionSubheader = 0;
     GUInt16 subframeSequenceRecordLength, transparencySequenceRecordLength,
         transparencyOutputPixelCodeLength;
-    int bOK = TRUE;
+    bool bOK = true;
 
     for (i = 0; i < psImage->nLocCount; i++)
     {
@@ -3809,6 +3770,11 @@ static void NITFLoadSubframeMaskTable(NITFImage *psImage)
         {
             nLocBaseMaskSubsection = psImage->pasLocations[i].nLocOffset;
         }
+        else if (psImage->pasLocations[i].nLocId ==
+                 LID_ImageDescriptionSubheader)
+        {
+            nLocImageDescriptionSubheader = psImage->pasLocations[i].nLocOffset;
+        }
     }
     if (nLocBaseMaskSubsection == 0)
     {
@@ -3816,10 +3782,31 @@ static void NITFLoadSubframeMaskTable(NITFImage *psImage)
         return;
     }
 
+    // Reasonable default if ImageDescriptionSubheader is missing assuming
+    // the offset follow immediately the header of MaskSubsection which they
+    // generally do except for product cjga/cjgaz01/0105f033.ja1, which has
+    // however an explicit correct value for SUBFRAME_MASK_TABLE_OFFSET
+    GUInt32 nSUBFRAME_MASK_TABLE_OFFSET = 6;
+    if (nLocImageDescriptionSubheader > 0)
+    {
+        if (VSIFSeekL(psFile->fp, nLocImageDescriptionSubheader + 20,
+                      SEEK_SET) != 0)
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "Failed to seek to %" PRIu64,
+                     ((uint64_t)nLocImageDescriptionSubheader) + 20);
+            return;
+        }
+
+        bOK &=
+            VSIFReadL(&nSUBFRAME_MASK_TABLE_OFFSET,
+                      sizeof(nSUBFRAME_MASK_TABLE_OFFSET), 1, psFile->fp) == 1;
+        CPL_MSBPTR32(&nSUBFRAME_MASK_TABLE_OFFSET);
+    }
+
     // fprintf(stderr, "nLocBaseMaskSubsection = %d\n", nLocBaseMaskSubsection);
     if (VSIFSeekL(psFile->fp, nLocBaseMaskSubsection, SEEK_SET) != 0)
     {
-        CPLError(CE_Failure, CPLE_FileIO, "Failed to seek to %d.",
+        CPLError(CE_Failure, CPLE_FileIO, "Failed to seek to %u",
                  nLocBaseMaskSubsection);
         return;
     }
@@ -3860,24 +3847,40 @@ static void NITFLoadSubframeMaskTable(NITFImage *psImage)
     }
 
     /* Fix for rpf/cjnc/cjncz01/0001f023.jn1 */
-    if (!bOK || subframeSequenceRecordLength != 4)
+    if (!bOK || subframeSequenceRecordLength != 4 ||
+        nSUBFRAME_MASK_TABLE_OFFSET == UINT_MAX)
     {
         // fprintf(stderr, "subframeSequenceRecordLength=%d\n",
         // subframeSequenceRecordLength);
         return;
     }
+    if (nSUBFRAME_MASK_TABLE_OFFSET < 6)
+    {
+        CPLError(CE_Warning, CPLE_AppDefined,
+                 "Invalid value for SUBFRAME_MASK_TABLE_OFFSET: %u. Ignoring "
+                 "block start table",
+                 nSUBFRAME_MASK_TABLE_OFFSET);
+        return;
+    }
 
-    for (i = 0; i < psImage->nBlocksPerRow * psImage->nBlocksPerColumn; i++)
+    bOK &= (VSIFSeekL(psFile->fp,
+                      nLocBaseMaskSubsection + nSUBFRAME_MASK_TABLE_OFFSET,
+                      SEEK_SET) == 0);
+
+    for (i = 0; bOK && i < psImage->nBlocksPerRow * psImage->nBlocksPerColumn;
+         i++)
     {
         unsigned int offset;
-        bOK &= VSIFReadL(&offset, sizeof(offset), 1, psFile->fp) == 1;
+        bOK = VSIFReadL(&offset, sizeof(offset), 1, psFile->fp) == 1;
         CPL_MSBPTR32(&offset);
-        // fprintf(stderr, "%d : %d\n", i, offset);
+        // fprintf(stderr, "%u : %d\n", i, offset);
         if (!bOK || offset == UINT_MAX)
             psImage->panBlockStart[i] = UINT_MAX;
         else
             psImage->panBlockStart[i] = nLocBaseSpatialDataSubsection + offset;
     }
+
+    *pbBlockStartRead = bOK;
 }
 
 static GUInt16 NITFReadMSBGUInt16(VSILFILE *fp, int *pbSuccess)
