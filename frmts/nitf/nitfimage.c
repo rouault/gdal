@@ -1095,13 +1095,26 @@ NITFImage *NITFImageAccess(NITFFile *psFile, int iSegment)
             }
             else
             {
-                psBandInfo->pabyLUT[0 + psBandInfo->nSignificantLUTEntries] = 0;
-                psBandInfo->pabyLUT[256 + psBandInfo->nSignificantLUTEntries] =
-                    0;
-                psBandInfo->pabyLUT[512 + psBandInfo->nSignificantLUTEntries] =
-                    0;
-                psImage->bNoDataSet = TRUE;
-                psImage->nNoDataValue = psBandInfo->nSignificantLUTEntries;
+                bool bHasMissingBlock = false;
+                for (int iBlock = 0; !bHasMissingBlock &&
+                                     iBlock < psImage->nBlocksPerRow *
+                                                  psImage->nBlocksPerColumn;
+                     ++iBlock)
+                {
+                    bHasMissingBlock =
+                        (psImage->panBlockStart[iBlock] == UINT_MAX);
+                }
+                if (bHasMissingBlock)
+                {
+                    psBandInfo
+                        ->pabyLUT[0 + psBandInfo->nSignificantLUTEntries] = 0;
+                    psBandInfo
+                        ->pabyLUT[256 + psBandInfo->nSignificantLUTEntries] = 0;
+                    psBandInfo
+                        ->pabyLUT[512 + psBandInfo->nSignificantLUTEntries] = 0;
+                    psImage->bNoDataSet = TRUE;
+                    psImage->nNoDataValue = psBandInfo->nSignificantLUTEntries;
+                }
             }
         }
     }

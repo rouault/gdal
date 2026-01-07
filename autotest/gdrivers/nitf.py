@@ -1144,7 +1144,7 @@ def test_nitf_29(tmp_path):
 
     ct = ds.GetRasterBand(1).GetRasterColorTable()
     assert (
-        ct.GetCount() == 129
+        ct.GetCount() == 128
         and ct.GetColorEntry(0) == (255, 255, 255, 255)
         and ct.GetColorEntry(1) == (255, 255, 0, 255)
         and ct.GetColorEntry(2) == (255, 0, 255, 255)
@@ -1159,7 +1159,7 @@ def test_nitf_29(tmp_path):
 
     ct = ds.GetRasterBand(1).GetRasterColorTable()
     assert (
-        ct.GetCount() == 130
+        ct.GetCount() == 128
         and ct.GetColorEntry(0) == (255, 255, 255, 255)
         and ct.GetColorEntry(1) == (255, 255, 0, 255)
         and ct.GetColorEntry(2) == (255, 0, 255, 255)
@@ -7052,7 +7052,7 @@ def test_nitf_create_cadrg(tmp_path):
 
     ds = gdal.Open(tmp_path / "1" / "out_cadrg.ntf")
     assert ds.RasterCount == 1
-    assert ds.GetRasterBand(1).GetColorTable().GetCount() == 217
+    assert ds.GetRasterBand(1).GetColorTable().GetCount() == 216
     assert ds.GetRasterBand(1).Checksum() == 33977
     assert ds.GetMetadata_Dict() == {
         "NITF_ABPP": "08",
