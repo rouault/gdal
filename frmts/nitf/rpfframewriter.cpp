@@ -14,6 +14,7 @@
 
 #include "cpl_enumerate.h"
 #include "cpl_string.h"
+#include "cpl_time.h"
 #include "gdal_colortable.h"
 #include "gdal_dataset.h"
 #include "gdal_geotransform.h"
@@ -1069,21 +1070,68 @@ bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     poBufferASSH->DeclareOffsetAtCurrentPosition(
         "ATTRIBUTE_SECTION_SUBHEADER_LOCATION");
 
-    std::vector<RPFAttribute> asAttributes{
-        // Horizontal datum code
-        {7, 1, "WGE " /* trailing space intended */},
+    std::vector<RPFAttribute> asAttributes;
+
+    const auto GetYYYMMDDDate = [](const std::string &osValue) -> std::string
+    {
+        if (EQUAL(osValue.c_str(), "NOW"))
+        {
+            time_t unixTime;
+            time(&unixTime);
+            struct tm brokenDownTime;
+            CPLUnixTimeToYMDHMS(unixTime, &brokenDownTime);
+            return CPLString().Printf(
+                "%04d%02d%02d", brokenDownTime.tm_year + 1900,
+                brokenDownTime.tm_mon + 1, brokenDownTime.tm_mday);
+        }
+        else
+        {
+            return osValue;
+        }
     };
 
-    if (const char *pszV =
-            aosOptions.FetchNameValue("RPF_DataSeriesDesignation"))
+    {
+        const char *pszV =
+            aosOptions.FetchNameValueDef("CURRENCY_DATE", "20260101");
+        if (pszV && pszV[0])
+        {
+            asAttributes.emplace_back(1, 1,
+                                      StrPadTruncate(GetYYYMMDDDate(pszV), 8));
+        }
+    }
+
+    {
+        const char *pszV =
+            aosOptions.FetchNameValueDef("PRODUCTION_DATE", "20260101");
+        if (pszV && pszV[0])
+        {
+            asAttributes.emplace_back(2, 1,
+                                      StrPadTruncate(GetYYYMMDDDate(pszV), 8));
+        }
+    }
+
+    {
+        const char *pszV =
+            aosOptions.FetchNameValueDef("SIGNIFICANT_DATE", "20260101");
+        if (pszV && pszV[0])
+        {
+            asAttributes.emplace_back(3, 1,
+                                      StrPadTruncate(GetYYYMMDDDate(pszV), 8));
+        }
+    }
+
+    if (const char *pszV = aosOptions.FetchNameValue("DATA_SERIES_DESIGNATION"))
     {
         asAttributes.emplace_back(4, 1, StrPadTruncate(pszV, 10));
     }
 
-    if (const char *pszV = aosOptions.FetchNameValue("RPF_MapDesignation"))
+    if (const char *pszV = aosOptions.FetchNameValue("MAP_DESIGNATION"))
     {
         asAttributes.emplace_back(4, 2, StrPadTruncate(pszV, 8));
     }
+
+    // Horizontal datum code
+    asAttributes.emplace_back(7, 1, StrPadTruncate("WGE", 4));
 
     const auto nAttrCount = static_cast<uint16_t>(asAttributes.size());
     poBufferASSH->AppendUInt16(nAttrCount);

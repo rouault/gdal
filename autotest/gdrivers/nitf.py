@@ -7101,6 +7101,9 @@ def test_nitf_create_cadrg(tmp_path):
         "NITF_PVTYPE": "INT",
         "NITF_STYPE": "",
         "NITF_TGTID": "",
+        "NITF_RPF_CurrencyDate": "20260101",
+        "NITF_RPF_ProductionDate": "20260101",
+        "NITF_RPF_SignificantDate": "20260101",
     }
 
     tres = ds.GetMetadata("xml:TRE")[0]
@@ -7122,7 +7125,7 @@ def test_nitf_create_cadrg(tmp_path):
     <field name="COMPONENT_LOCATION_OFFSET" value="14" />
     <field name="NUMBER_OF_COMPONENT_LOCATION_RECORDS" value="11" />
     <field name="COMPONENT_LOCATION_RECORD_LENGTH" value="10" />
-    <field name="COMPONENT_AGGREGATE_LENGTH" value="288714" />
+    <field name="COMPONENT_AGGREGATE_LENGTH" value="288762" />
     <repeated name="CLR" number="11">
       <group index="0">
         <field name="COMPONENT_ID" value="130" />
@@ -7137,6 +7140,7 @@ def test_nitf_create_cadrg(tmp_path):
           <field name="NORTHEAST_LONGITUDE" value="180" />
           <field name="SOUTHEAST_LATITUDE" value="-90" />
           <field name="SOUTHEAST_LONGITUDE" value="180" />""" in tres
+
     assert """<group index="1">
         <field name="COMPONENT_ID" value="131" />
         <field name="COMPONENT_LENGTH" value="6" />
@@ -7262,7 +7266,7 @@ def test_nitf_create_cadrg(tmp_path):
         <field name="COMPONENT_LENGTH" value="10" />
         <field name="COMPONENT_LOCATION" value="290685" />
         <content ComponentName="AttributeSectionSubheader">
-          <field name="NUMBER_OF_ATTRIBUTE_OFFSET_RECORDS" value="1" />
+          <field name="NUMBER_OF_ATTRIBUTE_OFFSET_RECORDS" value="4" />
           <field name="NUMBER_OF_EXPLICIT_AREAL_COVERAGE_RECORDS" value="0" />
           <field name="ATTRIBUTE_OFFSET_TABLE_OFFSET" value="0" />
           <field name="ATTRIBUTE_OFFSET_RECORD_LENGTH" value="8" />
@@ -7270,15 +7274,33 @@ def test_nitf_create_cadrg(tmp_path):
       </group>
       <group index="10">
         <field name="COMPONENT_ID" value="142" />
-        <field name="COMPONENT_LENGTH" value="12" />
+        <field name="COMPONENT_LENGTH" value="60" />
         <field name="COMPONENT_LOCATION" value="290695" />
         <content ComponentName="AttributeSubsection">
-          <repeated name="AOR" number="1">
+          <repeated name="AOR" number="4">
             <group index="0">
+              <field name="ATTRIBUTE_ID" value="1" />
+              <field name="PARAMETER_ID" value="1" />
+              <field name="AREAL_COVERAGE_SEQUENCE_NUMBER" value="0" />
+              <field name="ATTRIBUTE_RECORD_OFFSET" value="32" />
+            </group>
+            <group index="1">
+              <field name="ATTRIBUTE_ID" value="2" />
+              <field name="PARAMETER_ID" value="1" />
+              <field name="AREAL_COVERAGE_SEQUENCE_NUMBER" value="0" />
+              <field name="ATTRIBUTE_RECORD_OFFSET" value="40" />
+            </group>
+            <group index="2">
+              <field name="ATTRIBUTE_ID" value="3" />
+              <field name="PARAMETER_ID" value="1" />
+              <field name="AREAL_COVERAGE_SEQUENCE_NUMBER" value="0" />
+              <field name="ATTRIBUTE_RECORD_OFFSET" value="48" />
+            </group>
+            <group index="3">
               <field name="ATTRIBUTE_ID" value="7" />
               <field name="PARAMETER_ID" value="1" />
               <field name="AREAL_COVERAGE_SEQUENCE_NUMBER" value="0" />
-              <field name="ATTRIBUTE_RECORD_OFFSET" value="8" />
+              <field name="ATTRIBUTE_RECORD_OFFSET" value="56" />
             </group>
           </repeated>
         </content>
