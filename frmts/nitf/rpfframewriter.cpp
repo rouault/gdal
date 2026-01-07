@@ -495,6 +495,7 @@ static bool Perform_CADRG_VQ_Compression(
     const int nX = poSrcDS->GetRasterXSize();
     CPLAssert((nY % SUBSAMPLING) == 0);
     CPLAssert((nX % SUBSAMPLING) == 0);
+    CPLAssert(nX < INT_MAX / nY);
 
     auto poBand = poSrcDS->GetRasterBand(1);
 
@@ -530,7 +531,12 @@ static bool Perform_CADRG_VQ_Compression(
         std::vector<int> anIndicesToOutputImage{};
     };
 
-    VQImage.resize((nY / SUBSAMPLING) * (nX / SUBSAMPLING));
+    const int nVQImgHeight = nY / SUBSAMPLING;
+    const int nVQImgWidth = nX / SUBSAMPLING;
+    CPLAssert(nVQImgWidth > 0);
+    CPLAssert(nVQImgHeight > 0);
+    CPLAssert(nVQImgWidth < INT_MAX / nVQImgHeight);
+    VQImage.resize(nVQImgHeight * nVQImgWidth);
 
     // Collect all the occurences of 4x4 pixel values into a map indexed by them
     std::map<Vector<ColorTableBased4x4Pixels>, Occurences> vectorMap;
@@ -538,9 +544,9 @@ static bool Perform_CADRG_VQ_Compression(
     std::array<GByte, SUBSAMPLING * SUBSAMPLING> vals;
     std::fill(vals.begin(), vals.end(), static_cast<GByte>(0));
     int nTransparentPixels = 0;
-    for (int j = 0, nOutputIdx = 0; j < nY / SUBSAMPLING; ++j)
+    for (int j = 0, nOutputIdx = 0; j < nVQImgHeight; ++j)
     {
-        for (int i = 0; i < nX / SUBSAMPLING; ++i, ++nOutputIdx)
+        for (int i = 0; i < nVQImgWidth; ++i, ++nOutputIdx)
         {
             for (int y = 0; y < SUBSAMPLING; ++y)
             {
