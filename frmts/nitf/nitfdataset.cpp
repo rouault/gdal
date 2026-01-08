@@ -60,7 +60,7 @@ static bool
 NITFWriteExtraSegments(const char *pszFilename, VSILFILE *fpIn,
                        CSLConstList papszCgmMD, CSLConstList papszTextMD,
                        GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                       const CPLStringList &aosOptions);
+                       const CPLStringList &aosOptions, int nReciprocalScale);
 
 #ifdef JPEG_SUPPORTED
 static bool NITFWriteJPEGImage(GDALDataset *, VSILFILE *, vsi_l_offset,
@@ -207,7 +207,7 @@ CPLErr NITFDataset::Close(int &bHasDroppedRef)
             eErr = GDAL::Combine(
                 eErr, NITFWriteExtraSegments(
                           GetDescription(), nullptr, papszCgmMDToWrite,
-                          papszTextMDToWrite, nullptr, aosCreationOptions));
+                          papszTextMDToWrite, nullptr, aosCreationOptions, 0));
         }
 
         CSLDestroy(papszTextMDToWrite);
@@ -4576,8 +4576,30 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
                                          CSLConstList papszOptions,
                                          GDALProgressFunc pfnProgress,
                                          void *pProgressData)
+{
+    return CreateCopy(pszFilename, poSrcDS, bStrict, papszOptions, pfnProgress,
+                      pProgressData, /* nRecLevel = */ 0)
+        .release();
+}
+
+/************************************************************************/
+/*                      NITFDataset::CreateCopy()                       */
+/************************************************************************/
+
+std::unique_ptr<GDALDataset>
+NITFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
+                        int bStrict, CSLConstList papszOptions,
+                        GDALProgressFunc pfnProgress, void *pProgressData,
+                        int nRecLevel)
 
 {
+    if (nRecLevel == 2)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "NITFDataset::CreateCopy(): programming error: too deep "
+                 "recursion");
+        return nullptr;
+    }
 
     int nBands = poSrcDS->GetRasterCount();
     if (nBands == 0)
@@ -4707,42 +4729,24 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
     if (!bStrict && (eType == GDT_CInt16 || eType == GDT_CInt32))
         eType = GDT_CFloat32;
 
-    // CADRG related checks
+    /* -------------------------------------------------------------------- */
+    /*      CADRG related checks and pre-processing                         */
+    /* -------------------------------------------------------------------- */
+    int nReciprocalScale = 0;
     if (bIsCADRG)
     {
-        if (nBands != 1 || eType != GDT_Byte)
+        auto ret = CADRGCreateCopy(pszFilename, poSrcDS, bStrict, papszOptions,
+                                   pfnProgress, pProgressData, nRecLevel,
+                                   nReciprocalScale);
+        if (std::holds_alternative<std::unique_ptr<GDALDataset>>(ret))
         {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "CADRG only supports single byte datasets");
-            return nullptr;
+            return std::move(std::get<std::unique_ptr<GDALDataset>>(ret));
         }
-        if (poSrcDS->GetRasterXSize() != 1536 ||
-            poSrcDS->GetRasterYSize() != 1536)
+        CPLAssert(std::holds_alternative<bool>(ret));
+        const bool bGoOn = std::get<bool>(ret);
+        if (!bGoOn)
         {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "CADRG only supports 1536x1536 datasets");
             return nullptr;
-        }
-        const auto poCT = poBand1->GetColorTable();
-        if (poCT == nullptr)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "CADRG only supports paletted datasets");
-            return nullptr;
-        }
-        if (poCT->GetColorEntryCount() > 217)
-        {
-            for (int i = 216; i < poCT->GetColorEntryCount(); ++i)
-            {
-                const auto psEntry = poCT->GetColorEntry(i);
-                if (psEntry->c1 != 0 || psEntry->c2 != 0 || psEntry->c3 != 0)
-                {
-                    CPLError(
-                        CE_Failure, CPLE_AppDefined,
-                        "CADRG only supports up to 217 entries in color table");
-                    return nullptr;
-                }
-            }
         }
     }
 
@@ -5459,15 +5463,36 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
                 .size();
         aosOptions.SetNameValue("NUMDES", CPLSPrintf("%d", nDES));
 
-        CADRGInfo = RPFFrameCreateCADRG_TREs(&offsetPatcher, pszFilename,
-                                             poSrcDS, aosOptions);
+        if (nReciprocalScale == 0)
+        {
+            bool bGotDPI = false;
+            {
+                CPLErrorStateBackuper oBackuper(CPLQuietErrorHandler);
+                nReciprocalScale =
+                    RPFGetCADRGClosestReciprocalScale(poSrcDS, 0, bGotDPI);
+            }
+            if (!bGotDPI)
+            {
+                // the one from ADRG typically
+                constexpr double DEFAULT_DPI = 254;
+                nReciprocalScale = RPFGetCADRGClosestReciprocalScale(
+                    poSrcDS, DEFAULT_DPI, bGotDPI);
+                if (!nReciprocalScale)
+                    return nullptr;
+            }
+        }
+
+        CADRGInfo = RPFFrameCreateCADRG_TREs(
+            &offsetPatcher, pszFilename, poSrcDS, aosOptions, nReciprocalScale);
         if (!CADRGInfo)
         {
             return nullptr;
         }
 
         aosOptions.SetNameValue(
-            "LUT_SIZE", CADRGInfo->HasTransparentPixels() ? "217" : "216");
+            "LUT_SIZE",
+            CPLSPrintf("%d", CADRG_MAX_COLOR_ENTRY_COUNT +
+                                 (CADRGInfo->HasTransparentPixels() ? 1 : 0)));
     }
 
     int nIMIndex = 0;
@@ -5532,9 +5557,9 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
                                         nICOffset, aosOptions.List());
         if (nIMIndex + 1 == nImageCount)
         {
-            bOK &=
-                NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
-                                       aosTextMD.List(), nullptr, aosOptions);
+            bOK &= NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
+                                          aosTextMD.List(), nullptr, aosOptions,
+                                          0);
         }
         if (!bOK)
         {
@@ -5585,9 +5610,9 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
                                         nICOffset, aosOptions.List());
         if (nIMIndex + 1 == nImageCount)
         {
-            bOK &=
-                NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
-                                       aosTextMD.List(), nullptr, aosOptions);
+            bOK &= NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
+                                          aosTextMD.List(), nullptr, aosOptions,
+                                          0);
         }
         if (!bOK)
         {
@@ -5635,7 +5660,7 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
         // This will call RPFFrameWriteCADRG_RPFDES()
         bOK &= NITFWriteExtraSegments(pszFilename, fp.get(), aosCgmMD.List(),
                                       aosTextMD.List(), &offsetPatcher,
-                                      aosOptions);
+                                      aosOptions, nReciprocalScale);
 
         if (!bOK || !offsetPatcher.Finalize(fp.get()))
             return nullptr;
@@ -5673,9 +5698,9 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
     {
         if (nIMIndex + 1 == nImageCount)
         {
-            bool bOK =
-                NITFWriteExtraSegments(pszFilename, nullptr, aosCgmMD.List(),
-                                       aosTextMD.List(), nullptr, aosOptions);
+            bool bOK = NITFWriteExtraSegments(pszFilename, nullptr,
+                                              aosCgmMD.List(), aosTextMD.List(),
+                                              nullptr, aosOptions, 0);
             if (!bOK)
             {
                 return nullptr;
@@ -5832,7 +5857,13 @@ GDALDataset *NITFDataset::NITFCreateCopy(const char *pszFilename,
         poDstDS.reset(OpenInternal(&oOpenInfo, nullptr, true, -1));
     }
 
-    return poDstDS.release();
+    if (poDstDS && pfnProgress && !pfnProgress(1.0, "", pProgressData))
+    {
+        CPLError(CE_Failure, CPLE_UserInterrupt, "User terminated");
+        poDstDS.reset();
+    }
+
+    return poDstDS;
 }
 
 /************************************************************************/
@@ -6746,7 +6777,7 @@ static bool NITFWriteDES(VSILFILE *&fp, const char *pszFilename,
 
 static bool NITFWriteDES(const char *pszFilename, VSILFILE *&fpVSIL,
                          GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                         const CPLStringList &aosOptions)
+                         const CPLStringList &aosOptions, int nReciprocalScale)
 {
     int nDESFound = offsetPatcher ? 1 : 0;
     for (const char *pszOpt : aosOptions)
@@ -6819,10 +6850,10 @@ static bool NITFWriteDES(const char *pszFilename, VSILFILE *&fpVSIL,
     const auto nOffsetLDSH = nNumDESOffset + 3;
 
     int iDES = 0;
-    if (bOK && offsetPatcher)
+    if (offsetPatcher)
     {
-        bOK &= RPFFrameWriteCADRG_RPFDES(offsetPatcher, fpVSIL, nOffsetLDSH,
-                                         aosOptions);
+        bOK = RPFFrameWriteCADRG_RPFDES(offsetPatcher, fpVSIL, nOffsetLDSH,
+                                        aosOptions, nReciprocalScale);
         iDES = 1;
     }
 
@@ -6922,12 +6953,13 @@ static bool
 NITFWriteExtraSegments(const char *pszFilename, VSILFILE *fpIn,
                        CSLConstList papszCgmMD, CSLConstList papszTextMD,
                        GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                       const CPLStringList &aosOptions)
+                       const CPLStringList &aosOptions, int nReciprocalScale)
 {
     VSILFILE *fp = fpIn;
     bool bOK = NITFWriteCGMSegments(pszFilename, fp, papszCgmMD);
     bOK &= NITFWriteTextSegments(pszFilename, fp, papszTextMD);
-    bOK &= NITFWriteDES(pszFilename, fp, offsetPatcher, aosOptions);
+    bOK &= NITFWriteDES(pszFilename, fp, offsetPatcher, aosOptions,
+                        nReciprocalScale);
     if (fp)
     {
         bOK &= UpdateFileLength(fp);
@@ -7575,6 +7607,66 @@ void NITFDriver::InitCreationOptionList()
         "       <Value>REGULAR</Value>"
         "       <Value>CADRG</Value>"
         "   </Option>"
+        "   <Option name='SCALE' type='string' min='1000' max='20000000' "
+        "description='Reciprocal scale to use when generating output frames. "
+        "Special value GUESS can be used. Only used when PRODUCT_TYPE=CADRG'/>"
+        "   <Option name='DPI' type='float' description='"
+        "Dot-Per-Inch value that may need to be specified together with SCALE. "
+        "Only used when PRODUCT_TYPE=CADRG' min='1' max='7200'/>"
+        "   <Option name='ZONE' type='string' description='"
+        "ARC Zone to which rstrict generation of CADRG frames (1 to 8, A to H)."
+        "Only used when PRODUCT_TYPE=CADRG'/>"
+        "   <Option name='SERIES_CODE' type='string-select' description='"
+        "Two-letter code specifying the map/chart type. Only used when "
+        "PRODUCT_TYPE=CADRG' default='MM'>"
+        "       <Value>GN</Value>"
+        "       <Value>JN</Value>"
+        "       <Value>ON</Value>"
+        "       <Value>TP</Value>"
+        "       <Value>LF</Value>"
+        "       <Value>JG</Value>"
+        "       <Value>JA</Value>"
+        "       <Value>JR</Value>"
+        "       <Value>TF</Value>"
+        "       <Value>AT</Value>"
+        "       <Value>TC</Value>"
+        "       <Value>TL</Value>"
+        "       <Value>HA</Value>"
+        "       <Value>CO</Value>"
+        "       <Value>OA</Value>"
+        "       <Value>CG</Value>"
+        "       <Value>CM</Value>"
+        "       <Value>MM</Value>"
+        "   </Option>"
+        "   <Option name='VERSION_NUMBER' type='string' description='"
+        "Two letter version number (using letters among 0-9, A-H and J). "
+        "Only used when PRODUCT_TYPE=CADRG' default='01'/>"
+        "   <Option name='PRODUCER_CODE_ID' type='string' description='"
+        "One letter code indicating the data producer. Only used when "
+        "PRODUCT_TYPE=CADRG' default='0'/>"
+        "   <Option name='SECURITY_COUNTRY_CODE' type='string' description='"
+        "Two letter country ISO code of the security classification'/>"
+        "   <Option name='CURRENCY_DATE' type='string' description='"
+        "Date of the most recent revision to the RPF product, as YYYYMMDD. "
+        "Can also be set to empty string or special value NOW. "
+        "Only used when PRODUCT_TYPE=CADRG'/>"
+        "   <Option name='PRODUCTION_DATE' type='string' description='"
+        "Date that the source data was transferred to RPF format, as YYYYMMDD. "
+        "Can also be set to empty string or special value NOW. "
+        "Only used when PRODUCT_TYPE=CADRG'/>"
+        "   <Option name='SIGNIFICANT_DATE' type='string' description='"
+        "Date describing the basic date of the source produc, as YYYYMMDD. "
+        "Can also be set to empty string or special value NOW. "
+        "Only used when PRODUCT_TYPE=CADRG'/>"
+        "   <Option name='DATA_SERIES_DESIGNATION' type='string' "
+        "description='Short title for the identification of a group of products"
+        " usually having the same scale and/or cartographic specification "
+        "(e.g. JOG 1501A). Up to 10 characters. Only used when "
+        "PRODUCT_TYPE=CADRG'/>"
+        "   <Option name='MAP_DESIGNATION' type='string' "
+        "description='Designation, within the data series, of the hardcopy "
+        "source (e.g. G18 if the hardcopy source is ONC G18). Up to 8 "
+        "characters. Only used when PRODUCT_TYPE=CADRG'/>"
         "</CreationOptionList>";
 
     SetMetadataItem(GDAL_DMD_CREATIONOPTIONLIST, osCreationOptions);

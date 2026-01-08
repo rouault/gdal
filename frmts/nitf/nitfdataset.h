@@ -178,6 +178,10 @@ class NITFDataset final : public GDALPamDataset
                                        CSLConstList papszOptions,
                                        GDALProgressFunc pfnProgress,
                                        void *pProgressData);
+    static std::unique_ptr<GDALDataset>
+    CreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
+               CSLConstList papszOptions, GDALProgressFunc pfnProgress,
+               void *pProgressData, int nRecLevel);
     static GDALDataset *NITFDatasetCreate(const char *pszFilename, int nXSize,
                                           int nYSize, int nBands,
                                           GDALDataType eType,

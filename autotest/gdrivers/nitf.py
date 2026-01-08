@@ -7046,7 +7046,7 @@ def test_nitf_create_cadrg(tmp_path):
         gdal.Open(tmp_path / "in.tif"),
         width=1536,
         height=1536,
-        creationOptions=["PRODUCT_TYPE=CADRG"],
+        creationOptions=["PRODUCT_TYPE=CADRG", "SCALE=10000000"],
     )
     gdal.Unlink(tmp_path / "1" / "out_cadrg.ntf.aux.xml")
 
@@ -7315,7 +7315,7 @@ def test_nitf_create_cadrg(tmp_path):
     gdal.Translate(
         tmp_path / "2" / "out_cadrg.ntf",
         gdal.Open(tmp_path / "1" / "out_cadrg.ntf"),
-        creationOptions=["PRODUCT_TYPE=CADRG"],
+        creationOptions=["PRODUCT_TYPE=CADRG", "SCALE=10000000"],
     )
 
     alg = gdal.alg.raster.compare(
@@ -7351,7 +7351,7 @@ def test_nitf_create_cadrg_with_transparency(tmp_path):
     ds = gdal.Translate(
         tmp_path / "1" / "out_cadrg.ntf",
         gdal.Open(tmp_path / "in.tif"),
-        creationOptions=["PRODUCT_TYPE=CADRG"],
+        creationOptions=["PRODUCT_TYPE=CADRG", "SCALE=10000000"],
     )
     assert ds.GetRasterBand(1).ReadRaster(1534, 0, 2, 2) == b"\xd8" * 4
     assert ds.GetRasterBand(1).GetColorTable().GetCount() == 217
@@ -7389,3 +7389,260 @@ def test_nitf_create_cadrg_with_transparency(tmp_path):
           <field name="TRANSPARENT_OUTPUT_PIXEL_CODE_" value="216" />
         </content>
       </group>""" in tres
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_auto_tile_north_hemisphere(tmp_path):
+
+    tab_pct = [0]
+
+    def my_progress(pct, msg, user_data):
+        assert pct >= tab_pct[0]
+        tab_pct[0] = pct
+        return True
+
+    gdal.Translate(
+        tmp_path,
+        gdal.Translate(
+            "",
+            gdal.Open("data/small_world.tif"),
+            options="-of VRT -projwin -15 55 15 35",
+        ),
+        creationOptions=["PRODUCT_TYPE=CADRG", "SERIES_CODE=MM", "SCALE=20000000"],
+        format="NITF",
+        callback=my_progress,
+    )
+
+    assert tab_pct == [1.0]
+
+    assert set([x.replace("\\", "/") for x in gdal.ReadDirRecursive(tmp_path)]) == set(
+        [
+            "RPF/",
+            "RPF/ZONE2/",
+            "RPF/ZONE2/00003010.MM2",
+            "RPF/ZONE2/0000A010.MM2",
+        ]
+    )
+
+    with gdal.Open(tmp_path / "RPF/ZONE2/00003010.MM2") as ds:
+        assert ds.GetGeoTransform() == pytest.approx(
+            (-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232)
+        )
+        assert ds.GetRasterBand(1).Checksum() == 42233
+
+    with gdal.Open(tmp_path / "RPF/ZONE2/0000A010.MM2") as ds:
+        assert ds.GetGeoTransform() == pytest.approx(
+            (-18.0, 0.03515625, 0.0, 83.07692307692308, 0.0, -0.027043269230769232)
+        )
+
+    src_ds = gdal.Open(tmp_path / "RPF/ZONE2/00003010.MM2")
+    gdal.Translate(
+        tmp_path / "copy",
+        src_ds,
+        creationOptions=["PRODUCT_TYPE=CADRG", "SERIES_CODE=MM", "SCALE=20000000"],
+        format="NITF",
+    )
+
+    with gdal.Open(tmp_path / "copy/RPF/ZONE2/00003010.MM2") as ds:
+        assert ds.GetGeoTransform() == pytest.approx(
+            (-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232)
+        )
+        assert ds.GetRasterBand(1).Checksum() == 42233
+
+    src_rgb_ds = gdal.Translate("", src_ds, options="-of VRT -expand rgb")
+    gdal.Translate(
+        tmp_path / "copy2",
+        src_rgb_ds,
+        creationOptions=["PRODUCT_TYPE=CADRG", "SERIES_CODE=MM", "SCALE=20000000"],
+        format="NITF",
+    )
+
+    with gdal.Open(tmp_path / "copy2/RPF/ZONE2/00003010.MM2") as ds:
+        assert ds.GetGeoTransform() == pytest.approx(
+            (-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232)
+        )
+        assert ds.GetRasterBand(1).Checksum() == 51323
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_auto_tile_south_hemisphere(tmp_vsimem):
+
+    gdal.Translate(
+        tmp_vsimem,
+        gdal.Translate(
+            "",
+            gdal.Open("data/small_world.tif"),
+            options="-of VRT -projwin -15 -35 15 -55",
+        ),
+        creationOptions=["PRODUCT_TYPE=CADRG", "SERIES_CODE=MM", "SCALE=20000000"],
+        format="NITF",
+    )
+
+    assert gdal.ReadDirRecursive(tmp_vsimem) == [
+        "RPF/",
+        "RPF/ZONEB/",
+        "RPF/ZONEB/00003010.MMB",
+        "RPF/ZONEB/0000A010.MMB",
+    ]
+
+    with gdal.Open(tmp_vsimem / "RPF/ZONEB/00003010.MMB") as ds:
+        assert ds.GetGeoTransform() == pytest.approx(
+            (-18.0, 0.03515625, 0.0, -41.53846153846154, 0.0, -0.027043269230769232)
+        )
+
+    with gdal.Open(tmp_vsimem / "RPF/ZONEB/0000A010.MMB") as ds:
+        assert ds.GetGeoTransform() == pytest.approx(
+            (-18.0, 0.03515625, 0.0, 0.0, 0.0, -0.027043269230769232)
+        )
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_error_cases(tmp_vsimem, tmp_path):
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 1, 1, 1, gdal.GDT_UInt16)
+    with pytest.raises(
+        Exception, match="CADRG only supports datasets of UInt8 data type"
+    ):
+        gdal.Translate(
+            tmp_vsimem, src_ds, creationOptions=["PRODUCT_TYPE=CADRG"], format="NITF"
+        )
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 1, 1)
+    with pytest.raises(Exception, match="CADRG only supports datasets with a CRS"):
+        gdal.Translate(
+            tmp_vsimem, src_ds, creationOptions=["PRODUCT_TYPE=CADRG"], format="NITF"
+        )
+
+    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    with pytest.raises(
+        Exception, match="CADRG only supports datasets with a geotransform"
+    ):
+        gdal.Translate(
+            tmp_vsimem, src_ds, creationOptions=["PRODUCT_TYPE=CADRG"], format="NITF"
+        )
+
+    src_ds.SetGeoTransform([0, 1, 0, 10, 0, -1])
+    with pytest.raises(
+        Exception,
+        match="CADRG only supports single band input datasets that have an associated color table",
+    ):
+        gdal.Translate(
+            tmp_vsimem, src_ds, creationOptions=["PRODUCT_TYPE=CADRG"], format="NITF"
+        )
+
+    ct = gdal.ColorTable()
+    for i in range(256):
+        ct.SetColorEntry(i, (i, i, i, 255))
+    src_ds.GetRasterBand(1).SetColorTable(ct)
+    with pytest.raises(
+        Exception, match="CADRG only supports up to 216 entries in color table"
+    ):
+        gdal.Translate(
+            tmp_vsimem, src_ds, creationOptions=["PRODUCT_TYPE=CADRG"], format="NITF"
+        )
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 1, 1, 3)
+    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    src_ds.SetGeoTransform([0, 1, 0, 10, 0, -1])
+    with pytest.raises(
+        Exception, match="Invalid value for DPI"
+    ), gdaltest.error_handler():
+        gdal.Translate(
+            tmp_vsimem,
+            src_ds,
+            creationOptions=["PRODUCT_TYPE=CADRG", "DPI=0"],
+            format="NITF",
+        )
+
+    with pytest.raises(
+        Exception,
+        match="CADRG only supports single-band paletted, RGB or RGBA input datasets",
+    ):
+        gdal.Translate(
+            tmp_vsimem, src_ds, creationOptions=["PRODUCT_TYPE=CADRG"], format="NITF"
+        )
+
+    src_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+    src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
+    src_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+
+    with pytest.raises(Exception, match="SCALE must be defined"):
+        gdal.Translate(
+            tmp_vsimem, src_ds, creationOptions=["PRODUCT_TYPE=CADRG"], format="NITF"
+        )
+
+    with pytest.raises(Exception, match="Invalid value for SCALE"):
+        gdal.Translate(
+            tmp_vsimem,
+            src_ds,
+            creationOptions=["PRODUCT_TYPE=CADRG", "SCALE=1"],
+            format="NITF",
+        )
+
+    with gdal.VSIFile(tmp_vsimem / "existing_file", "wb") as f:
+        f.write(b"dummy")
+    with pytest.raises(
+        Exception,
+        match="Given that source dataset dimension do not match a 1536x1536 frame, several frames will be generated and thus the output filename should be a directory name",
+    ):
+        gdal.GetDriverByName("NITF").CreateCopy(
+            tmp_vsimem / "existing_file",
+            src_ds,
+            options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=GN"],
+        )
+
+    with pytest.raises(
+        Exception,
+        match=r"Given that source dataset dimension do not match a 1536x1536 frame, several frames will be generated and thus the output filename should be a directory name \(without a NITF or CADRG file extension\)",
+    ):
+        gdal.GetDriverByName("NITF").CreateCopy(
+            tmp_vsimem / "00003010.GNB",
+            src_ds,
+            options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=GN"],
+        )
+
+    gdal.Mkdir(tmp_path / "out", 0o755)
+    with gdal.VSIFile(tmp_path / "out" / "RPF", "wb") as f:
+        f.write(b"dummy")
+    with pytest.raises(Exception, match="Cannot create directory"):
+        gdal.GetDriverByName("NITF").CreateCopy(
+            tmp_path / "out", src_ds, options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=GN"]
+        )
+
+    gdal.Mkdir(tmp_path / "out2", 0o755)
+    gdal.Mkdir(tmp_path / "out2" / "RPF", 0o755)
+    gdal.Mkdir(tmp_path / "out2" / "RPF" / "ZONE1", 0o755)
+    gdal.Mkdir(tmp_path / "out2" / "RPF" / "ZONE1" / "0000G010.GN1", 0o755)
+    with pytest.raises(Exception, match="Unable to create file"):
+        gdal.GetDriverByName("NITF").CreateCopy(
+            tmp_path / "out2", src_ds, options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=GN"]
+        )
+
+    src_ds.SetGeoTransform([-1000, 1, 0, 10, 0, -1])
+    with pytest.raises(
+        Exception, match="Cannot establish CADRG frames intersecting dataset extent"
+    ):
+        gdal.GetDriverByName("NITF").CreateCopy(
+            tmp_vsimem, src_ds, options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=GN"]
+        )
+
+    srs = osr.SpatialReference()
+    srs.SetFromUserInput("+proj=longlat +a=1")
+    src_ds.SetSpatialRef(srs)
+
+    with pytest.raises(Exception, match="Cannot find coordinate operations"):
+        gdal.Translate(
+            tmp_vsimem,
+            src_ds,
+            creationOptions=["PRODUCT_TYPE=CADRG", "SCALE=20000000"],
+            format="NITF",
+        )

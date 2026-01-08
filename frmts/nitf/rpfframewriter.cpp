@@ -15,17 +15,22 @@
 #include "cpl_enumerate.h"
 #include "cpl_string.h"
 #include "cpl_time.h"
+#include "gdal_alg.h"
+#include "gdal_alg_priv.h"
 #include "gdal_colortable.h"
 #include "gdal_dataset.h"
 #include "gdal_geotransform.h"
 #include "gdal_rasterband.h"
+#include "gdal_utils.h"
 #include "offsetpatcher.h"
+#include "nitfdataset.h"
 #include "nitflib.h"
 #include "kdtree_vq_cadrg.h"
 
 #include <algorithm>
 #include <array>
 #include <map>
+#include <utility>
 #include <vector>
 
 // Refer to following documents to (hopefully) understand that file:
@@ -36,11 +41,107 @@
 // MIL-A-89007, ADRG:           http://everyspec.com/MIL-SPECS/MIL-SPECS-MIL-A/MIL-A-89007_51725/
 // MIL-STD-188/199, VQ NITF:    http://everyspec.com/MIL-STD/MIL-STD-0100-0299/MIL_STD_188_199_1730/
 
+constexpr int MIN_ZONE = 1;
+constexpr int MAX_ZONE_NORTHERN_HEMISPHERE = 9;
+constexpr int MIN_ZONE_SOUTHERN_HEMISPHERE = 1 + MAX_ZONE_NORTHERN_HEMISPHERE;
+constexpr int MAX_ZONE = 18;
+
 constexpr int SUBSAMPLING = 4;
 constexpr int BLOCK_SIZE = 256;
+constexpr int CADRG_FRAME_PIXEL_COUNT = 1536;
 constexpr int CODEBOOK_MAX_SIZE = 4096;
 constexpr int TRANSPARENT_CODEBOOK_CODE = CODEBOOK_MAX_SIZE - 1;
 constexpr int TRANSPARENT_COLOR_TABLE_ENTRY = CADRG_MAX_COLOR_ENTRY_COUNT;
+
+constexpr double CADRG_PITCH_IN_CM = 0.0150;  // 150 micrometers
+
+constexpr int Kilo = 1000;
+constexpr int Million = Kilo * Kilo;
+
+// Cf MIL-STD-2411-1 page 9
+constexpr const struct
+{
+    const char *pszCode;
+    const char *pszAbbreviation;
+    int nReciprocalScale;
+} CADRG_DATA_SERIES[] = {
+    // clang-format off
+    {"GN", "GNC",     5 * Million},
+    {"JN", "JNC",     2 * Million},
+    {"ON", "ONC",     1 * Million},
+    {"TP", "TPC",     500 * Kilo},
+    {"LF", "LFC",     500 * Kilo},
+    {"JG", "JOG",     250 * Kilo},
+    {"JA", "JOG-A",   250 * Kilo},
+    {"JR", "JOG-R",   250 * Kilo},
+    {"TF", "TFC",     250 * Kilo},
+    {"AT", "ATC",     200 * Kilo},
+    {"TC", "TLM 100", 100 * Kilo},
+    {"TL", "TLM 50",   50 * Kilo},
+    {"HA", "HA",               0},
+    {"CO", "CO",               0},
+    {"OA", "OPAREA",           0},
+    {"CG", "CG",               0},
+    {"CM", nullptr,            0},
+    {"MM", nullptr,            0},
+    // clang-format on
+};
+
+/************************************************************************/
+/*                        RPFCADRGIsValidZone()                         */
+/************************************************************************/
+
+static bool RPFCADRGIsValidZone(int nZone)
+{
+    return nZone >= MIN_ZONE && nZone <= MAX_ZONE;
+}
+
+/************************************************************************/
+/*                       RPFCADRGZoneNumToChar()                        */
+/************************************************************************/
+
+static char RPFCADRGZoneNumToChar(int nZone)
+{
+    CPLAssert(RPFCADRGIsValidZone(nZone));
+    if (nZone <= MAX_ZONE_NORTHERN_HEMISPHERE)
+        return static_cast<char>('0' + nZone);
+    else if (nZone < MAX_ZONE)
+        return static_cast<char>('A' + (nZone - MIN_ZONE_SOUTHERN_HEMISPHERE));
+    else
+        return 'J';
+}
+
+/************************************************************************/
+/*                       RPFCADRGZoneCharToNum()                        */
+/************************************************************************/
+
+static int RPFCADRGZoneCharToNum(char chZone)
+{
+    if (chZone >= '1' && chZone <= '9')
+        return chZone - '0';
+    else if (chZone >= 'A' && chZone <= 'H')
+        return (chZone - 'A') + MIN_ZONE_SOUTHERN_HEMISPHERE;
+    else if (chZone >= 'a' && chZone <= 'h')
+        return (chZone - 'a') + MIN_ZONE_SOUTHERN_HEMISPHERE;
+    else if (chZone == 'J' || chZone == 'j')
+        return MAX_ZONE;
+    else
+        return 0;
+}
+
+/************************************************************************/
+/*                 RPFCADRGGetScaleFromDataSeriesCode()                 */
+/************************************************************************/
+
+static int RPFCADRGGetScaleFromDataSeriesCode(const char *pszCode)
+{
+    for (const auto &sEntry : CADRG_DATA_SERIES)
+    {
+        if (EQUAL(pszCode, sEntry.pszCode))
+            return sEntry.nReciprocalScale;
+    }
+    return 0;
+}
 
 /************************************************************************/
 /*                      CADRGInformation::Private                       */
@@ -110,8 +211,11 @@ static void Create_CADRG_RPFHDR(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     poRPFHDR->AppendByte(1);  // update indicator: full replacement
     poRPFHDR->AppendString("MIL-C-89038    ");  // GOVERNING_STANDARD_NUMBER
     poRPFHDR->AppendString("19941006");         // GOVERNING_STANDARD_DATE
-    poRPFHDR->AppendString("U");   // SECURITY_CLASSIFICATION: unclassified
-    poRPFHDR->AppendString("  ");  // SECURITY_COUNTRY_INTERNATIONAL_CODE
+    // SECURITY_CLASSIFICATION
+    poRPFHDR->AppendString(
+        StrPadTruncate(aosOptions.FetchNameValueDef("FCLASS", "U"), 1));
+    poRPFHDR->AppendString(StrPadTruncate(
+        aosOptions.FetchNameValueDef("SECURITY_COUNTRY_CODE", "  "), 2));
     poRPFHDR->AppendString("  ");  // SECURITY_RELEASE_MARKING
     poRPFHDR->AppendUInt32RefForOffset("LOCATION_COMPONENT_LOCATION");
 
@@ -203,7 +307,7 @@ Create_CADRG_LocationComponent(GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
 }
 
 /************************************************************************/
-/*                    Create_CADRG_CoverageSection()                    */
+/*                         asARCZoneDefinitions                         */
 /************************************************************************/
 
 constexpr double ARC_B = 400384;
@@ -230,6 +334,14 @@ static constexpr struct
     {9, 80, 90, ARC_B, ARC_B, 99.9, 99.9},
 };
 
+constexpr double RATIO_PITCH_CADRG_OVER_ADRG = 150.0 / 100.0;
+constexpr double REF_SCALE = 1e6;
+constexpr int ADRG_BLOCK_SIZE = 512;
+
+/************************************************************************/
+/*                         GetARCZoneFromLat()                          */
+/************************************************************************/
+
 static int GetARCZoneFromLat(double dfLat)
 {
     for (const auto &sZoneDef : asARCZoneDefinitions)
@@ -237,10 +349,446 @@ static int GetARCZoneFromLat(double dfLat)
         if (std::fabs(dfLat) >= sZoneDef.minLat &&
             std::fabs(dfLat) <= sZoneDef.maxLat)
         {
-            return dfLat >= 0 ? sZoneDef.nZone : sZoneDef.nZone + 9;
+            return dfLat >= 0 ? sZoneDef.nZone
+                              : sZoneDef.nZone + MAX_ZONE_NORTHERN_HEMISPHERE;
         }
     }
     return 0;
+}
+
+/************************************************************************/
+/*                           GetLatInterval()                           */
+/************************************************************************/
+
+/** Return the size of a pixel in degree, along the latitude axis,
+ * at specified scale and zone */
+static double GetLatInterval(int nZone, int nReciprocalScale)
+{
+    CPLAssert(RPFCADRGIsValidZone(nZone));
+    const int nZoneIdx = (nZone - 1) % MAX_ZONE_NORTHERN_HEMISPHERE;
+    const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
+
+    // Cf MIL-A-89007 (ADRG specification), appendix 70, table III
+    const double N = REF_SCALE / nReciprocalScale;
+
+    // Cf MIL-C-89038 (CADRG specification), para 60.1.1 and following
+    const double B_s = sZoneDef.B * N;
+    const double latCst_ADRG =
+        std::ceil(B_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
+    const double latCst_CADRG =
+        std::round(latCst_ADRG / RATIO_PITCH_CADRG_OVER_ADRG / 4 / BLOCK_SIZE) *
+        BLOCK_SIZE;
+    const double latInterval = 90.0 / latCst_CADRG;
+
+    return latInterval;
+}
+
+/************************************************************************/
+/*                           GetLonInterval()                           */
+/************************************************************************/
+
+/** Return the size of a pixel in degree, along the longitude axis,
+ * at specified scale and zone */
+static double GetLonInterval(int nZone, int nReciprocalScale)
+{
+    CPLAssert(RPFCADRGIsValidZone(nZone));
+    const int nZoneIdx = (nZone - MIN_ZONE) % MAX_ZONE_NORTHERN_HEMISPHERE;
+    const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
+
+    // Cf MIL-A-89007 (ADRG specification), appendix 70, table III
+    const double N = REF_SCALE / nReciprocalScale;
+
+    // Cf MIL-C-89038 (CADRG specification), para 60.1.1 and following
+    const double A_s = sZoneDef.A * N;
+    const double lonCst_ADRG =
+        std::ceil(A_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
+    const double lonCst_CADRG =
+        std::round(lonCst_ADRG / RATIO_PITCH_CADRG_OVER_ADRG / BLOCK_SIZE) *
+        BLOCK_SIZE;
+    const double lonInterval = 360.0 / lonCst_CADRG;
+
+    return lonInterval;
+}
+
+/************************************************************************/
+/*                      GetMinMaxLatWithOverlap()                       */
+/************************************************************************/
+
+/** Return the actual minimum and maximum latitude of a zone, for a given
+ * reciprocal scale, taking into potential overlap between zones.
+ */
+static std::pair<double, double> GetMinMaxLatWithOverlap(int nZone,
+                                                         int nReciprocalScale)
+{
+    CPLAssert(RPFCADRGIsValidZone(nZone));
+    const int nZoneIdx = (nZone - MIN_ZONE) % MAX_ZONE_NORTHERN_HEMISPHERE;
+    const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
+
+    const double latInterval = GetLatInterval(nZone, nReciprocalScale);
+    const double deltaLatFrame = latInterval * CADRG_FRAME_PIXEL_COUNT;
+
+    const double dfMinLat =
+        std::floor(sZoneDef.minLat / deltaLatFrame) * deltaLatFrame;
+    const double dfMaxLat =
+        std::ceil(sZoneDef.maxLat / deltaLatFrame) * deltaLatFrame;
+    return nZone >= MIN_ZONE_SOUTHERN_HEMISPHERE
+               ? std::pair(-dfMaxLat, -dfMinLat)
+               : std::pair(dfMinLat, dfMaxLat);
+}
+
+/************************************************************************/
+/*                        GetFrameCountAlongX()                         */
+/************************************************************************/
+
+constexpr double EPSILON_1Em3 = 1e-3;
+constexpr double dfMinLonZone = -180.0;
+constexpr double dfMaxLonZone = 180.0;
+
+static int GetFrameCountAlongX(int nZone, int nReciprocalScale)
+{
+    const double lonInterval = GetLonInterval(nZone, nReciprocalScale);
+    const double eastWestPixelCst = 360.0 / lonInterval;
+    CPLDebugOnly("CADRG", "eastWestPixelCst=%f, count=%f", eastWestPixelCst,
+                 eastWestPixelCst / CADRG_FRAME_PIXEL_COUNT);
+    const int nSubframesCount = static_cast<int>(
+        std::ceil(eastWestPixelCst / CADRG_FRAME_PIXEL_COUNT - EPSILON_1Em3));
+    return nSubframesCount;
+}
+
+/************************************************************************/
+/*                        GetFrameCountAlongY()                         */
+/************************************************************************/
+
+static int GetFrameCountAlongY(int nZone, int nReciprocalScale)
+{
+    const double latInterval = GetLatInterval(nZone, nReciprocalScale);
+    const double deltaLatFrame = latInterval * CADRG_FRAME_PIXEL_COUNT;
+    const auto [dfMinLatZone, dfMaxLatZone] =
+        GetMinMaxLatWithOverlap(nZone, nReciprocalScale);
+    return std::max(1, static_cast<int>(std::ceil(dfMaxLatZone - dfMinLatZone) /
+                                            deltaLatFrame -
+                                        EPSILON_1Em3));
+}
+
+/************************************************************************/
+/*                    RPFGetCADRGFramesForEnvelope()                    */
+/************************************************************************/
+
+struct RPFFrameDef
+{
+    int nZone;
+    int nReciprocalScale;
+    int nFrameMinX;
+    int nFrameMinY;
+    int nFrameMaxX;
+    int nFrameMaxY;
+    double dfResX;
+    double dfResY;
+};
+
+/** Given a bounding box of an area of interest expressed in long, lat WGS84,
+ * and given a reciprocal scale (e.g. 1,000,000), returns the min/max frame
+ * coordinate indices in all zones that intersect that area of interest
+ * (when nZoneIn is 0), or in the specified zone (when nZoneIn is not 0)
+ */
+static std::vector<RPFFrameDef>
+RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
+                             double dfYMin, double dfXMax, double dfYMax)
+{
+    CPLAssert(nZoneIn == 0 || RPFCADRGIsValidZone(nZoneIn));
+    CPLAssert(dfYMin <= dfYMax);
+    CPLAssert(dfXMin <= dfXMax);
+
+    if (dfYMin < 0 && dfYMax > 0)
+    {
+        std::vector<RPFFrameDef> res1, res2;
+        if (nZoneIn == 0 || (nZoneIn >= MIN_ZONE_SOUTHERN_HEMISPHERE))
+        {
+            res1 = RPFGetCADRGFramesForEnvelope(nZoneIn, nReciprocalScale,
+                                                dfXMin, dfYMin, dfXMax, 0);
+        }
+        if (nZoneIn == 0 ||
+            (nZoneIn >= MIN_ZONE && nZoneIn <= MAX_ZONE_NORTHERN_HEMISPHERE))
+        {
+            res2 = RPFGetCADRGFramesForEnvelope(nZoneIn, nReciprocalScale,
+                                                dfXMin, 0, dfXMax, dfYMax);
+        }
+        res1.insert(res1.end(), res2.begin(), res2.end());
+        return res1;
+    }
+
+    // Same hemisphere at this point
+    CPLAssert(dfYMin * dfYMax >= 0);
+
+    if (!(dfXMin >= dfMinLonZone && dfXMin < dfMaxLonZone))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Minimum longitude of extent not in [%f,%f[ range",
+                 dfMinLonZone, dfMaxLonZone);
+        return {};
+    }
+
+    double dfLastMaxLatZone = 0;
+    std::vector<RPFFrameDef> res;
+    const double dfYMinNorth = dfYMax > 0 ? dfYMin : -dfYMax;
+    const double dfYMaxNorth = dfYMax > 0 ? dfYMax : -dfYMin;
+    const int nZoneOffset = dfYMax > 0 ? 0 : MAX_ZONE_NORTHERN_HEMISPHERE;
+    // TODO zone 9
+    CPLDebugOnly("CADRG", "Source minLat=%f, maxLat=%f", dfYMin, dfYMax);
+    for (int nZoneNorth = MIN_ZONE; nZoneNorth < MAX_ZONE_NORTHERN_HEMISPHERE;
+         ++nZoneNorth)
+    {
+        const int nZone = nZoneIn ? nZoneIn : nZoneNorth + nZoneOffset;
+        const int nZoneIdx = (nZone - MIN_ZONE) % MAX_ZONE_NORTHERN_HEMISPHERE;
+        const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
+        if (dfYMinNorth < sZoneDef.maxLat && dfYMaxNorth > sZoneDef.minLat)
+        {
+            const auto [dfMinLatZone, dfMaxLatZone] =
+                GetMinMaxLatWithOverlap(nZone, nReciprocalScale);
+            CPLDebugOnly("CADRG",
+                         "Zone %d: minLat_nominal=%d, maxLat_nominal=%d, "
+                         "minLat_overlap=%f, maxLat_overlap=%f",
+                         nZone, dfYMax > 0 ? sZoneDef.minLat : sZoneDef.maxLat,
+                         dfYMax > 0 ? sZoneDef.maxLat : -sZoneDef.minLat,
+                         dfMinLatZone, dfMaxLatZone);
+            const double dfMaxLatZoneNorth =
+                std::max(std::fabs(dfMinLatZone), std::fabs(dfMaxLatZone));
+            if (dfMaxLatZoneNorth == dfLastMaxLatZone)
+            {
+                // Skip zone if fully within a previous one
+                // This is the case of zones 5, 6 and 8 at scale 5 M.
+                // See MIL-C-89038 page 70
+                CPLDebugOnly(
+                    "CADRG",
+                    "Skipping zone %d as fully contained in previous one",
+                    nZone);
+                continue;
+            }
+            dfLastMaxLatZone = dfMaxLatZoneNorth;
+
+            const double latInterval = GetLatInterval(nZone, nReciprocalScale);
+            const double deltaLatFrame = latInterval * CADRG_FRAME_PIXEL_COUNT;
+            const double dfFrameMinY =
+                (std::max(dfYMin, dfMinLatZone) - dfMinLatZone) / deltaLatFrame;
+            const double dfFrameMaxY =
+                (std::min(dfYMax, dfMaxLatZone) - dfMinLatZone) / deltaLatFrame;
+            CPLDebugOnly("CADRG", "dfFrameMinY = %f, dfFrameMaxY=%f",
+                         dfFrameMinY, dfFrameMaxY);
+            const int nFrameMinY = static_cast<int>(dfFrameMinY + EPSILON_1Em3);
+            const int nFrameMaxY = static_cast<int>(dfFrameMaxY - EPSILON_1Em3);
+
+            const double lonInterval = GetLonInterval(nZone, nReciprocalScale);
+            const double deltaLonFrame = lonInterval * CADRG_FRAME_PIXEL_COUNT;
+            const double dfFrameMinX =
+                (std::max(dfXMin, dfMinLonZone) - dfMinLonZone) / deltaLonFrame;
+            const double dfFrameMaxX =
+                (std::min(dfXMax, dfMaxLonZone) - dfMinLonZone) / deltaLonFrame;
+            CPLDebugOnly("CADRG", "dfFrameMinX = %f, dfFrameMaxX=%f",
+                         dfFrameMinX, dfFrameMaxX);
+            const int nFrameMinX = static_cast<int>(dfFrameMinX + EPSILON_1Em3);
+            const int nFrameMaxX = static_cast<int>(dfFrameMaxX - EPSILON_1Em3);
+
+            RPFFrameDef sDef;
+            sDef.nZone = nZone;
+            sDef.nReciprocalScale = nReciprocalScale;
+            sDef.nFrameMinX = nFrameMinX;
+            sDef.nFrameMinY = nFrameMinY;
+            sDef.nFrameMaxX = nFrameMaxX;
+            sDef.nFrameMaxY = nFrameMaxY;
+            sDef.dfResX = lonInterval;
+            sDef.dfResY = latInterval;
+            CPLDebug("CADRG", "Zone %d: frame (x,y)=(%d,%d) to (%d,%d)", nZone,
+                     nFrameMinX, nFrameMinY, nFrameMaxX, nFrameMaxY);
+            res.push_back(sDef);
+        }
+        if (nZoneIn)
+            break;
+    }
+    return res;
+}
+
+/************************************************************************/
+/*                   RPFGetCADRGFrameNumberAsString()                   */
+/************************************************************************/
+
+/** Returns the 5 first character of the filename corresponding to the
+ * frame specified by the provided parameters.
+ */
+static std::string RPFGetCADRGFrameNumberAsString(int nZone,
+                                                  int nReciprocalScale,
+                                                  int nFrameX, int nFrameY)
+{
+    // Cf MIL-C-89038, page 60, 30.6 "Frame naming convention"
+
+    const int nFrameCountAlongX = GetFrameCountAlongX(nZone, nReciprocalScale);
+    const int nFrameCountAlongY = GetFrameCountAlongY(nZone, nReciprocalScale);
+    CPLDebugOnly("CADRG",
+                 "Zone %d -> nFrameCountAlongX = %d, nFrameCountAlongY = %d",
+                 nZone, nFrameCountAlongX, nFrameCountAlongY);
+    CPL_IGNORE_RET_VAL(nFrameCountAlongY);
+    CPLAssert(nFrameX >= 0 && nFrameX < nFrameCountAlongX);
+    CPLAssert(nFrameY >= 0 && nFrameY < nFrameCountAlongY);
+    const int nFrameIdx = nFrameX + nFrameY * nFrameCountAlongX;
+    CPLDebugOnly("CADRG", "Frame number (%d, %d) -> %d", nFrameX, nFrameY,
+                 nFrameIdx);
+
+    std::string osRes;
+
+    constexpr int BASE_34 = 34;
+    // clang-format off
+    // letters 'I' and 'O' are omitted to avoid confusiong with one and zero
+    constexpr char ALPHABET_BASE_34[] = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',      'J',
+        'K', 'L', 'M', 'N',      'P', 'Q', 'R', 'S', 'T',
+        'U', 'V', 'W', 'X', 'Y', 'Z'
+    };
+    // clang-format on
+    static_assert(sizeof(ALPHABET_BASE_34) == BASE_34);
+
+    int nCur = nFrameIdx;
+    do
+    {
+        osRes += ALPHABET_BASE_34[nCur % BASE_34];
+        nCur /= BASE_34;
+    } while (nCur > 0);
+
+    std::reverse(osRes.begin(), osRes.end());
+    // Pad to 5 characters with leading zeroes.
+    while (osRes.size() < 5)
+        osRes = '0' + osRes;
+    return osRes;
+}
+
+/************************************************************************/
+/*                       RPFGetCADRGFrameExtent()                       */
+/************************************************************************/
+
+static bool RPFGetCADRGFrameExtent(int nZone, int nReciprocalScale, int nFrameX,
+                                   int nFrameY, double &dfXMin, double &dfYMin,
+                                   double &dfXMax, double &dfYMax)
+{
+    CPLAssert(RPFCADRGIsValidZone(nZone));
+    const double dfLatInterval = GetLatInterval(nZone, nReciprocalScale);
+    const auto [dfMinLatZone, dfMaxLatZone] =
+        GetMinMaxLatWithOverlap(nZone, nReciprocalScale);
+    const double dfLonInterval = GetLonInterval(nZone, nReciprocalScale);
+
+    dfXMin = dfMinLonZone + nFrameX * dfLonInterval * CADRG_FRAME_PIXEL_COUNT;
+    dfXMax = dfXMin + dfLonInterval * CADRG_FRAME_PIXEL_COUNT;
+
+    dfYMin = dfMinLatZone + nFrameY * dfLatInterval * CADRG_FRAME_PIXEL_COUNT;
+    dfYMax = dfYMin + dfLatInterval * CADRG_FRAME_PIXEL_COUNT;
+
+    return true;
+}
+
+/************************************************************************/
+/*                 RPFGetCADRGClosestReciprocalScale()                  */
+/************************************************************************/
+
+int RPFGetCADRGClosestReciprocalScale(GDALDataset *poSrcDS,
+                                      double dfDPIOverride, bool &bGotDPI)
+{
+    bGotDPI = false;
+
+    constexpr double INCH_TO_CM = 2.54;
+    double dfDPI = dfDPIOverride;
+    if (dfDPI <= 0)
+    {
+        const char *pszUnit =
+            poSrcDS->GetMetadataItem("TIFFTAG_RESOLUTIONUNIT");
+        const char *pszYRes = poSrcDS->GetMetadataItem("TIFFTAG_YRESOLUTION");
+        if (pszUnit && pszYRes)
+        {
+            if (EQUAL(pszUnit, "2"))  // Inch
+                dfDPI = CPLAtof(pszYRes);
+            else if (EQUAL(pszUnit, "3"))  // Centimeter
+            {
+                dfDPI = CPLAtof(pszYRes) * INCH_TO_CM;
+            }
+        }
+    }
+    if (dfDPI <= 0)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Failed to estimate a reciprocal scale due to lack of DPI "
+                 "information. Please specify the DPI creation option.\n"
+                 "For reference, ADRG DPI is 254 and CADRG DPI is 169.333");
+        return 0;
+    }
+
+    bGotDPI = true;
+
+    constexpr double CADRG_DPI = INCH_TO_CM / CADRG_PITCH_IN_CM;
+
+    GDALGeoTransform gt;
+    if (poSrcDS->GetGeoTransform(gt) != CE_None)
+    {
+
+        CPLError(CE_Failure, CPLE_AppDefined, "Cannot get geotransform");
+        return 0;
+    }
+
+    const double dfYRes = std::fabs(gt[5]);
+    const double dfYResAtNominalCADRGDPI = dfYRes * dfDPI / CADRG_DPI;
+
+    std::set<int> anSetReciprocalScales;
+    for (const auto &sEntry : CADRG_DATA_SERIES)
+    {
+        if (sEntry.nReciprocalScale)
+            anSetReciprocalScales.insert(sEntry.nReciprocalScale);
+    }
+
+    int nCandidateReciprocalScale = 0;
+    double dfBestProximityRatio = 0;
+
+    // We tolerate up to a factor of 2 between the CADRG resolution at a
+    //given scale and the dataset resolution
+    constexpr double MAX_PROXIMITY_RATIO = 2;
+
+    for (int nReciprocalScale : anSetReciprocalScales)
+    {
+        // This is actually zone independent
+        const double dfLatInterval =
+            GetLatInterval(/* nZone = */ 1, nReciprocalScale);
+        if (nCandidateReciprocalScale == 0 &&
+            dfLatInterval / dfYResAtNominalCADRGDPI > MAX_PROXIMITY_RATIO)
+        {
+            break;
+        }
+        if (dfYResAtNominalCADRGDPI <= dfLatInterval)
+        {
+            const double dfThisProximityRatio =
+                dfLatInterval / dfYResAtNominalCADRGDPI;
+            if (nCandidateReciprocalScale == 0 ||
+                dfThisProximityRatio < dfBestProximityRatio)
+            {
+                nCandidateReciprocalScale = nReciprocalScale;
+            }
+            break;
+        }
+        else
+        {
+            const double dfThisProximityRatio =
+                dfYResAtNominalCADRGDPI / dfLatInterval;
+            if (dfThisProximityRatio < MAX_PROXIMITY_RATIO &&
+                (nCandidateReciprocalScale == 0 ||
+                 dfThisProximityRatio < dfBestProximityRatio))
+            {
+                nCandidateReciprocalScale = nReciprocalScale;
+                dfBestProximityRatio = dfThisProximityRatio;
+            }
+        }
+    }
+
+    if (nCandidateReciprocalScale == 0)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Cannot find a pre-established scale matching source dataset "
+                 "pixel size and scan resolution");
+    }
+    return nCandidateReciprocalScale;
 }
 
 /************************************************************************/
@@ -249,7 +797,7 @@ static int GetARCZoneFromLat(double dfLat)
 
 static bool
 Create_CADRG_CoverageSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                             GDALDataset *poSrcDS)
+                             GDALDataset *poSrcDS, int nReciprocalScale)
 {
     auto poBuffer = offsetPatcher->CreateBuffer(
         "CoverageSectionSubheader", /* bEndiannessIsLittle = */ false);
@@ -270,7 +818,7 @@ Create_CADRG_CoverageSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 
     const auto NormalizeToMinusPlus180 = [](double dfLon)
     {
-        constexpr EPSILON_SMALL = 1e-9;
+        constexpr double EPSILON_SMALL = 1e-9;
         if (dfLon < -180 - EPSILON_SMALL)
             dfLon += 360;
         else if (dfLon < -180)
@@ -303,25 +851,19 @@ Create_CADRG_CoverageSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     const int nZone = GetARCZoneFromLat(dfMeanLat);
     if (nZone == 0)
         return false;
-    const int nZoneIdx = (nZone - 1) % 9;
+    const int nZoneIdx = (nZone - MIN_ZONE) % MAX_ZONE_NORTHERN_HEMISPHERE;
     const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
 
-    const double REF_SCALE = 1e6;
     // Cf MIL-A-89007 (ADRG specification), appendix 70, table III
-    const double SCALE = 1e6;  // FIXME
-    const double N = REF_SCALE / SCALE;
-
-    constexpr double RATIO_DPI_CADRG_OVER_ADRG = 150.0 / 100.0;
+    const double N = REF_SCALE / nReciprocalScale;
 
     // Cf MIL-C-89038 (CADRG specification), para 60.1.1 and following
     const double B_s = sZoneDef.B * N;
-    constexpr int ADRG_BLOCK_SIZE = 512;
     const double latCst_ADRG =
         std::ceil(B_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
     const double latCst_CADRG =
-        std::round(latCst_ADRG / RATIO_DPI_CADRG_OVER_ADRG / 4 / BLOCK_SIZE) *
+        std::round(latCst_ADRG / RATIO_PITCH_CADRG_OVER_ADRG / 4 / BLOCK_SIZE) *
         BLOCK_SIZE;
-    const double latInterval = 90.0 / latCst_CADRG;
     const double latResolution =
         sZoneDef.latRes / N * latCst_ADRG / (4 * latCst_CADRG);
 
@@ -329,16 +871,17 @@ Create_CADRG_CoverageSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     const double lonCst_ADRG =
         std::ceil(A_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
     const double lonCst_CADRG =
-        std::round(lonCst_ADRG / RATIO_DPI_CADRG_OVER_ADRG / BLOCK_SIZE) *
+        std::round(lonCst_ADRG / RATIO_PITCH_CADRG_OVER_ADRG / BLOCK_SIZE) *
         BLOCK_SIZE;
-    const double lonInterval = 360.0 / lonCst_CADRG;
     const double lonResolution =
         sZoneDef.lonRes / N * lonCst_ADRG / lonCst_CADRG;
 
     poBuffer->AppendFloat64(latResolution);
     poBuffer->AppendFloat64(lonResolution);
-    poBuffer->AppendFloat64(latInterval);
-    poBuffer->AppendFloat64(lonInterval);
+    // Theoretical value: latInterval = 90.0 / latCst_CADRG;
+    poBuffer->AppendFloat64(std::fabs(gt[5]));
+    // Theoretical value: lonInterval = 360.0 / lonCst_CADRG;
+    poBuffer->AppendFloat64(gt[1]);
     return true;
 }
 
@@ -537,7 +1080,7 @@ static bool Perform_CADRG_VQ_Compression(
     }
     ColorTableBased4x4Pixels ctxt(vR, vG, vB);
 
-    struct Occurences
+    struct Occurrences
     {
         // number of 4x4 pixel blocks using those 4x4 pixel values
         int nCount = 0;
@@ -552,8 +1095,8 @@ static bool Perform_CADRG_VQ_Compression(
     CPLAssert(nVQImgWidth < INT_MAX / nVQImgHeight);
     VQImage.resize(nVQImgHeight * nVQImgWidth);
 
-    // Collect all the occurences of 4x4 pixel values into a map indexed by them
-    std::map<Vector<ColorTableBased4x4Pixels>, Occurences> vectorMap;
+    // Collect all the occurrences of 4x4 pixel values into a map indexed by them
+    std::map<Vector<ColorTableBased4x4Pixels>, Occurrences> vectorMap;
     bHasTransparentPixels = false;
     std::array<GByte, SUBSAMPLING * SUBSAMPLING> vals;
     std::fill(vals.begin(), vals.end(), static_cast<GByte>(0));
@@ -630,7 +1173,6 @@ static bool Perform_CADRG_VQ_Compression(
             return false;
         CPLDebug("NITF", "VQ compression: reducing from %d codes to %d",
                  nCodeCount, nNewCodeCount);
-        nCodeCount = nNewCodeCount;
     }
     else
     {
@@ -690,7 +1232,7 @@ static bool Perform_CADRG_VQ_Compression(
 std::unique_ptr<CADRGInformation>
 RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                          const std::string &osFilename, GDALDataset *poSrcDS,
-                         CPLStringList &aosOptions)
+                         CPLStringList &aosOptions, int nReciprocalScale)
 {
     auto priv = std::make_unique<CADRGInformation::Private>();
     if (!Perform_CADRG_VQ_Compression(poSrcDS, priv->codebook, priv->VQImage,
@@ -703,7 +1245,7 @@ RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 
     // Create buffers that will be written into file by RPFFrameWriteCADRG_RPFIMG()s
     Create_CADRG_LocationComponent(offsetPatcher);
-    if (!Create_CADRG_CoverageSection(offsetPatcher, poSrcDS))
+    if (!Create_CADRG_CoverageSection(offsetPatcher, poSrcDS, nReciprocalScale))
         return nullptr;
     Create_CADRG_ColorGrayscaleSection(offsetPatcher);
     Create_CADRG_ColormapSection(offsetPatcher, poSrcDS,
@@ -1048,7 +1590,8 @@ struct RPFAttribute
 
 bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                                VSILFILE *fp, vsi_l_offset nOffsetLDSH,
-                               const CPLStringList &aosOptions)
+                               const CPLStringList &aosOptions,
+                               int nReciprocalScale)
 {
     bool bOK = fp->Seek(0, SEEK_END) == 0;
 
@@ -1146,6 +1689,34 @@ bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     {
         asAttributes.emplace_back(4, 1, StrPadTruncate(pszV, 10));
     }
+    else if (const char *pszSeriesCode =
+                 aosOptions.FetchNameValue("SERIES_CODE"))
+    {
+        for (const auto &sEntry : CADRG_DATA_SERIES)
+        {
+            if (EQUAL(sEntry.pszCode, pszSeriesCode))
+            {
+                if (sEntry.pszAbbreviation)
+                {
+                    // If the data series abbreviation doesn't contain a scale indication,
+                    // add it.
+                    std::string osVal(sEntry.pszAbbreviation);
+                    if (osVal.find('0') != std::string::npos)
+                    {
+                        if (nReciprocalScale >= Million)
+                            osVal +=
+                                CPLSPrintf(" %dM", nReciprocalScale / Million);
+                        else if (nReciprocalScale >= Kilo)
+                            osVal +=
+                                CPLSPrintf(" %dK", nReciprocalScale / Kilo);
+                    }
+
+                    asAttributes.emplace_back(4, 1, StrPadTruncate(osVal, 10));
+                }
+                break;
+            }
+        }
+    }
 
     if (const char *pszV = aosOptions.FetchNameValue("MAP_DESIGNATION"))
     {
@@ -1218,3 +1789,630 @@ bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 
     return bOK;
 }
+
+/************************************************************************/
+/*                      CADRGGetWarpedVRTDataset()                      */
+/************************************************************************/
+
+static std::unique_ptr<GDALDataset>
+CADRGGetWarpedVRTDataset(GDALDataset *poSrcDS, double dfXMin, double dfYMin,
+                         double dfXMax, double dfYMax, double dfResX,
+                         double dfResY)
+{
+    CPLStringList aosWarpArgs;
+    aosWarpArgs.push_back("-of");
+    aosWarpArgs.push_back("VRT");
+    aosWarpArgs.push_back("-t_srs");
+    aosWarpArgs.push_back("EPSG:4326");
+    aosWarpArgs.push_back("-te");
+    aosWarpArgs.push_back(CPLSPrintf("%.17g", dfXMin));
+    aosWarpArgs.push_back(CPLSPrintf("%.17g", dfYMin));
+    aosWarpArgs.push_back(CPLSPrintf("%.17g", dfXMax));
+    aosWarpArgs.push_back(CPLSPrintf("%.17g", dfYMax));
+    aosWarpArgs.push_back("-tr");
+    aosWarpArgs.push_back(CPLSPrintf("%.17g", dfResX));
+    aosWarpArgs.push_back(CPLSPrintf("%.17g", dfResY));
+    if (poSrcDS->GetRasterBand(1)->GetColorTable())
+    {
+        aosWarpArgs.push_back("-dstnodata");
+        aosWarpArgs.push_back(CPLSPrintf("%d", TRANSPARENT_COLOR_TABLE_ENTRY));
+    }
+    else
+    {
+        aosWarpArgs.push_back("-r");
+        aosWarpArgs.push_back("cubic");
+        if (poSrcDS->GetRasterCount() == 3)
+            aosWarpArgs.push_back("-dstalpha");
+    }
+    std::unique_ptr<GDALWarpAppOptions, decltype(&GDALWarpAppOptionsFree)>
+        psWarpOptions(GDALWarpAppOptionsNew(aosWarpArgs.List(), nullptr),
+                      GDALWarpAppOptionsFree);
+    std::unique_ptr<GDALDataset> poWarpedDS;
+    if (psWarpOptions)
+    {
+        GDALDatasetH hSrcDS = GDALDataset::ToHandle(poSrcDS);
+        poWarpedDS.reset(GDALDataset::FromHandle(
+            GDALWarp("", nullptr, 1, &hSrcDS, psWarpOptions.get(), nullptr)));
+    }
+    return poWarpedDS;
+}
+
+/************************************************************************/
+/*                       CADRGGetClippedDataset()                       */
+/************************************************************************/
+
+static std::unique_ptr<GDALDataset>
+CADRGGetClippedDataset(GDALDataset *poSrcDS, double dfXMin, double dfYMin,
+                       double dfXMax, double dfYMax)
+{
+    CPLStringList aosTranslateArgs;
+    aosTranslateArgs.push_back("-of");
+    aosTranslateArgs.push_back("MEM");
+    aosTranslateArgs.push_back("-projwin");
+    aosTranslateArgs.push_back(CPLSPrintf("%.17g", dfXMin));
+    aosTranslateArgs.push_back(CPLSPrintf("%.17g", dfYMax));
+    aosTranslateArgs.push_back(CPLSPrintf("%.17g", dfXMax));
+    aosTranslateArgs.push_back(CPLSPrintf("%.17g", dfYMin));
+    std::unique_ptr<GDALTranslateOptions, decltype(&GDALTranslateOptionsFree)>
+        psTranslateOptions(
+            GDALTranslateOptionsNew(aosTranslateArgs.List(), nullptr),
+            GDALTranslateOptionsFree);
+    std::unique_ptr<GDALDataset> poClippedDS;
+    if (psTranslateOptions)
+    {
+        poClippedDS.reset(GDALDataset::FromHandle(
+            GDALTranslate("", GDALDataset::ToHandle(poSrcDS),
+                          psTranslateOptions.get(), nullptr)));
+    }
+    return poClippedDS;
+}
+
+/************************************************************************/
+/*                      CADRGGetPalettedDataset()                       */
+/************************************************************************/
+
+static std::unique_ptr<GDALDataset>
+CADRGGetPalettedDataset(GDALDataset *poSrcDS, GDALColorTable *poCT)
+{
+    CPLAssert(poSrcDS->GetRasterCount() == 3 || poSrcDS->GetRasterCount() == 4);
+    auto poMemDrv = GetGDALDriverManager()->GetDriverByName("MEM");
+    std::unique_ptr<GDALDataset> poPalettedDS(
+        poMemDrv->Create("", poSrcDS->GetRasterXSize(),
+                         poSrcDS->GetRasterYSize(), 1, GDT_Byte, nullptr));
+    if (poPalettedDS)
+    {
+        poPalettedDS->SetSpatialRef(poSrcDS->GetSpatialRef());
+        GDALGeoTransform gt;
+        if (poSrcDS->GetGeoTransform(gt) == CE_None)
+            poPalettedDS->SetGeoTransform(gt);
+        poPalettedDS->GetRasterBand(1)->SetColorTable(poCT);
+        poPalettedDS->GetRasterBand(1)->SetNoDataValue(
+            TRANSPARENT_COLOR_TABLE_ENTRY);
+        GDALDitherRGB2PCTInternal(
+            GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(1)),
+            GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(2)),
+            GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(3)),
+            GDALRasterBand::ToHandle(poPalettedDS->GetRasterBand(1)),
+            GDALColorTable::ToHandle(poCT),
+            /* bit depth = */ 5, nullptr,
+            /* dither = */ false, nullptr, nullptr);
+    }
+    return poPalettedDS;
+}
+
+/************************************************************************/
+/*                          CADRGCreateCopy()                           */
+/************************************************************************/
+
+#ifndef NITFDUMP_BUILD
+std::variant<bool, std::unique_ptr<GDALDataset>>
+CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
+                CSLConstList papszOptions, GDALProgressFunc pfnProgress,
+                void *pProgressData, int nRecLevel, int &nReciprocalScale)
+{
+    if (poSrcDS->GetRasterBand(1)->GetRasterDataType() != GDT_UInt8)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "CADRG only supports datasets of UInt8 data type");
+        return false;
+    }
+
+    if (!poSrcDS->GetSpatialRef())
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "CADRG only supports datasets with a CRS");
+        return false;
+    }
+
+    GDALGeoTransform srcGT;
+    if (poSrcDS->GetGeoTransform(srcGT) != CE_None)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "CADRG only supports datasets with a geotransform");
+        return false;
+    }
+
+    double dfDPIOverride = 0;
+    const char *pszDPI = CSLFetchNameValue(papszOptions, "DPI");
+    if (pszDPI)
+    {
+        dfDPIOverride = CPLAtof(pszDPI);
+        if (!(dfDPIOverride >= 1 && dfDPIOverride <= 7200))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Invalid value for DPI: %s",
+                     pszDPI);
+            return false;
+        }
+    }
+
+    const char *pszSeriesCode =
+        CSLFetchNameValueDef(papszOptions, "SERIES_CODE", "MM");
+
+    const char *pszScale = CSLFetchNameValue(papszOptions, "SCALE");
+    if (pszScale)
+    {
+        if (EQUAL(pszScale, "GUESS"))
+        {
+            bool bGotDPI = false;
+            nReciprocalScale = RPFGetCADRGClosestReciprocalScale(
+                poSrcDS, dfDPIOverride, bGotDPI);
+            if (nReciprocalScale <= 0)
+            {
+                // Error message emitted by RPFGetCADRGClosestReciprocalScale()
+                return false;
+            }
+            else
+            {
+                CPLDebug("CADRG", "Guessed reciprocal scale: %d",
+                         nReciprocalScale);
+            }
+        }
+        else
+        {
+            nReciprocalScale = atoi(pszScale);
+            if (!(nReciprocalScale >= Kilo && nReciprocalScale <= 20 * Million))
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Invalid value for SCALE: %s", pszScale);
+                return false;
+            }
+        }
+
+        const int nTheoreticalScale =
+            RPFCADRGGetScaleFromDataSeriesCode(pszSeriesCode);
+        if (nTheoreticalScale != 0 && nTheoreticalScale != nReciprocalScale &&
+            nRecLevel == 0)
+        {
+            CPLError(CE_Warning, CPLE_AppDefined,
+                     "Theoretical reciprocal scale from data series code %s is "
+                     "%d, whereas SCALE has been specified to %d",
+                     pszSeriesCode, nTheoreticalScale, nReciprocalScale);
+        }
+    }
+    else
+    {
+        nReciprocalScale = RPFCADRGGetScaleFromDataSeriesCode(pszSeriesCode);
+    }
+
+    const CPLString osExtUpperCase(
+        CPLString(CPLGetExtensionSafe(pszFilename)).toupper());
+    bool bLooksLikeCADRGFilename = (osExtUpperCase == "NTF");
+    if (!bLooksLikeCADRGFilename && osExtUpperCase.size() == 3 &&
+        RPFCADRGZoneCharToNum(osExtUpperCase[2]) > 0)
+    {
+        for (const auto &sEntry : CADRG_DATA_SERIES)
+        {
+            if (osExtUpperCase.compare(0, 2, sEntry.pszCode) == 0)
+            {
+                bLooksLikeCADRGFilename = true;
+                break;
+            }
+        }
+    }
+
+    if (!(poSrcDS->GetRasterXSize() == CADRG_FRAME_PIXEL_COUNT &&
+          poSrcDS->GetRasterYSize() == CADRG_FRAME_PIXEL_COUNT))
+    {
+        VSIStatBufL sStat;
+        if (VSIStatL(pszFilename, &sStat) == 0)
+        {
+            if (VSI_ISREG(sStat.st_mode))
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Given that source dataset dimension do not match "
+                         "a %dx%d frame, several frames will be generated "
+                         "and thus the output filename should be a "
+                         "directory name",
+                         CADRG_FRAME_PIXEL_COUNT, CADRG_FRAME_PIXEL_COUNT);
+                return false;
+            }
+        }
+        else
+        {
+            if (bLooksLikeCADRGFilename)
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Given that source dataset dimension do not match "
+                         "a %dx%d frame, several frames will be "
+                         "generated and thus the output filename "
+                         "should be a directory name (without a NITF or "
+                         "CADRG file extension)",
+                         CADRG_FRAME_PIXEL_COUNT, CADRG_FRAME_PIXEL_COUNT);
+                return false;
+            }
+        }
+    }
+
+    const auto poCT = poSrcDS->GetRasterBand(1)->GetColorTable();
+    if (poCT && poCT->GetColorEntryCount() > CADRG_MAX_COLOR_ENTRY_COUNT + 1)
+    {
+        for (int i = CADRG_MAX_COLOR_ENTRY_COUNT;
+             i < poCT->GetColorEntryCount(); ++i)
+        {
+            const auto psEntry = poCT->GetColorEntry(i);
+            if (psEntry->c1 != 0 || psEntry->c2 != 0 || psEntry->c3 != 0)
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "CADRG only supports up to %d entries in color table "
+                         "(and an extra optional transparent one)",
+                         CADRG_MAX_COLOR_ENTRY_COUNT);
+                return false;
+            }
+        }
+    }
+
+    GDALColorTable oCT;
+    double dfLastPct = 0;
+
+    if (poSrcDS->GetRasterCount() == 1)
+    {
+        if (!poCT)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "CADRG only supports single band input datasets that "
+                     "have an associated color table");
+            return false;
+        }
+    }
+    else if (poSrcDS->GetRasterCount() >= 3 &&
+             poSrcDS->GetRasterBand(1)->GetColorInterpretation() ==
+                 GCI_RedBand &&
+             poSrcDS->GetRasterBand(2)->GetColorInterpretation() ==
+                 GCI_GreenBand &&
+             poSrcDS->GetRasterBand(3)->GetColorInterpretation() ==
+                 GCI_BlueBand &&
+             (poSrcDS->GetRasterCount() == 3 ||
+              (poSrcDS->GetRasterCount() == 4 &&
+               poSrcDS->GetRasterBand(4)->GetColorInterpretation() ==
+                   GCI_AlphaBand)))
+    {
+        dfLastPct = 0.1;
+        std::unique_ptr<void, decltype(&GDALDestroyScaledProgress)> pScaledData(
+            GDALCreateScaledProgress(0, dfLastPct, pfnProgress, pProgressData),
+            GDALDestroyScaledProgress);
+        if (GDALComputeMedianCutPCT(
+                GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(1)),
+                GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(2)),
+                GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(3)), nullptr,
+                CADRG_MAX_COLOR_ENTRY_COUNT, GDALColorTable::ToHandle(&oCT),
+                GDALScaledProgress, pScaledData.get()) != CE_None)
+        {
+            return false;
+        }
+        GDALColorEntry sEntry = {0, 0, 0, 0};
+        oCT.SetColorEntry(TRANSPARENT_COLOR_TABLE_ENTRY, &sEntry);
+    }
+    else
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "CADRG only supports single-band paletted, RGB or RGBA "
+                 "input datasets");
+        return false;
+    }
+
+    if (poSrcDS->GetRasterXSize() == CADRG_FRAME_PIXEL_COUNT &&
+        poSrcDS->GetRasterYSize() == CADRG_FRAME_PIXEL_COUNT &&
+        bLooksLikeCADRGFilename)
+    {
+        if (!poCT)
+        {
+            auto poPalettedDS = CADRGGetPalettedDataset(poSrcDS, &oCT);
+            if (!poPalettedDS)
+                return false;
+            std::unique_ptr<void, decltype(&GDALDestroyScaledProgress)>
+                pScaledData(GDALCreateScaledProgress(
+                                dfLastPct, 1.0, pfnProgress, pProgressData),
+                            GDALDestroyScaledProgress);
+            return NITFDataset::CreateCopy(
+                pszFilename, poPalettedDS.get(), bStrict, papszOptions,
+                GDALScaledProgress, pScaledData.get(), nRecLevel + 1);
+        }
+
+        return true;
+    }
+    else
+    {
+        if (nReciprocalScale == 0)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "SCALE must be defined");
+            return nullptr;
+        }
+
+        const char *pszProducerCodeId =
+            CSLFetchNameValueDef(papszOptions, "PRODUCER_CODE_ID", "0");
+        const char *pszVersionNumber =
+            CSLFetchNameValueDef(papszOptions, "VERSION_NUMBER", "01");
+
+        OGREnvelope sExtent;
+        if (poSrcDS->GetExtentWGS84LongLat(&sExtent) != CE_None)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Cannot get dataset extent");
+            return false;
+        }
+
+        const char *pszZone = CSLFetchNameValue(papszOptions, "ZONE");
+        const int nZoneHintCandidate =
+            pszZone && strlen(pszZone) == 1 ? RPFCADRGZoneCharToNum(pszZone[0])
+            : pszZone && strlen(pszZone) == 2 ? atoi(pszZone)
+                                              : 0;
+        const int nZoneHint =
+            RPFCADRGIsValidZone(nZoneHintCandidate) ? nZoneHintCandidate : 0;
+        auto frameDefinitions = RPFGetCADRGFramesForEnvelope(
+            nZoneHint, nReciprocalScale, sExtent.MinX, sExtent.MinY,
+            sExtent.MaxX, sExtent.MaxY);
+
+        if (nZoneHint)
+        {
+            // Only/mostly for debugging
+            const char *pszFrameX = CSLFetchNameValue(papszOptions, "FRAME_X");
+            const char *pszFrameY = CSLFetchNameValue(papszOptions, "FRAME_Y");
+            if (pszFrameX && pszFrameY)
+            {
+                RPFFrameDef frameDef;
+                frameDef.nReciprocalScale = nReciprocalScale;
+                frameDef.nZone = nZoneHint;
+                frameDef.nFrameMinX = atoi(pszFrameX);
+                frameDef.nFrameMinY = atoi(pszFrameY);
+                frameDef.nFrameMaxX = atoi(pszFrameX);
+                frameDef.nFrameMaxY = atoi(pszFrameY);
+                frameDef.dfResX = GetLonInterval(nZoneHint, nReciprocalScale);
+                frameDef.dfResY = GetLatInterval(nZoneHint, nReciprocalScale);
+
+                frameDefinitions.clear();
+                frameDefinitions.push_back(std::move(frameDef));
+            }
+        }
+
+        if (frameDefinitions.empty())
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Cannot establish CADRG frames intersecting dataset "
+                     "extent");
+            return false;
+        }
+        else if (poSrcDS->GetRasterXSize() == CADRG_FRAME_PIXEL_COUNT &&
+                 poSrcDS->GetRasterYSize() == CADRG_FRAME_PIXEL_COUNT &&
+                 frameDefinitions.size() == 1 &&
+                 frameDefinitions[0].nFrameMinX ==
+                     frameDefinitions[0].nFrameMaxX &&
+                 frameDefinitions[0].nFrameMinY ==
+                     frameDefinitions[0].nFrameMaxY)
+        {
+            // poSrcDS already properly aligned
+            if (poCT)
+                return true;
+
+            std::string osFilename(pszFilename);
+            if (!bLooksLikeCADRGFilename)
+            {
+                const int nZone = frameDefinitions[0].nZone;
+                VSIMkdir(pszFilename, 0755);
+                const std::string osRPFDir =
+                    CPLFormFilenameSafe(pszFilename, "RPF", nullptr);
+                VSIMkdir(osRPFDir.c_str(), 0755);
+                const std::string osZoneDir = CPLFormFilenameSafe(
+                    osRPFDir.c_str(),
+                    CPLSPrintf("ZONE%c", RPFCADRGZoneNumToChar(nZone)),
+                    nullptr);
+                VSIMkdir(osZoneDir.c_str(), 0755);
+                VSIStatBufL sStat;
+                if (VSIStatL(osZoneDir.c_str(), &sStat) != 0 ||
+                    !VSI_ISDIR(sStat.st_mode))
+                {
+                    CPLError(CE_Failure, CPLE_AppDefined,
+                             "Cannot create directory %s", osZoneDir.c_str());
+                    return false;
+                }
+                osFilename = CPLFormFilenameSafe(
+                    osZoneDir.c_str(),
+                    RPFGetCADRGFrameNumberAsString(
+                        nZone, nReciprocalScale, frameDefinitions[0].nFrameMinX,
+                        frameDefinitions[0].nFrameMinY)
+                        .c_str(),
+                    nullptr);
+                osFilename += pszVersionNumber;
+                osFilename += pszProducerCodeId;
+                osFilename += '.';
+                osFilename += pszSeriesCode;
+                osFilename += RPFCADRGZoneNumToChar(nZone);
+                CPLDebug("CADRG", "Creating file %s", osFilename.c_str());
+            }
+
+            auto poPalettedDS = CADRGGetPalettedDataset(poSrcDS, &oCT);
+            if (!poPalettedDS)
+                return false;
+            return NITFDataset::CreateCopy(
+                osFilename.c_str(), poPalettedDS.get(), bStrict, papszOptions,
+                pfnProgress, pProgressData, nRecLevel + 1);
+        }
+        else
+        {
+            int nTotalFrameCount = 0;
+            for (const auto &frameDef : frameDefinitions)
+            {
+                nTotalFrameCount +=
+                    (frameDef.nFrameMaxX - frameDef.nFrameMinX + 1) *
+                    (frameDef.nFrameMaxY - frameDef.nFrameMinY + 1);
+            }
+            CPLDebug("CADRG", "%d frame(s) to generate", nTotalFrameCount);
+
+            int nCurFrameCounter = 0;
+
+            VSIMkdir(pszFilename, 0755);
+            const std::string osRPFDir =
+                CPLFormFilenameSafe(pszFilename, "RPF", nullptr);
+            VSIMkdir(osRPFDir.c_str(), 0755);
+
+            for (const auto &frameDef : frameDefinitions)
+            {
+                double dfXMin = 0, dfYMin = 0, dfXMax = 0, dfYMax = 0;
+                double dfTmpX, dfTmpY;
+                RPFGetCADRGFrameExtent(frameDef.nZone,
+                                       frameDef.nReciprocalScale,
+                                       frameDef.nFrameMinX, frameDef.nFrameMinY,
+                                       dfXMin, dfYMin, dfTmpX, dfTmpY);
+                RPFGetCADRGFrameExtent(frameDef.nZone,
+                                       frameDef.nReciprocalScale,
+                                       frameDef.nFrameMaxX, frameDef.nFrameMaxY,
+                                       dfTmpX, dfTmpY, dfXMax, dfYMax);
+
+                CPLDebugOnly("CADRG", "Zone %d extent: %f,%f,%f,%f",
+                             frameDef.nZone, dfXMin, dfYMin, dfXMax, dfYMax);
+
+                auto poWarpedDS = CADRGGetWarpedVRTDataset(
+                    poSrcDS, dfXMin, dfYMin, dfXMax, dfYMax, frameDef.dfResX,
+                    frameDef.dfResY);
+                if (!poWarpedDS)
+                    return false;
+
+                if ((poWarpedDS->GetRasterXSize() % CADRG_FRAME_PIXEL_COUNT) !=
+                        0 ||
+                    (poWarpedDS->GetRasterYSize() % CADRG_FRAME_PIXEL_COUNT) !=
+                        0)
+                {
+                    // Should not happen unless there's a bug in our code
+                    CPLError(CE_Failure, CPLE_AppDefined,
+                             "Warped dataset dimension is %dx%d, which is "
+                             "not a multiple of %dx%d",
+                             poWarpedDS->GetRasterXSize(),
+                             poWarpedDS->GetRasterYSize(),
+                             CADRG_FRAME_PIXEL_COUNT, CADRG_FRAME_PIXEL_COUNT);
+                    return false;
+                }
+
+                const std::string osZoneDir = CPLFormFilenameSafe(
+                    osRPFDir.c_str(),
+                    CPLSPrintf("ZONE%c", RPFCADRGZoneNumToChar(frameDef.nZone)),
+                    nullptr);
+                VSIMkdir(osZoneDir.c_str(), 0755);
+                VSIStatBufL sStat;
+                if (VSIStatL(osZoneDir.c_str(), &sStat) != 0 ||
+                    !VSI_ISDIR(sStat.st_mode))
+                {
+                    CPLError(CE_Failure, CPLE_AppDefined,
+                             "Cannot create directory %s", osZoneDir.c_str());
+                    return false;
+                }
+
+                CPLStringList aosOptions(papszOptions);
+                aosOptions.SetNameValue("ZONE",
+                                        CPLSPrintf("%d", frameDef.nZone));
+
+                for (int iY = frameDef.nFrameMinY; iY <= frameDef.nFrameMaxY;
+                     ++iY)
+                {
+                    for (int iX = frameDef.nFrameMinX;
+                         iX <= frameDef.nFrameMaxX; ++iX)
+                    {
+                        std::string osFilename = CPLFormFilenameSafe(
+                            osZoneDir.c_str(),
+                            RPFGetCADRGFrameNumberAsString(
+                                frameDef.nZone, nReciprocalScale, iX, iY)
+                                .c_str(),
+                            nullptr);
+                        osFilename += pszVersionNumber;
+                        osFilename += pszProducerCodeId;
+                        osFilename += '.';
+                        osFilename += pszSeriesCode;
+                        osFilename += RPFCADRGZoneNumToChar(frameDef.nZone);
+                        CPLDebug("CADRG", "Creating file %s",
+                                 osFilename.c_str());
+
+                        RPFGetCADRGFrameExtent(
+                            frameDef.nZone, frameDef.nReciprocalScale, iX, iY,
+                            dfXMin, dfYMin, dfXMax, dfYMax);
+                        CPLDebugOnly("CADRG", "Frame extent: %f %f %f %f",
+                                     dfXMin, dfYMin, dfXMax, dfYMax);
+
+                        auto poClippedDS = CADRGGetClippedDataset(
+                            poWarpedDS.get(), dfXMin, dfYMin, dfXMax, dfYMax);
+                        if (poClippedDS)
+                        {
+                            if (poCT)
+                            {
+                                if (!(dfXMin >= sExtent.MinX &&
+                                      dfYMin >= sExtent.MinY &&
+                                      dfXMax <= sExtent.MaxX &&
+                                      dfYMax <= sExtent.MaxY))
+                                {
+                                    // If the CADRG frame is not strictly inside
+                                    // the zone extent, add a transparent color
+                                    poClippedDS->GetRasterBand(1)
+                                        ->SetNoDataValue(
+                                            TRANSPARENT_COLOR_TABLE_ENTRY);
+                                    GDALColorEntry sEntry = {0, 0, 0, 0};
+                                    poClippedDS->GetRasterBand(1)
+                                        ->GetColorTable()
+                                        ->SetColorEntry(
+                                            TRANSPARENT_COLOR_TABLE_ENTRY,
+                                            &sEntry);
+                                }
+                            }
+                            else
+                            {
+                                poClippedDS = CADRGGetPalettedDataset(
+                                    poClippedDS.get(), &oCT);
+                            }
+                        }
+
+                        const double dfProgressStart = dfLastPct;
+                        const double dfProgressRatio = 1.0 - dfLastPct;
+                        std::unique_ptr<void,
+                                        decltype(&GDALDestroyScaledProgress)>
+                            pScaledData(
+                                GDALCreateScaledProgress(
+                                    dfProgressStart +
+                                        dfProgressRatio * nCurFrameCounter /
+                                            std::max(1, nTotalFrameCount),
+                                    dfProgressStart +
+                                        dfProgressRatio *
+                                            (nCurFrameCounter + 1) /
+                                            std::max(1, nTotalFrameCount),
+                                    pfnProgress, pProgressData),
+                                GDALDestroyScaledProgress);
+                        if (!poClippedDS ||
+                            !NITFDataset::CreateCopy(
+                                osFilename.c_str(), poClippedDS.get(), bStrict,
+                                aosOptions.List(), GDALScaledProgress,
+                                pScaledData.get(), nRecLevel + 1))
+                        {
+                            return false;
+                        }
+                        VSIUnlink((osFilename + ".aux.xml").c_str());
+
+                        ++nCurFrameCounter;
+                    }
+                }
+            }
+
+            class NITFDummyDataset final : public GDALDataset
+            {
+              public:
+                NITFDummyDataset() = default;
+            };
+
+            return std::make_unique<NITFDummyDataset>();
+        }
+    }
+}
+#endif

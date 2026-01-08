@@ -16,6 +16,7 @@
 #include "cpl_string.h"
 #include "cpl_vsi_virtual.h"
 #include <string>
+#include <variant>
 
 namespace GDALOffsetPatcher
 {
@@ -42,7 +43,7 @@ class CADRGInformation
 std::unique_ptr<CADRGInformation>
 RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                          const std::string &osFilename, GDALDataset *poSrcDS,
-                         CPLStringList &aosOptions);
+                         CPLStringList &aosOptions, int nReciprocalScale);
 
 bool RPFFrameWriteCADRG_RPFIMG(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                                VSILFILE *fp, int &nUDIDL);
@@ -53,6 +54,15 @@ bool RPFFrameWriteCADRG_ImageContent(
 
 bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                                VSILFILE *fp, vsi_l_offset nOffsetLDSH,
-                               const CPLStringList &aosOptions);
+                               const CPLStringList &aosOptions,
+                               int nReciprocalScale);
+
+int RPFGetCADRGClosestReciprocalScale(GDALDataset *poSrcDS,
+                                      double dfDPIOverride, bool &bGotDPI);
+
+std::variant<bool, std::unique_ptr<GDALDataset>>
+CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
+                CSLConstList papszOptions, GDALProgressFunc pfnProgress,
+                void *pProgressData, int nRecLevel, int &nReciprocalScale);
 
 #endif  // RPFFRAME_WRITER_INCLUDED

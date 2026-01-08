@@ -351,11 +351,11 @@ int GDALComputeMedianCutPCTInternal(
     T *panHistogram, GDALColorTableH hColorTable, GDALProgressFunc pfnProgress,
     void *pProgressArg);
 
-int GDALDitherRGB2PCTInternal(GDALRasterBandH hRed, GDALRasterBandH hGreen,
-                              GDALRasterBandH hBlue, GDALRasterBandH hTarget,
-                              GDALColorTableH hColorTable, int nBits,
-                              GInt16 *pasDynamicColorMap, int bDither,
-                              GDALProgressFunc pfnProgress, void *pProgressArg);
+int CPL_DLL GDALDitherRGB2PCTInternal(
+    GDALRasterBandH hRed, GDALRasterBandH hGreen, GDALRasterBandH hBlue,
+    GDALRasterBandH hTarget, GDALColorTableH hColorTable, int nBits,
+    GInt16 *pasDynamicColorMap, int bDither, GDALProgressFunc pfnProgress,
+    void *pProgressArg);
 
 #define PRIME_FOR_65536 98317
 

@@ -140,6 +140,7 @@ elseif(GDAL_USE_TIFF AND GDAL_ENABLE_DRIVER_GTIFF)
 endif()
 target_include_directories(nitfdump PRIVATE $<TARGET_PROPERTY:gdal_NITF,SOURCE_DIR>)
 target_link_libraries(nitfdump PRIVATE $<TARGET_NAME:${GDAL_LIB_TARGET_NAME}>)
+target_compile_definitions(nitfdump PRIVATE -DNITFDUMP_BUILD)
 
 if (GDAL_ENABLE_DRIVER_GTIFF)
   target_sources(nitfdump PRIVATE nitfbilevel.cpp)
