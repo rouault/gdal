@@ -2103,11 +2103,21 @@ int NITFWriteIGEOLO(NITFImage *psImage, char chICORDS, int nZone, double dfULX,
         }
     }
 
-    /* -------------------------------------------------------------------- */
-    /*      Format geographic coordinates in DMS                            */
-    /* -------------------------------------------------------------------- */
-    if (chICORDS == 'G')
+    if (chICORDS == 'G' || chICORDS == 'D')
     {
+        if (fabs(dfULX) <= 180 && fabs(dfLLX) <= 180 && dfURX > 180 &&
+            dfLRX > 180)
+        {
+            dfURX -= 360;
+            dfLRX -= 360;
+        }
+        else if (dfULX < -180 && dfLLX < -180 && fabs(dfURX) <= 180 &&
+                 fabs(dfLRX) <= 180)
+        {
+            dfULX += 360;
+            dfLLX += 360;
+        }
+
         if (fabs(dfULX) > 180 || fabs(dfURX) > 180 || fabs(dfLRX) > 180 ||
             fabs(dfLLX) > 180 || fabs(dfULY) > 90 || fabs(dfURY) > 90 ||
             fabs(dfLRY) > 90 || fabs(dfLLY) > 90)
@@ -2117,7 +2127,13 @@ int NITFWriteIGEOLO(NITFImage *psImage, char chICORDS, int nZone, double dfULX,
                 "Attempt to write geographic bound outside of legal range.");
             return FALSE;
         }
+    }
 
+    /* -------------------------------------------------------------------- */
+    /*      Format geographic coordinates in DMS                            */
+    /* -------------------------------------------------------------------- */
+    if (chICORDS == 'G')
+    {
         NITFEncodeDMSLoc(szIGEOLO + 0, sizeof(szIGEOLO) - 0, dfULY, "Lat");
         NITFEncodeDMSLoc(szIGEOLO + 7, sizeof(szIGEOLO) - 7, dfULX, "Long");
         NITFEncodeDMSLoc(szIGEOLO + 15, sizeof(szIGEOLO) - 15, dfURY, "Lat");
@@ -2132,16 +2148,6 @@ int NITFWriteIGEOLO(NITFImage *psImage, char chICORDS, int nZone, double dfULX,
     /* -------------------------------------------------------------------- */
     else if (chICORDS == 'D')
     {
-        if (fabs(dfULX) > 180 || fabs(dfURX) > 180 || fabs(dfLRX) > 180 ||
-            fabs(dfLLX) > 180 || fabs(dfULY) > 90 || fabs(dfURY) > 90 ||
-            fabs(dfLRY) > 90 || fabs(dfLLY) > 90)
-        {
-            CPLError(
-                CE_Failure, CPLE_AppDefined,
-                "Attempt to write geographic bound outside of legal range.");
-            return FALSE;
-        }
-
         CPLsnprintf(szIGEOLO + 0, sizeof(szIGEOLO), "%+#07.3f%+#08.3f", dfULY,
                     dfULX);
         CPLsnprintf(szIGEOLO + 15, sizeof(szIGEOLO) - 15, "%+#07.3f%+#08.3f",
