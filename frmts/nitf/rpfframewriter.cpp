@@ -268,22 +268,36 @@ Create_CADRG_CoverageSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
         return dfX;
     };
 
+    const auto NormalizeToMinusPlus180 = [](double dfLon)
+    {
+        constexpr EPSILON_SMALL = 1e-9;
+        if (dfLon < -180 - EPSILON_SMALL)
+            dfLon += 360;
+        else if (dfLon < -180)
+            dfLon = -180;
+        else if (dfLon > 180 + EPSILON_SMALL)
+            dfLon -= 360;
+        else if (dfLon > 180)
+            dfLon = 180;
+        return dfLon;
+    };
+
     // Upper left corner lat, lon
     poBuffer->AppendFloat64(RoundIfCloseToInt(gt[3]));
-    poBuffer->AppendFloat64(RoundIfCloseToInt(gt[0]));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(NormalizeToMinusPlus180(gt[0])));
     // Lower left corner lat, lon
     poBuffer->AppendFloat64(
         RoundIfCloseToInt(gt[3] + gt[5] * poSrcDS->GetRasterYSize()));
-    poBuffer->AppendFloat64(RoundIfCloseToInt(gt[0]));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(NormalizeToMinusPlus180(gt[0])));
     // Upper right corner lat, lon
     poBuffer->AppendFloat64(RoundIfCloseToInt(gt[3]));
-    poBuffer->AppendFloat64(
-        RoundIfCloseToInt(gt[0] + gt[1] * poSrcDS->GetRasterXSize()));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(
+        NormalizeToMinusPlus180(gt[0] + gt[1] * poSrcDS->GetRasterXSize())));
     // Lower right corner lat, lon
     poBuffer->AppendFloat64(
         RoundIfCloseToInt(gt[3] + gt[5] * poSrcDS->GetRasterYSize()));
-    poBuffer->AppendFloat64(
-        RoundIfCloseToInt(gt[0] + gt[1] * poSrcDS->GetRasterXSize()));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(
+        NormalizeToMinusPlus180(gt[0] + gt[1] * poSrcDS->GetRasterXSize())));
 
     const double dfMeanLat = gt[3] + gt[5] / 2 * poSrcDS->GetRasterYSize();
     const int nZone = GetARCZoneFromLat(dfMeanLat);
