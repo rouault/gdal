@@ -10,9 +10,10 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-#include "zarr.h"
+#include "zarr_v3_codec.h"
 
 #include "cpl_compressor.h"
+#include "crc32c.h"
 
 /************************************************************************/
 /*                          ZarrV3Codec()                               */
@@ -27,6 +28,21 @@ ZarrV3Codec::ZarrV3Codec(const std::string &osName) : m_osName(osName)
 /************************************************************************/
 
 ZarrV3Codec::~ZarrV3Codec() = default;
+
+/************************************************************************/
+/*                    ZarrV3Codec::DecodePartial()                      */
+/************************************************************************/
+
+bool ZarrV3Codec::DecodePartial(VSIVirtualHandle *,
+                                const ZarrByteVectorQuickResize &,
+                                ZarrByteVectorQuickResize &,
+                                std::vector<size_t> &, std::vector<size_t> &)
+{
+    // Normally we should not hit that...
+    CPLError(CE_Failure, CPLE_NotSupported,
+             "Codec %s does not support partial decoding", m_osName.c_str());
+    return false;
+}
 
 /************************************************************************/
 /*                      ZarrV3CodecAbstractCompressor()                 */
@@ -575,7 +591,7 @@ bool ZarrV3CodecBytes::Encode(const ZarrByteVectorQuickResize &abySrc,
 {
     CPLAssert(!IsNoOp());
 
-    size_t nEltCount = m_oInputArrayMetadata.GetEltCount();
+    size_t nEltCount = MultiplyElements(m_oInputArrayMetadata.anBlockSizes);
     size_t nNativeSize = m_oInputArrayMetadata.oElt.nativeSize;
     if (abySrc.size() < nEltCount * nNativeSize)
     {
@@ -785,6 +801,19 @@ bool ZarrV3CodecTranspose::InitFromConfiguration(
 }
 
 /************************************************************************/
+/*              ZarrV3CodecTranspose::GetInnerMostBlockSize()           */
+/************************************************************************/
+
+std::vector<size_t> ZarrV3CodecTranspose::GetInnerMostBlockSize(
+    const std::vector<size_t> &anInnerBlockSize) const
+{
+    std::vector<size_t> ret;
+    for (int idx : m_anReverseOrder)
+        ret.push_back(anInnerBlockSize[idx]);
+    return ret;
+}
+
+/************************************************************************/
 /*                   ZarrV3CodecTranspose::Clone()                      */
 /************************************************************************/
 
@@ -801,24 +830,22 @@ std::unique_ptr<ZarrV3Codec> ZarrV3CodecTranspose::Clone() const
 /*                  ZarrV3CodecTranspose::Transpose()                   */
 /************************************************************************/
 
-bool ZarrV3CodecTranspose::Transpose(const ZarrByteVectorQuickResize &abySrc,
-                                     ZarrByteVectorQuickResize &abyDst,
-                                     bool bEncodeDirection) const
+bool ZarrV3CodecTranspose::Transpose(
+    const ZarrByteVectorQuickResize &abySrc, ZarrByteVectorQuickResize &abyDst,
+    bool bEncodeDirection, const std::vector<size_t> &anForwardBlockSizes) const
 {
-    CPLAssert(m_anOrder.size() == m_oInputArrayMetadata.anBlockSizes.size());
-    CPLAssert(m_anReverseOrder.size() ==
-              m_oInputArrayMetadata.anBlockSizes.size());
+    CPLAssert(m_anOrder.size() == anForwardBlockSizes.size());
+    CPLAssert(m_anReverseOrder.size() == anForwardBlockSizes.size());
     const size_t nDims = m_anOrder.size();
     const size_t nSourceSize = m_oInputArrayMetadata.oElt.nativeSize;
-    const auto &anBlockSizes = m_oInputArrayMetadata.anBlockSizes;
     CPLAssert(nDims > 0);
-    if (abySrc.size() < m_oInputArrayMetadata.GetEltCount() * nSourceSize)
+    if (abySrc.size() < MultiplyElements(anForwardBlockSizes) * nSourceSize)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "ZarrV3CodecTranspose::Transpose(): input buffer too small");
         return false;
     }
-    abyDst.resize(m_oInputArrayMetadata.GetEltCount() * nSourceSize);
+    abyDst.resize(MultiplyElements(anForwardBlockSizes) * nSourceSize);
 
     struct Stack
     {
@@ -847,8 +874,7 @@ bool ZarrV3CodecTranspose::Transpose(const ZarrByteVectorQuickResize &abySrc,
         for (size_t i = nDims - 1; i > 0;)
         {
             --i;
-            nStride *=
-                static_cast<size_t>(anBlockSizes[m_anReverseOrder[i + 1]]);
+            nStride *= anForwardBlockSizes[m_anReverseOrder[i + 1]];
             stack[m_anReverseOrder[i]].src_inc_offset = nStride;
         }
 
@@ -857,7 +883,7 @@ bool ZarrV3CodecTranspose::Transpose(const ZarrByteVectorQuickResize &abySrc,
         for (size_t i = nDims - 1; i > 0;)
         {
             --i;
-            nStride *= static_cast<size_t>(anBlockSizes[i + 1]);
+            nStride *= anForwardBlockSizes[i + 1];
             stack[i].dst_inc_offset = nStride;
         }
     }
@@ -868,8 +894,7 @@ bool ZarrV3CodecTranspose::Transpose(const ZarrByteVectorQuickResize &abySrc,
         for (size_t i = nDims - 1; i > 0;)
         {
             --i;
-            nStride *=
-                static_cast<size_t>(anBlockSizes[m_anReverseOrder[i + 1]]);
+            nStride *= anForwardBlockSizes[m_anReverseOrder[i + 1]];
             stack[m_anReverseOrder[i]].dst_inc_offset = nStride;
         }
 
@@ -878,7 +903,7 @@ bool ZarrV3CodecTranspose::Transpose(const ZarrByteVectorQuickResize &abySrc,
         for (size_t i = nDims - 1; i > 0;)
         {
             --i;
-            nStride *= static_cast<size_t>(anBlockSizes[i + 1]);
+            nStride *= anForwardBlockSizes[i + 1];
             stack[i].src_inc_offset = nStride;
         }
     }
@@ -908,7 +933,7 @@ lbl_next_depth:
     }
     else
     {
-        stack[dimIdx].nIters = static_cast<size_t>(anBlockSizes[dimIdx]);
+        stack[dimIdx].nIters = anForwardBlockSizes[dimIdx];
         while (true)
         {
             dimIdx++;
@@ -938,7 +963,7 @@ bool ZarrV3CodecTranspose::Encode(const ZarrByteVectorQuickResize &abySrc,
 {
     CPLAssert(!IsNoOp());
 
-    return Transpose(abySrc, abyDst, true);
+    return Transpose(abySrc, abyDst, true, m_oInputArrayMetadata.anBlockSizes);
 }
 
 /************************************************************************/
@@ -950,7 +975,139 @@ bool ZarrV3CodecTranspose::Decode(const ZarrByteVectorQuickResize &abySrc,
 {
     CPLAssert(!IsNoOp());
 
-    return Transpose(abySrc, abyDst, false);
+    return Transpose(abySrc, abyDst, false, m_oInputArrayMetadata.anBlockSizes);
+}
+
+/************************************************************************/
+/*                   ZarrV3CodecTranspose::DecodePartial()              */
+/************************************************************************/
+
+bool ZarrV3CodecTranspose::DecodePartial(
+    VSIVirtualHandle * /* poFile */, const ZarrByteVectorQuickResize &abySrc,
+    ZarrByteVectorQuickResize &abyDst, std::vector<size_t> &anStartIdx,
+    std::vector<size_t> &anCount)
+{
+    CPLAssert(anStartIdx.size() == m_oInputArrayMetadata.anBlockSizes.size());
+    CPLAssert(anStartIdx.size() == anCount.size());
+
+    Reorder1DInverse(anStartIdx);
+    Reorder1DInverse(anCount);
+
+    // Note that we don't need to take anStartIdx into account for the
+    // transpose operation, as abySrc corresponds to anStartIdx.
+    return Transpose(abySrc, abyDst, false, anCount);
+}
+
+/************************************************************************/
+/*                ZarrV3CodecCRC32C::ZarrV3CodecCRC32C()                */
+/************************************************************************/
+
+constexpr const char *GDAL_ZARR_CHECK_CRC = "GDAL_ZARR_CHECK_CRC";
+
+ZarrV3CodecCRC32C::ZarrV3CodecCRC32C()
+    : ZarrV3Codec(NAME),
+      m_bCheckCRC(
+          // Undocumented config option. Only used for tests!
+          CPLTestBool(CPLGetConfigOption(GDAL_ZARR_CHECK_CRC, "YES")))
+{
+}
+
+/************************************************************************/
+/*                      ZarrV3CodecCRC32C::Clone()                      */
+/************************************************************************/
+
+std::unique_ptr<ZarrV3Codec> ZarrV3CodecCRC32C::Clone() const
+{
+    auto psClone = std::make_unique<ZarrV3CodecCRC32C>();
+    ZarrArrayMetadata oOutputArrayMetadata;
+    psClone->InitFromConfiguration(m_oConfiguration, m_oInputArrayMetadata,
+                                   oOutputArrayMetadata);
+    return psClone;
+}
+
+/************************************************************************/
+/*               ZarrV3CodecCRC32C::InitFromConfiguration()             */
+/************************************************************************/
+
+bool ZarrV3CodecCRC32C::InitFromConfiguration(
+    const CPLJSONObject &configuration,
+    const ZarrArrayMetadata &oInputArrayMetadata,
+    ZarrArrayMetadata &oOutputArrayMetadata)
+{
+    m_oConfiguration = configuration.Clone();
+    m_oInputArrayMetadata = oInputArrayMetadata;
+    oOutputArrayMetadata = oInputArrayMetadata;
+
+    // GDAL extension for tests !!!
+    if (!m_oConfiguration.GetBool("check_crc", true))
+        m_bCheckCRC = false;
+
+    return true;
+}
+
+/************************************************************************/
+/*                           ComputeCRC32C()                            */
+/************************************************************************/
+
+static uint32_t ComputeCRC32C(const GByte *pabyIn, size_t nLength)
+{
+    crc32c_init();
+    return crc32c(0, pabyIn, nLength);
+}
+
+/************************************************************************/
+/*                     ZarrV3CodecCRC32C::Encode()                      */
+/************************************************************************/
+
+bool ZarrV3CodecCRC32C::Encode(const ZarrByteVectorQuickResize &abySrc,
+                               ZarrByteVectorQuickResize &abyDst) const
+{
+    abyDst.clear();
+    abyDst.insert(abyDst.end(), abySrc.begin(), abySrc.end());
+
+    const uint32_t nComputedCRC_le =
+        CPL_LSBWORD32(ComputeCRC32C(abySrc.data(), abySrc.size()));
+    const GByte *pabyCRC = reinterpret_cast<const GByte *>(&nComputedCRC_le);
+    abyDst.insert(abyDst.end(), pabyCRC, pabyCRC + sizeof(uint32_t));
+
+    return true;
+}
+
+/************************************************************************/
+/*                        ZarrV3CodecCRC32C::Decode()                   */
+/************************************************************************/
+
+bool ZarrV3CodecCRC32C::Decode(const ZarrByteVectorQuickResize &abySrc,
+                               ZarrByteVectorQuickResize &abyDst) const
+{
+    if (abySrc.size() < sizeof(uint32_t))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "CRC32C decoder: not enough input bytes");
+        return false;
+    }
+
+    const size_t nSrcLen = abySrc.size() - sizeof(uint32_t);
+    abyDst.clear();
+    abyDst.insert(abyDst.end(), abySrc.begin(), abySrc.begin() + nSrcLen);
+
+    if (m_bCheckCRC)
+    {
+        const uint32_t nComputedCRC =
+            ComputeCRC32C(abyDst.data(), abyDst.size());
+        const uint32_t nExpectedCRC = CPL_LSBUINT32PTR(abySrc.data() + nSrcLen);
+        if (nComputedCRC != nExpectedCRC)
+        {
+            CPLError(
+                CE_Failure, CPLE_AppDefined,
+                "CRC32C decoder: computed CRC value is %08X whereas expected "
+                "value is %08X",
+                nComputedCRC, nExpectedCRC);
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /************************************************************************/
@@ -963,6 +1120,7 @@ std::unique_ptr<ZarrV3CodecSequence> ZarrV3CodecSequence::Clone() const
     for (const auto &poCodec : m_apoCodecs)
         poClone->m_apoCodecs.emplace_back(poCodec->Clone());
     poClone->m_oCodecArray = m_oCodecArray.Clone();
+    poClone->m_bPartialDecodingPossible = m_bPartialDecodingPossible;
     return poClone;
 }
 
@@ -970,7 +1128,8 @@ std::unique_ptr<ZarrV3CodecSequence> ZarrV3CodecSequence::Clone() const
 /*                    ZarrV3CodecSequence::InitFromJson()               */
 /************************************************************************/
 
-bool ZarrV3CodecSequence::InitFromJson(const CPLJSONObject &oCodecs)
+bool ZarrV3CodecSequence::InitFromJson(const CPLJSONObject &oCodecs,
+                                       ZarrArrayMetadata &oOutputArrayMetadata)
 {
     if (oCodecs.GetType() != CPLJSONObject::Type::Array)
     {
@@ -994,11 +1153,11 @@ bool ZarrV3CodecSequence::InitFromJson(const CPLJSONObject &oCodecs)
                      "'bytes' codec missing. Assuming little-endian storage, "
                      "but such tolerance may be removed in future versions");
             auto poEndianCodec = std::make_unique<ZarrV3CodecBytes>();
-            ZarrArrayMetadata oOutputArrayMetadata;
+            ZarrArrayMetadata oTmpOutputArrayMetadata;
             poEndianCodec->InitFromConfiguration(
                 ZarrV3CodecBytes::GetConfiguration(true), oInputArrayMetadata,
-                oOutputArrayMetadata);
-            oInputArrayMetadata = std::move(oOutputArrayMetadata);
+                oTmpOutputArrayMetadata);
+            oInputArrayMetadata = std::move(oTmpOutputArrayMetadata);
             eLastType = poEndianCodec->GetOutputType();
             osLastCodec = poEndianCodec->GetName();
             if constexpr (!CPL_IS_LSB)
@@ -1009,6 +1168,8 @@ bool ZarrV3CodecSequence::InitFromJson(const CPLJSONObject &oCodecs)
         }
     };
 
+    bool bShardingFound = false;
+    std::vector<size_t> anBlockSizesBeforeSharding;
     for (const auto &oCodec : oCodecsArray)
     {
         if (oCodec.GetType() != CPLJSONObject::Type::Object)
@@ -1018,17 +1179,24 @@ bool ZarrV3CodecSequence::InitFromJson(const CPLJSONObject &oCodecs)
         }
         const auto osName = oCodec["name"].ToString();
         std::unique_ptr<ZarrV3Codec> poCodec;
-        if (osName == "gzip")
+        if (osName == ZarrV3CodecGZip::NAME)
             poCodec = std::make_unique<ZarrV3CodecGZip>();
-        else if (osName == "blosc")
+        else if (osName == ZarrV3CodecBlosc::NAME)
             poCodec = std::make_unique<ZarrV3CodecBlosc>();
-        else if (osName == "zstd")
+        else if (osName == ZarrV3CodecZstd::NAME)
             poCodec = std::make_unique<ZarrV3CodecZstd>();
-        else if (osName == "bytes" ||
+        else if (osName == ZarrV3CodecBytes::NAME ||
                  osName == "endian" /* endian is the old name */)
             poCodec = std::make_unique<ZarrV3CodecBytes>();
-        else if (osName == "transpose")
+        else if (osName == ZarrV3CodecTranspose::NAME)
             poCodec = std::make_unique<ZarrV3CodecTranspose>();
+        else if (osName == ZarrV3CodecCRC32C::NAME)
+            poCodec = std::make_unique<ZarrV3CodecCRC32C>();
+        else if (osName == ZarrV3CodecShardingIndexed::NAME)
+        {
+            bShardingFound = true;
+            poCodec = std::make_unique<ZarrV3CodecShardingIndexed>();
+        }
         else
         {
             CPLError(CE_Failure, CPLE_NotSupported, "Unsupported codec: %s",
@@ -1051,14 +1219,18 @@ bool ZarrV3CodecSequence::InitFromJson(const CPLJSONObject &oCodecs)
             InsertImplicitEndianCodecIfNeeded();
         }
 
-        ZarrArrayMetadata oOutputArrayMetadata;
+        ZarrArrayMetadata oStepOutputArrayMetadata;
+        if (osName == ZarrV3CodecShardingIndexed::NAME)
+        {
+            anBlockSizesBeforeSharding = oInputArrayMetadata.anBlockSizes;
+        }
         if (!poCodec->InitFromConfiguration(oCodec["configuration"],
                                             oInputArrayMetadata,
-                                            oOutputArrayMetadata))
+                                            oStepOutputArrayMetadata))
         {
             return false;
         }
-        oInputArrayMetadata = std::move(oOutputArrayMetadata);
+        oInputArrayMetadata = std::move(oStepOutputArrayMetadata);
         eLastType = poCodec->GetOutputType();
         osLastCodec = poCodec->GetName();
 
@@ -1066,9 +1238,25 @@ bool ZarrV3CodecSequence::InitFromJson(const CPLJSONObject &oCodecs)
             m_apoCodecs.emplace_back(std::move(poCodec));
     }
 
+    if (bShardingFound)
+    {
+        m_bPartialDecodingPossible =
+            (m_apoCodecs.back()->GetName() == ZarrV3CodecShardingIndexed::NAME);
+        if (!m_bPartialDecodingPossible)
+        {
+            m_bPartialDecodingPossible = false;
+            CPLError(
+                CE_Warning, CPLE_AppDefined,
+                "Sharding codec found, but not in last position. Consequently "
+                "partial shard decoding will not be possible");
+            oInputArrayMetadata.anBlockSizes = anBlockSizesBeforeSharding;
+        }
+    }
+
     InsertImplicitEndianCodecIfNeeded();
 
     m_oCodecArray = oCodecs.Clone();
+    oOutputArrayMetadata = std::move(oInputArrayMetadata);
     return true;
 }
 
@@ -1076,12 +1264,13 @@ bool ZarrV3CodecSequence::InitFromJson(const CPLJSONObject &oCodecs)
 /*                  ZarrV3CodecBytes::AllocateBuffer()                 */
 /************************************************************************/
 
-bool ZarrV3CodecSequence::AllocateBuffer(ZarrByteVectorQuickResize &abyBuffer)
+bool ZarrV3CodecSequence::AllocateBuffer(ZarrByteVectorQuickResize &abyBuffer,
+                                         size_t nEltCount)
 {
     if (!m_apoCodecs.empty())
     {
-        const size_t nRawSize = m_oInputArrayMetadata.GetEltCount() *
-                                m_oInputArrayMetadata.oElt.nativeSize;
+        const size_t nRawSize =
+            nEltCount * m_oInputArrayMetadata.oElt.nativeSize;
         // Grow the temporary buffer a bit beyond the uncompressed size
         const size_t nMaxSize = nRawSize + nRawSize / 3 + 64;
         try
@@ -1120,7 +1309,8 @@ bool ZarrV3CodecSequence::AllocateBuffer(ZarrByteVectorQuickResize &abyBuffer)
 
 bool ZarrV3CodecSequence::Encode(ZarrByteVectorQuickResize &abyBuffer)
 {
-    if (!AllocateBuffer(abyBuffer))
+    if (!AllocateBuffer(abyBuffer,
+                        MultiplyElements(m_oInputArrayMetadata.anBlockSizes)))
         return false;
     for (const auto &poCodec : m_apoCodecs)
     {
@@ -1137,7 +1327,8 @@ bool ZarrV3CodecSequence::Encode(ZarrByteVectorQuickResize &abyBuffer)
 
 bool ZarrV3CodecSequence::Decode(ZarrByteVectorQuickResize &abyBuffer)
 {
-    if (!AllocateBuffer(abyBuffer))
+    if (!AllocateBuffer(abyBuffer,
+                        MultiplyElements(m_oInputArrayMetadata.anBlockSizes)))
         return false;
     for (auto iter = m_apoCodecs.rbegin(); iter != m_apoCodecs.rend(); ++iter)
     {
@@ -1147,4 +1338,61 @@ bool ZarrV3CodecSequence::Decode(ZarrByteVectorQuickResize &abyBuffer)
         std::swap(abyBuffer, m_abyTmp);
     }
     return true;
+}
+
+/************************************************************************/
+/*                ZarrV3CodecSequence::DecodePartial()                  */
+/************************************************************************/
+
+bool ZarrV3CodecSequence::DecodePartial(VSIVirtualHandle *poFile,
+                                        ZarrByteVectorQuickResize &abyBuffer,
+                                        const std::vector<size_t> &anStartIdxIn,
+                                        const std::vector<size_t> &anCountIn)
+{
+    CPLAssert(anStartIdxIn.size() == m_oInputArrayMetadata.anBlockSizes.size());
+    CPLAssert(anStartIdxIn.size() == anCountIn.size());
+
+    if (!AllocateBuffer(abyBuffer, MultiplyElements(anCountIn)))
+        return false;
+
+    // anStartIdxIn and anCountIn are expressed in the shape *before* encoding
+    // We need to apply the potential transpositions before submitting them
+    // to the decoder of the Array->Bytes decoder
+    std::vector<size_t> anStartIdx(anStartIdxIn);
+    std::vector<size_t> anCount(anCountIn);
+    for (auto &poCodec : m_apoCodecs)
+    {
+        poCodec->ChangeArrayShapeForward(anStartIdx, anCount);
+    }
+
+    for (auto iter = m_apoCodecs.rbegin(); iter != m_apoCodecs.rend(); ++iter)
+    {
+        const auto &poCodec = *iter;
+
+        if (!poCodec->DecodePartial(poFile, abyBuffer, m_abyTmp, anStartIdx,
+                                    anCount))
+            return false;
+        std::swap(abyBuffer, m_abyTmp);
+    }
+    return true;
+}
+
+/************************************************************************/
+/*           ZarrV3CodecSequence::GetInnerMostBlockSize()               */
+/************************************************************************/
+
+std::vector<size_t> ZarrV3CodecSequence::GetInnerMostBlockSize(
+    const std::vector<size_t> &anOuterBlockSize) const
+{
+    auto chunkSize = anOuterBlockSize;
+    for (auto iter = m_apoCodecs.rbegin(); iter != m_apoCodecs.rend(); ++iter)
+    {
+        const auto &poCodec = *iter;
+        if (m_bPartialDecodingPossible ||
+            poCodec->GetName() != ZarrV3CodecShardingIndexed::NAME)
+        {
+            chunkSize = poCodec->GetInnerMostBlockSize(chunkSize);
+        }
+    }
+    return chunkSize;
 }

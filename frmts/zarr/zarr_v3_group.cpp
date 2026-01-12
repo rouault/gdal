@@ -11,6 +11,7 @@
  ****************************************************************************/
 
 #include "zarr.h"
+#include "zarr_v3_codec.h"
 
 #include <algorithm>
 #include <cassert>
@@ -562,8 +563,8 @@ std::shared_ptr<GDALMDArray> ZarrV3Group::CreateMDArray(
         return nullptr;
     }
 
-    std::vector<GUInt64> anBlockSize;
-    if (!ZarrArray::FillBlockSize(aoDimensions, oDataType, anBlockSize,
+    std::vector<GUInt64> anOuterBlockSize;
+    if (!ZarrArray::FillBlockSize(aoDimensions, oDataType, anOuterBlockSize,
                                   papszOptions))
         return nullptr;
 
@@ -702,24 +703,33 @@ std::shared_ptr<GDALMDArray> ZarrV3Group::CreateMDArray(
         return nullptr;
     }
 
+    std::vector<GUInt64> anInnerBlockSize = anOuterBlockSize;
     if (oCodecs.Size() > 0)
     {
         // Byte swapping will be done by the codec chain
         aoDtypeElts.back().needByteSwapping = false;
 
         ZarrArrayMetadata oInputArrayMetadata;
-        for (auto &nSize : anBlockSize)
+        for (auto &nSize : anOuterBlockSize)
             oInputArrayMetadata.anBlockSizes.push_back(
                 static_cast<size_t>(nSize));
         oInputArrayMetadata.oElt = aoDtypeElts.back();
         poCodecs = std::make_unique<ZarrV3CodecSequence>(oInputArrayMetadata);
-        if (!poCodecs->InitFromJson(oCodecs))
+        ZarrArrayMetadata oOutputArrayMetadata;
+        if (!poCodecs->InitFromJson(oCodecs, oOutputArrayMetadata))
             return nullptr;
+        std::vector<size_t> anOuterBlockSizeSizet;
+        for (auto nVal : oOutputArrayMetadata.anBlockSizes)
+            anOuterBlockSizeSizet.push_back(static_cast<size_t>(nVal));
+        anInnerBlockSize.clear();
+        for (size_t nVal :
+             poCodecs->GetInnerMostBlockSize(anOuterBlockSizeSizet))
+            anInnerBlockSize.push_back(nVal);
     }
 
-    auto poArray =
-        ZarrV3Array::Create(m_poSharedResource, GetFullName(), osName,
-                            aoDimensions, oDataType, aoDtypeElts, anBlockSize);
+    auto poArray = ZarrV3Array::Create(
+        m_poSharedResource, GetFullName(), osName, aoDimensions, oDataType,
+        aoDtypeElts, anOuterBlockSize, anInnerBlockSize);
 
     if (!poArray)
         return nullptr;
