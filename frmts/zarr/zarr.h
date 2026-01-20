@@ -297,6 +297,11 @@ class ZarrSharedResource
         return m_oObjConsolidatedMetadata;
     }
 
+    const CPLJSONObject &GetRootAttributes() const
+    {
+        return m_oRootAttributes;
+    }
+
     bool IsConsolidatedMetadataEnabled() const
     {
         return m_eConsolidatedMetadataKind != ConsolidatedMetadataKind::NONE;
@@ -1310,6 +1315,8 @@ class ZarrV3Array final : public ZarrArray
     bool m_bV2ChunkKeyEncoding = false;
     std::unique_ptr<ZarrV3CodecSequence> m_poCodecs{};
     CPLJSONArray m_oJSONCodecs{};
+    mutable bool m_bOverviewsLoaded = false;
+    mutable std::vector<std::shared_ptr<GDALMDArray>> m_apoOverviews{};
 
     ZarrV3Array(const std::shared_ptr<ZarrSharedResource> &poSharedResource,
                 const std::string &osParentName, const std::string &osName,
@@ -1338,6 +1345,8 @@ class ZarrV3Array final : public ZarrArray
                 const GDALExtendedDataType &bufferDataType,
                 const void *pSrcBuffer) override;
 
+    void LoadOverviews() const;
+
   public:
     ~ZarrV3Array() override;
 
@@ -1365,6 +1374,9 @@ class ZarrV3Array final : public ZarrArray
                 const std::vector<GUInt64> &anOuterBlockSize,
                 std::vector<GUInt64> &anInnerBlockSize, DtypeElt &zarrDataType,
                 const std::vector<GByte> &abyNoData);
+    int GetOverviewCount() const override;
+
+    std::shared_ptr<GDALMDArray> GetOverview(int idx) const override;
 
   protected:
     std::string GetDataDirectory() const override;
