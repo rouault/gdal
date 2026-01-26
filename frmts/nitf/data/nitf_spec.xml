@@ -2593,7 +2593,8 @@
         <field name="LOCATION_SECTION_LOCATION" length="4" type="UnsignedInt_BigEndian"/>
     </tre>
 
-    <tre name="RPFIMG" location="image">
+    <tre name="RPF">
+        <!-- Location section -->
         <field name="LOCATION_SECTION_LENGTH" length="2" type="UnsignedInt_BigEndian"/>
         <field name="COMPONENT_LOCATION_OFFSET" length="4" type="UnsignedInt_BigEndian"/>
         <field name="NUMBER_OF_COMPONENT_LOCATION_RECORDS" length="2" type="UnsignedInt_BigEndian"/>
@@ -2729,7 +2730,7 @@
         <rpf_component id="BoundaryRectangleTable">
             <loop counter="NUMBER_OF_BOUNDARY_RECTANGLE_RECORDS" name="BRR">
                 <field name="PRODUCT_DATA_TYPE" length="5" type="string"/>
-                <field name="COMPRESSION_RATION" length="5" type="string"/>
+                <field name="COMPRESSION_RATIO" length="5" type="string"/>
                 <field name="SCALE_OR_RESOLUTION" length="12" type="string"/>
                 <field name="ZONE" length="1" type="string"/>
                 <field name="PRODUCER" length="5" type="string"/>
@@ -2747,6 +2748,35 @@
                 <field name="LONGITUDE_HORIZONTAL_INTERVAL" length="8" type="IEEE754_Float64_BigEndian"/>
                 <field name="NUMBER_OF_FRAMES_NORTH_SOUTH_DIRECTION" length="4" type="UnsignedInt_BigEndian"/>
                 <field name="NUMBER_OF_FRAMES_EAST_WEST_DIRECTION" length="4" type="UnsignedInt_BigEndian"/>
+            </loop>
+        </rpf_component>
+
+        <rpf_component id="FrameFileIndexSectionSubHeader">
+            <field name="HIGHEST_SECURITY_CLASSIFICATION" length="1" type="string"/>
+            <field name="FRAME_FILE_INDEX_TABLE_OFFSET" length="4" type="UnsignedInt_BigEndian"/>
+            <field name="NUMBER_OF_FRAME_FILE_INDEX_RECORDS" length="4" type="UnsignedInt_BigEndian"/>
+            <field name="NUMBER_OF_PATH_NAME_RECORDS" length="2" type="UnsignedInt_BigEndian"/>
+            <field name="FRAME_FILE_INDEX_RECORD_LENGTH" length="2" type="UnsignedInt_BigEndian"/>
+        </rpf_component>
+
+        <rpf_component id="FrameFileIndexSubsection">
+            <!-- frame file index table -->
+            <loop counter="NUMBER_OF_FRAME_FILE_INDEX_RECORDS" name="FFIR">
+                <field name="BOUNDARY_RECTANGLE_RECORD_NUMBER" length="2" type="UnsignedInt_BigEndian"/>
+                <field name="FRAME_LOCATION_ROW_NUMBER" length="2" type="UnsignedInt_BigEndian"/>
+                <field name="FRAME_LOCATION_COLUMN_NUMBER" length="2" type="UnsignedInt_BigEndian"/>
+                <field name="PATHNAME_RECORD_OFFSET" length="4" type="UnsignedInt_BigEndian"/>
+                <field name="FRAME_FILE_NAME" length="12" type="string"/>
+                <field name="GEOGRAPHIC_LOCATION" length="6" type="string"/>
+                <field name="FRAME_FILE_SECURITY_CLASSIFICATION" length="1" type="string"/>
+                <field name="FRAME_FILE_COUNTRY_CODE" length="2" type="string"/>
+                <field name="FRAME_FILE_SECURITY_RELEASE_MARKING" length="2" type="string"/>
+            </loop>
+
+            <!-- pathname table -->
+            <loop counter="NUMBER_OF_PATH_NAME_RECORDS" name="PNR" md_prefix="PNR_%05d_">
+                <field name="PATHNAME_LENGTH" length="2" type="UnsignedInt_BigEndian"/>
+                <field name="PATHNAME" length_var="PATHNAME_LENGTH" type="string"/>
             </loop>
         </rpf_component>
     </tre>

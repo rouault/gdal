@@ -3067,6 +3067,7 @@ bool NITFDataset::InitializeTREMetadata(bool bValidate)
 
     bool bGotError = false;
     CPLXMLNode *psTresNode = CPLCreateXMLNode(nullptr, CXT_Element, "tres");
+    bool bFoundRPFIMG = false;
 
     /* -------------------------------------------------------------------- */
     /*      Loop over TRE sources (file and image).                         */
@@ -3132,6 +3133,9 @@ bool NITFDataset::InitializeTREMetadata(bool bValidate)
             // trim white off tag.
             while (strlen(szTag) > 0 && szTag[strlen(szTag) - 1] == ' ')
                 szTag[strlen(szTag) - 1] = '\0';
+
+            if (strcmp(szTag, "RPFIMG") == 0)
+                bFoundRPFIMG = true;
 
             CPLXMLNode *psTreNode =
                 NITFCreateXMLTre(psFile, szTag, pszTREData + 11, nThisTRESize,
@@ -3200,46 +3204,50 @@ bool NITFDataset::InitializeTREMetadata(bool bValidate)
                 break;
             }
 
-            char *pszEscapedData = CPLEscapeString(pabyTREData, nThisTRESize,
-                                                   CPLES_BackslashQuotable);
-            if (pszEscapedData == nullptr)
+            if (!(bFoundRPFIMG && strcmp(szTREName, "RPFDES") == 0))
             {
-                NITFDESFreeTREData(pabyTREData);
-                bGotError = true;
-                break;
+                char *pszEscapedData = CPLEscapeString(
+                    pabyTREData, nThisTRESize, CPLES_BackslashQuotable);
+                if (pszEscapedData == nullptr)
+                {
+                    NITFDESFreeTREData(pabyTREData);
+                    bGotError = true;
+                    break;
+                }
+
+                // trim white off tag.
+                while (strlen(szTREName) > 0 &&
+                       szTREName[strlen(szTREName) - 1] == ' ')
+                    szTREName[strlen(szTREName) - 1] = '\0';
+
+                CPLXMLNode *psTreNode =
+                    NITFCreateXMLTre(psFile, szTREName, pabyTREData,
+                                     nThisTRESize, bValidate, &bGotError);
+                if (psTreNode)
+                {
+                    const char *pszDESID =
+                        CSLFetchNameValue(psDES->papszMetadata, "DESID");
+                    CPLCreateXMLNode(
+                        CPLCreateXMLNode(psTreNode, CXT_Attribute, "location"),
+                        CXT_Text,
+                        pszDESID ? CPLSPrintf("des %s", pszDESID) : "des");
+                    CPLAddXMLChild(psTresNode, psTreNode);
+                }
+
+                char szUniqueTag[32];
+                strcpy(szUniqueTag, szTREName);
+                int nCountUnique = 2;
+                while (oSpecialMD.GetMetadataItem(szUniqueTag, "TRE") !=
+                       nullptr)
+                {
+                    snprintf(szUniqueTag, sizeof(szUniqueTag), "%s_%d",
+                             szTREName, nCountUnique);
+                    nCountUnique++;
+                }
+                oSpecialMD.SetMetadataItem(szUniqueTag, pszEscapedData, "TRE");
+
+                CPLFree(pszEscapedData);
             }
-
-            // trim white off tag.
-            while (strlen(szTREName) > 0 &&
-                   szTREName[strlen(szTREName) - 1] == ' ')
-                szTREName[strlen(szTREName) - 1] = '\0';
-
-            CPLXMLNode *psTreNode =
-                NITFCreateXMLTre(psFile, szTREName, pabyTREData, nThisTRESize,
-                                 bValidate, &bGotError);
-            if (psTreNode)
-            {
-                const char *pszDESID =
-                    CSLFetchNameValue(psDES->papszMetadata, "DESID");
-                CPLCreateXMLNode(
-                    CPLCreateXMLNode(psTreNode, CXT_Attribute, "location"),
-                    CXT_Text,
-                    pszDESID ? CPLSPrintf("des %s", pszDESID) : "des");
-                CPLAddXMLChild(psTresNode, psTreNode);
-            }
-
-            char szUniqueTag[32];
-            strcpy(szUniqueTag, szTREName);
-            int nCountUnique = 2;
-            while (oSpecialMD.GetMetadataItem(szUniqueTag, "TRE") != nullptr)
-            {
-                snprintf(szUniqueTag, sizeof(szUniqueTag), "%s_%d", szTREName,
-                         nCountUnique);
-                nCountUnique++;
-            }
-            oSpecialMD.SetMetadataItem(szUniqueTag, pszEscapedData, "TRE");
-
-            CPLFree(pszEscapedData);
 
             nOffset += 11 + nThisTRESize;
 

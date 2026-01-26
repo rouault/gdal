@@ -58,14 +58,17 @@ int NITFDriverIdentify(GDALOpenInfo *poOpenInfo)
         !STARTS_WITH_CI(pszHeader, "NITF"))
         return FALSE;
 
-    /* Check that it is not in fact a NITF A.TOC file, which is handled by the
-     * RPFTOC driver */
-    for (int i = 0; i < static_cast<int>(poOpenInfo->nHeaderBytes) -
-                            static_cast<int>(strlen("A.TOC"));
-         i++)
+    if (!poOpenInfo->IsSingleAllowedDriver("NITF"))
     {
-        if (STARTS_WITH_CI(pszHeader + i, "A.TOC"))
-            return FALSE;
+        /* Check that it is not in fact a NITF A.TOC file, which is handled by the
+     * RPFTOC driver */
+        for (int i = 0; i < static_cast<int>(poOpenInfo->nHeaderBytes) -
+                                static_cast<int>(strlen("A.TOC"));
+             i++)
+        {
+            if (STARTS_WITH_CI(pszHeader + i, "A.TOC"))
+                return FALSE;
+        }
     }
 
     return TRUE;

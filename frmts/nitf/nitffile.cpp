@@ -543,9 +543,9 @@ int NITFCreate(const char *pszFilename, int nPixels, int nLines, int nBands,
 }
 
 int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
-                 int nBitsPerSample, const char *pszPVType, CSLConstList papszOptions,
-                 int *pnIndex, int *pnImageCount, vsi_l_offset *pnImageOffset,
-                 vsi_l_offset *pnICOffset,
+                 int nBitsPerSample, const char *pszPVType,
+                 CSLConstList papszOptions, int *pnIndex, int *pnImageCount,
+                 vsi_l_offset *pnImageOffset, vsi_l_offset *pnICOffset,
                  GDALOffsetPatcher::OffsetPatcher *offsetPatcher)
 
 {
@@ -2857,8 +2857,10 @@ static char **NITFGenericMetadataReadTREInternal(
     int *pnTreOffset, const char *pszMDPrefix, bool bValidate, VSILFILE *fp,
     std::map<NITFLocId, const CPLXMLNode *> &oMapLocIdToXML, int *pbError)
 {
-    const bool bRPFIMG = psOutXMLNode && EQUAL(pszDESOrTREName, "RPFIMG");
-    if (bRPFIMG && oMapLocIdToXML.empty())
+    const bool bRPFIMGOrDES =
+        psOutXMLNode &&
+        (EQUAL(pszDESOrTREName, "RPFIMG") || EQUAL(pszDESOrTREName, "RPFDES"));
+    if (bRPFIMGOrDES && oMapLocIdToXML.empty())
     {
 #define LOCATION_ENTRY(x)                                                      \
     {                                                                          \
@@ -3095,16 +3097,37 @@ static char **NITFGenericMetadataReadTREInternal(
 
                 if (papszTmp)
                 {
-                    if (*pnMDSize + 1 >= *pnMDAlloc)
+                    if (bRPFIMGOrDES)
                     {
-                        *pnMDAlloc = (*pnMDAlloc * 4 / 3) + 32;
-                        papszMD = static_cast<char **>(
-                            CPLRealloc(papszMD, *pnMDAlloc * sizeof(char *)));
+                        const char *pszEqual = strchr(papszTmp[0], '=');
+                        if (pszEqual)
+                        {
+                            const int nIdx = CSLPartialFindString(
+                                papszMD,
+                                std::string(papszTmp[0],
+                                            (pszEqual - papszTmp[0]) + 1)
+                                    .c_str());
+                            if (nIdx >= 0)
+                            {
+                                CPLFree(papszMD[nIdx]);
+                                papszMD[nIdx] = papszTmp[0];
+                                papszTmp[0] = nullptr;
+                            }
+                        }
                     }
-                    papszMD[*pnMDSize] = papszTmp[0];
-                    papszMD[(*pnMDSize) + 1] = nullptr;
-                    (*pnMDSize)++;
-                    papszTmp[0] = nullptr;
+                    if (papszTmp[0])
+                    {
+                        if (*pnMDSize + 1 >= *pnMDAlloc)
+                        {
+                            *pnMDAlloc = (*pnMDAlloc * 4 / 3) + 32;
+                            papszMD = static_cast<char **>(CPLRealloc(
+                                papszMD, *pnMDAlloc * sizeof(char *)));
+                        }
+                        papszMD[*pnMDSize] = papszTmp[0];
+                        papszMD[(*pnMDSize) + 1] = nullptr;
+                        (*pnMDSize)++;
+                        papszTmp[0] = nullptr;
+                    }
                     CSLDestroy(papszTmp);
                 }
 
@@ -3199,7 +3222,7 @@ static char **NITFGenericMetadataReadTREInternal(
                     }
                 }
 
-                if (bRPFIMG && pszValue != nullptr)
+                if (bRPFIMGOrDES && pszValue != nullptr)
                 {
                     if (EQUAL(pszName, "COMPONENT_ID"))
                     {
@@ -3461,7 +3484,7 @@ static char **NITFGenericMetadataReadTREInternal(
                 {
                     char *pszMDNewPrefix = nullptr;
                     CPLXMLNode *psGroupNode = nullptr;
-                    if (bRPFIMG)
+                    if (bRPFIMGOrDES)
                     {
                         // As we need to fetch metadata items that are in
                         // different RPF location, a prefix would hurt.
@@ -3560,7 +3583,7 @@ static char **NITFGenericMetadataReadTREInternal(
         }
     }
 
-    if (bRPFIMG && nRPFLocationId >= LID_HeaderComponent &&
+    if (bRPFIMGOrDES && nRPFLocationId >= LID_HeaderComponent &&
         nRPFLocationId <= LID_ColorTableIndexRecord &&
         nRPFLocationSize < 1000 * 1000 && psOutXMLNode &&
         strcmp(psOutXMLNode->pszValue, "group") == 0)
@@ -3761,7 +3784,10 @@ CPLXMLNode *NITFCreateXMLTre(NITFFile *psFile, const char *pszTREName,
     int nMDSize = 0, nMDAlloc = 0;
     const char *pszMDPrefix;
 
-    psTreNode = NITFFindTREXMLDescFromName(psFile, pszTREName);
+    psTreNode = NITFFindTREXMLDescFromName(
+        psFile, EQUAL(pszTREName, "RPFIMG") || EQUAL(pszTREName, "RPFDES")
+                    ? "RPF"
+                    : pszTREName);
     if (psTreNode == nullptr)
     {
         if (!(STARTS_WITH_CI(pszTREName, "RPF") ||
