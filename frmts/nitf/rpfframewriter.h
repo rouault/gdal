@@ -26,6 +26,10 @@ class OffsetPatcher;
 class GDALDataset;
 
 constexpr int CADRG_MAX_COLOR_ENTRY_COUNT = 216;
+constexpr int CADRG_FRAME_PIXEL_COUNT = 1536;
+
+constexpr int Kilo = 1000;
+constexpr int Million = Kilo * Kilo;
 
 /** Opaque class containing CADRG related information */
 class CADRGInformation
@@ -40,6 +44,10 @@ class CADRGInformation
     std::unique_ptr<Private> m_private{};
 };
 
+void Create_CADRG_RPFHDR(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                         const std::string &osFilename,
+                         CPLStringList &aosOptions);
+
 std::unique_ptr<CADRGInformation>
 RPFFrameCreateCADRG_TREs(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                          const std::string &osFilename, GDALDataset *poSrcDS,
@@ -51,6 +59,8 @@ bool RPFFrameWriteCADRG_RPFIMG(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 bool RPFFrameWriteCADRG_ImageContent(
     GDALOffsetPatcher::OffsetPatcher *offsetPatcher, VSILFILE *fp,
     GDALDataset *poSrcDS, CADRGInformation *info);
+
+const char *RPFFrameWriteGetDESHeader();
 
 bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
                                VSILFILE *fp, vsi_l_offset nOffsetLDSH,
@@ -64,5 +74,40 @@ std::variant<bool, std::unique_ptr<GDALDataset>>
 CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                 CSLConstList papszOptions, GDALProgressFunc pfnProgress,
                 void *pProgressData, int nRecLevel, int &nReciprocalScale);
+
+struct RPFFrameDef
+{
+    int nZone;
+    int nReciprocalScale;
+    int nFrameMinX;
+    int nFrameMinY;
+    int nFrameMaxX;
+    int nFrameMaxY;
+    double dfResX;
+    double dfResY;
+};
+
+void RPFGetCADRGResolutionAndInterval(int nZone, int nReciprocalScale,
+                                      double &latResolution,
+                                      double &lonResolution,
+                                      double &latInterval, double &lonInterval);
+std::vector<RPFFrameDef>
+RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
+                             double dfYMin, double dfXMax, double dfYMax);
+
+bool RPFGetCADRGFrameExtent(int nZone, int nReciprocalScale, int nFrameX,
+                            int nFrameY, double &dfXMin, double &dfYMin,
+                            double &dfXMax, double &dfYMax);
+
+bool RPFCADRGIsKnownDataSeriesCode(const char *pszCode);
+
+char RPFCADRGZoneNumToChar(int nZone);
+
+int RPFCADRGZoneCharToNum(char chZone);
+
+int RPFCADRGGetScaleFromDataSeriesCode(const char *pszCode);
+
+std::string RPFGetCADRGFrameNumberAsString(int nZone, int nReciprocalScale,
+                                           int nFrameX, int nFrameY);
 
 #endif  // RPFFRAME_WRITER_INCLUDED

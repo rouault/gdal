@@ -15,6 +15,7 @@ add_gdal_driver(
           nitfwritejpeg_12.cpp
           offsetpatcher.cpp
           rpfframewriter.cpp
+          rpftocwriter.cpp
   CORE_SOURCES
           nitfdrivercore.cpp
   PLUGIN_CAPABLE_IF
@@ -56,6 +57,13 @@ endif ()
 if (GDAL_ENABLE_DRIVER_GTIFF)
   target_sources(gdal_NITF PRIVATE nitfbilevel.cpp)
   target_compile_definitions(gdal_NITF PRIVATE -DHAVE_TIFF)
+endif()
+
+if (GDAL_ENABLE_ALGORITHMS)
+  target_compile_definitions(gdal_NITF PRIVATE -DGDAL_ENABLE_ALGORITHMS)
+  if (TARGET gdal_NITF_core)
+      target_compile_definitions(gdal_NITF_core PRIVATE -DGDAL_ENABLE_ALGORITHMS)
+  endif()
 endif()
 
 if (EMBED_RESOURCE_FILES)

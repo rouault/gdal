@@ -7421,6 +7421,7 @@ def test_nitf_create_cadrg_auto_tile_north_hemisphere(tmp_path):
     assert set([x.replace("\\", "/") for x in gdal.ReadDirRecursive(tmp_path)]) == set(
         [
             "RPF/",
+            "RPF/A.TOC",
             "RPF/ZONE2/",
             "RPF/ZONE2/00003010.MM2",
             "RPF/ZONE2/0000A010.MM2",
@@ -7486,6 +7487,7 @@ def test_nitf_create_cadrg_auto_tile_south_hemisphere(tmp_vsimem):
 
     assert gdal.ReadDirRecursive(tmp_vsimem) == [
         "RPF/",
+        "RPF/A.TOC",
         "RPF/ZONEB/",
         "RPF/ZONEB/00003010.MMB",
         "RPF/ZONEB/0000A010.MMB",

@@ -571,20 +571,6 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
     if (pnIndex)
         *pnIndex = 0;
 
-    if (nBands <= 0 || nBands > 99999)
-    {
-        CPLError(CE_Failure, CPLE_NotSupported, "Invalid band number : %d",
-                 nBands);
-        return FALSE;
-    }
-    if (nLines > 99999999 || nPixels > 99999999)
-    {
-        CPLError(CE_Failure, CPLE_NotSupported,
-                 "NITF does not support image whose dimension is larger than "
-                 "99999999");
-        return FALSE;
-    }
-
     if (pszIC == nullptr)
         pszIC = "NC";
 
@@ -650,6 +636,24 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
 
     if (pnImageCount)
         *pnImageCount = nIM;
+
+    if (nIM > 0)
+    {
+        if (nBands <= 0 || nBands > 99999)
+        {
+            CPLError(CE_Failure, CPLE_NotSupported, "Invalid band number : %d",
+                     nBands);
+            return FALSE;
+        }
+        if (nLines > 99999999 || nPixels > 99999999)
+        {
+            CPLError(
+                CE_Failure, CPLE_NotSupported,
+                "NITF does not support image whose dimension is larger than "
+                "99999999");
+            return FALSE;
+        }
+    }
 
     // Reads and validates graphics segment number option
     pszNUMS = CSLFetchNameValue(papszOptions, "NUMS");
@@ -1530,7 +1534,7 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
     /* -------------------------------------------------------------------- */
     /*      Fill in image data by writing one byte at the end               */
     /* -------------------------------------------------------------------- */
-    if (EQUAL(pszIC, "NC"))
+    if (nIM > 0 && EQUAL(pszIC, "NC"))
     {
         char cNul = 0;
         bOK &= VSIFSeekL(fp, nCur - 1, SEEK_SET) == 0;

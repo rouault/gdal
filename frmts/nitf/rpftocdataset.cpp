@@ -24,6 +24,7 @@
 #include "cpl_string.h"
 #include "cpl_vsi.h"
 #include "gdal.h"
+#include "gdalalgorithm.h"
 #include "gdal_frmts.h"
 #include "gdal_pam.h"
 #include "gdal_priv.h"
@@ -32,6 +33,7 @@
 #include "nitflib.h"
 #include "vrtdataset.h"
 #include "nitfdrivercore.h"
+#include "rpftocwriter.h"
 
 constexpr int GEOTRSFRM_TOPLEFT_X = 0;
 constexpr int GEOTRSFRM_WE_RES = 1;
@@ -1338,6 +1340,97 @@ GDALDataset *RPFTOCDataset::Open(GDALOpenInfo *poOpenInfo)
     }
 }
 
+#ifdef GDAL_ENABLE_ALGORITHMS
+
+#ifndef _
+#define _(x) (x)
+#endif
+
+/************************************************************************/
+/*                        RPFTOCAlgorithmCreate                         */
+/************************************************************************/
+
+class RPFTOCAlgorithmCreate final : public GDALAlgorithm
+{
+  public:
+    static constexpr const char *NAME = "create";
+    static constexpr const char *DESCRIPTION =
+        "Create a A.TOC index from CADRG frames.";
+    static constexpr const char *HELP_URL = "/drivers/raster/rpftoc.html";
+
+    RPFTOCAlgorithmCreate();
+
+  protected:
+    bool RunImpl(GDALProgressFunc pfnProgress, void *pProgressData) override;
+
+  private:
+    std::string m_input{};
+    std::string m_output{};
+    int m_scale = 0;
+    std::string m_producerID{};
+    std::string m_producerName{};
+    std::string m_securityCountryCode{};
+    std::string m_classification = "U";
+};
+
+/************************************************************************/
+/*            RPFTOCAlgorithmCreate::RPFTOCAlgorithmCreate()            */
+/************************************************************************/
+
+RPFTOCAlgorithmCreate::RPFTOCAlgorithmCreate()
+    : GDALAlgorithm(NAME, DESCRIPTION, HELP_URL)
+{
+    AddArg(GDAL_ARG_NAME_INPUT, 'i', _("Input directory"), &m_input)
+        .SetRequired()
+        .SetPositional();
+    AddArg(GDAL_ARG_NAME_OUTPUT, 'o', _("Output filename"), &m_output)
+        .SetPositional();
+    AddArg("scale", 0, _("(Reciprocal) scale (e.g. 1000000)"), &m_scale)
+        .SetMinValueExcluded(0);
+    AddArg("producer-id", 0, _("Producer (short) identification"),
+           &m_producerID)
+        .SetMaxCharCount(5);
+    AddArg("producer-name", 0, _("Producer name"), &m_producerName)
+        .SetMaxCharCount(27);
+    AddArg("contry-code", 0, _("ISO country code for security"),
+           &m_securityCountryCode)
+        .SetMaxCharCount(2);
+    AddArg("classification", 0, _("Index classification"), &m_classification)
+        .SetChoices("U", "R", "C", "S", "T")
+        .SetDefault(m_classification);
+}
+
+/************************************************************************/
+/*                   RPFTOCAlgorithmCreate::RunImpl()                   */
+/************************************************************************/
+
+bool RPFTOCAlgorithmCreate::RunImpl(GDALProgressFunc, void *)
+{
+    if (m_output.empty())
+        m_output = CPLFormFilenameSafe(m_input.c_str(), "A.TOC", nullptr);
+    return RPFTOCCreate(m_input, m_output, m_classification[0], m_scale,
+                        m_producerID, m_producerName, m_securityCountryCode);
+}
+
+/************************************************************************/
+/*                     RPFTOCInstantiateAlgorithm()                     */
+/************************************************************************/
+
+static GDALAlgorithm *
+RPFTOCInstantiateAlgorithm(const std::vector<std::string> &aosPath)
+{
+    if (aosPath.size() == 1 && aosPath[0] == "create")
+    {
+        return std::make_unique<RPFTOCAlgorithmCreate>().release();
+    }
+    else
+    {
+        return nullptr;
+    }
+}
+
+#endif
+
 /************************************************************************/
 /*                        GDALRegister_RPFTOC()                         */
 /************************************************************************/
@@ -1352,6 +1445,10 @@ void GDALRegister_RPFTOC()
     RPFTOCDriverSetCommonMetadata(poDriver);
 
     poDriver->pfnOpen = RPFTOCDataset::Open;
+
+#ifdef GDAL_ENABLE_ALGORITHMS
+    poDriver->pfnInstantiateAlgorithm = RPFTOCInstantiateAlgorithm;
+#endif
 
     GetGDALDriverManager()->RegisterDriver(poDriver);
 }

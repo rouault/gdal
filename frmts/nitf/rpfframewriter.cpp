@@ -26,6 +26,7 @@
 #include "nitfdataset.h"
 #include "nitflib.h"
 #include "kdtree_vq_cadrg.h"
+#include "rpftocwriter.h"
 
 #include <algorithm>
 #include <array>
@@ -48,15 +49,11 @@ constexpr int MAX_ZONE = 18;
 
 constexpr int SUBSAMPLING = 4;
 constexpr int BLOCK_SIZE = 256;
-constexpr int CADRG_FRAME_PIXEL_COUNT = 1536;
 constexpr int CODEBOOK_MAX_SIZE = 4096;
 constexpr int TRANSPARENT_CODEBOOK_CODE = CODEBOOK_MAX_SIZE - 1;
 constexpr int TRANSPARENT_COLOR_TABLE_ENTRY = CADRG_MAX_COLOR_ENTRY_COUNT;
 
 constexpr double CADRG_PITCH_IN_CM = 0.0150;  // 150 micrometers
-
-constexpr int Kilo = 1000;
-constexpr int Million = Kilo * Kilo;
 
 // Cf MIL-STD-2411-1 page 9
 constexpr const struct
@@ -100,7 +97,7 @@ static bool RPFCADRGIsValidZone(int nZone)
 /*                       RPFCADRGZoneNumToChar()                        */
 /************************************************************************/
 
-static char RPFCADRGZoneNumToChar(int nZone)
+char RPFCADRGZoneNumToChar(int nZone)
 {
     CPLAssert(RPFCADRGIsValidZone(nZone));
     if (nZone <= MAX_ZONE_NORTHERN_HEMISPHERE)
@@ -115,7 +112,7 @@ static char RPFCADRGZoneNumToChar(int nZone)
 /*                       RPFCADRGZoneCharToNum()                        */
 /************************************************************************/
 
-static int RPFCADRGZoneCharToNum(char chZone)
+int RPFCADRGZoneCharToNum(char chZone)
 {
     if (chZone >= '1' && chZone <= '9')
         return chZone - '0';
@@ -133,7 +130,7 @@ static int RPFCADRGZoneCharToNum(char chZone)
 /*                 RPFCADRGGetScaleFromDataSeriesCode()                 */
 /************************************************************************/
 
-static int RPFCADRGGetScaleFromDataSeriesCode(const char *pszCode)
+int RPFCADRGGetScaleFromDataSeriesCode(const char *pszCode)
 {
     for (const auto &sEntry : CADRG_DATA_SERIES)
     {
@@ -141,6 +138,19 @@ static int RPFCADRGGetScaleFromDataSeriesCode(const char *pszCode)
             return sEntry.nReciprocalScale;
     }
     return 0;
+}
+
+/************************************************************************/
+/*                   RPFCADRGIsKnownDataSeriesCode()                    */
+/************************************************************************/
+
+bool RPFCADRGIsKnownDataSeriesCode(const char *pszCode)
+{
+    return std::find_if(std::begin(CADRG_DATA_SERIES),
+                        std::end(CADRG_DATA_SERIES),
+                        [pszCode](const auto &sEntry)
+                        { return EQUAL(pszCode, sEntry.pszCode); }) !=
+           std::end(CADRG_DATA_SERIES);
 }
 
 /************************************************************************/
@@ -183,20 +193,24 @@ bool CADRGInformation::HasTransparentPixels() const
 /*                           StrPadTruncate()                           */
 /************************************************************************/
 
+#ifndef StrPadTruncate_defined
+#define StrPadTruncate_defined
+
 static std::string StrPadTruncate(const std::string &osIn, size_t nSize)
 {
     std::string osOut(osIn);
     osOut.resize(nSize, ' ');
     return osOut;
 }
+#endif
 
 /************************************************************************/
 /*                        Create_CADRG_RPFHDR()                         */
 /************************************************************************/
 
-static void Create_CADRG_RPFHDR(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                                const std::string &osFilename,
-                                CPLStringList &aosOptions)
+void Create_CADRG_RPFHDR(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                         const std::string &osFilename,
+                         CPLStringList &aosOptions)
 {
     auto poRPFHDR = offsetPatcher->CreateBuffer(
         "RPFHDR", /* bEndiannessIsLittle = */ false);
@@ -411,6 +425,43 @@ static double GetLonInterval(int nZone, int nReciprocalScale)
 }
 
 /************************************************************************/
+/*                  RPFGetCADRGResolutionAndInterval()                  */
+/************************************************************************/
+
+void RPFGetCADRGResolutionAndInterval(int nZone, int nReciprocalScale,
+                                      double &latResolution,
+                                      double &lonResolution,
+                                      double &latInterval, double &lonInterval)
+{
+    CPLAssert(RPFCADRGIsValidZone(nZone));
+    const int nZoneIdx = (nZone - MIN_ZONE) % MAX_ZONE_NORTHERN_HEMISPHERE;
+    const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
+
+    // Cf MIL-A-89007 (ADRG specification), appendix 70, table III
+    const double N = REF_SCALE / nReciprocalScale;
+
+    // Cf MIL-C-89038 (CADRG specification), para 60.1.1 and following
+    const double B_s = sZoneDef.B * N;
+    const double latCst_ADRG =
+        std::ceil(B_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
+    const double latCst_CADRG =
+        std::round(latCst_ADRG / RATIO_PITCH_CADRG_OVER_ADRG / 4 / BLOCK_SIZE) *
+        BLOCK_SIZE;
+    latResolution = sZoneDef.latRes / N * latCst_ADRG / (4 * latCst_CADRG);
+
+    const double A_s = sZoneDef.A * N;
+    const double lonCst_ADRG =
+        std::ceil(A_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
+    const double lonCst_CADRG =
+        std::round(lonCst_ADRG / RATIO_PITCH_CADRG_OVER_ADRG / BLOCK_SIZE) *
+        BLOCK_SIZE;
+    lonResolution = sZoneDef.lonRes / N * lonCst_ADRG / lonCst_CADRG;
+
+    latInterval = 90.0 / latCst_CADRG;
+    lonInterval = 360.0 / lonCst_CADRG;
+}
+
+/************************************************************************/
 /*                      GetMinMaxLatWithOverlap()                       */
 /************************************************************************/
 
@@ -474,24 +525,12 @@ static int GetFrameCountAlongY(int nZone, int nReciprocalScale)
 /*                    RPFGetCADRGFramesForEnvelope()                    */
 /************************************************************************/
 
-struct RPFFrameDef
-{
-    int nZone;
-    int nReciprocalScale;
-    int nFrameMinX;
-    int nFrameMinY;
-    int nFrameMaxX;
-    int nFrameMaxY;
-    double dfResX;
-    double dfResY;
-};
-
 /** Given a bounding box of an area of interest expressed in long, lat WGS84,
  * and given a reciprocal scale (e.g. 1,000,000), returns the min/max frame
  * coordinate indices in all zones that intersect that area of interest
  * (when nZoneIn is 0), or in the specified zone (when nZoneIn is not 0)
  */
-static std::vector<RPFFrameDef>
+std::vector<RPFFrameDef>
 RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
                              double dfYMin, double dfXMax, double dfYMax)
 {
@@ -614,9 +653,8 @@ RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
 /** Returns the 5 first character of the filename corresponding to the
  * frame specified by the provided parameters.
  */
-static std::string RPFGetCADRGFrameNumberAsString(int nZone,
-                                                  int nReciprocalScale,
-                                                  int nFrameX, int nFrameY)
+std::string RPFGetCADRGFrameNumberAsString(int nZone, int nReciprocalScale,
+                                           int nFrameX, int nFrameY)
 {
     // Cf MIL-C-89038, page 60, 30.6 "Frame naming convention"
 
@@ -664,9 +702,9 @@ static std::string RPFGetCADRGFrameNumberAsString(int nZone,
 /*                       RPFGetCADRGFrameExtent()                       */
 /************************************************************************/
 
-static bool RPFGetCADRGFrameExtent(int nZone, int nReciprocalScale, int nFrameX,
-                                   int nFrameY, double &dfXMin, double &dfYMin,
-                                   double &dfXMax, double &dfYMax)
+bool RPFGetCADRGFrameExtent(int nZone, int nReciprocalScale, int nFrameX,
+                            int nFrameY, double &dfXMin, double &dfYMin,
+                            double &dfXMax, double &dfYMax)
 {
     CPLAssert(RPFCADRGIsValidZone(nZone));
     const double dfLatInterval = GetLatInterval(nZone, nReciprocalScale);
@@ -851,30 +889,11 @@ Create_CADRG_CoverageSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     const int nZone = GetARCZoneFromLat(dfMeanLat);
     if (nZone == 0)
         return false;
-    const int nZoneIdx = (nZone - MIN_ZONE) % MAX_ZONE_NORTHERN_HEMISPHERE;
-    const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
-
-    // Cf MIL-A-89007 (ADRG specification), appendix 70, table III
-    const double N = REF_SCALE / nReciprocalScale;
-
-    // Cf MIL-C-89038 (CADRG specification), para 60.1.1 and following
-    const double B_s = sZoneDef.B * N;
-    const double latCst_ADRG =
-        std::ceil(B_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
-    const double latCst_CADRG =
-        std::round(latCst_ADRG / RATIO_PITCH_CADRG_OVER_ADRG / 4 / BLOCK_SIZE) *
-        BLOCK_SIZE;
-    const double latResolution =
-        sZoneDef.latRes / N * latCst_ADRG / (4 * latCst_CADRG);
-
-    const double A_s = sZoneDef.A * N;
-    const double lonCst_ADRG =
-        std::ceil(A_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
-    const double lonCst_CADRG =
-        std::round(lonCst_ADRG / RATIO_PITCH_CADRG_OVER_ADRG / BLOCK_SIZE) *
-        BLOCK_SIZE;
-    const double lonResolution =
-        sZoneDef.lonRes / N * lonCst_ADRG / lonCst_CADRG;
+    double latResolution = 0;
+    double lonResolution = 0;
+    double unused;
+    RPFGetCADRGResolutionAndInterval(nZone, nReciprocalScale, latResolution,
+                                     lonResolution, unused, unused);
 
     poBuffer->AppendFloat64(latResolution);
     poBuffer->AppendFloat64(lonResolution);
@@ -1585,15 +1604,11 @@ struct RPFAttribute
 }  // namespace
 
 /************************************************************************/
-/*                     RPFFrameWriteCADRG_RPFDES()                      */
+/*                     RPFFrameWriteGetDESHeader()                      */
 /************************************************************************/
 
-bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
-                               VSILFILE *fp, vsi_l_offset nOffsetLDSH,
-                               const CPLStringList &aosOptions,
-                               int nReciprocalScale)
+const char *RPFFrameWriteGetDESHeader()
 {
-    bool bOK = fp->Seek(0, SEEK_END) == 0;
 
     constexpr const char *pszDESHeader =
         "DE"                                           // Segment type
@@ -1620,6 +1635,21 @@ bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
         "0000"                                         // DESSHL
         ;
 
+    return pszDESHeader;
+}
+
+/************************************************************************/
+/*                     RPFFrameWriteCADRG_RPFDES()                      */
+/************************************************************************/
+
+bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
+                               VSILFILE *fp, vsi_l_offset nOffsetLDSH,
+                               const CPLStringList &aosOptions,
+                               int nReciprocalScale)
+{
+    bool bOK = fp->Seek(0, SEEK_END) == 0;
+
+    const char *pszDESHeader = RPFFrameWriteGetDESHeader();
     bOK &= fp->Write(pszDESHeader, 1, strlen(pszDESHeader)) ==
            strlen(pszDESHeader);
 
@@ -2199,7 +2229,7 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                      frameDefinitions[0].nFrameMaxY)
         {
             // poSrcDS already properly aligned
-            if (poCT)
+            if (poCT && CPLGetExtensionSafe(pszFilename).size() == 3)
                 return true;
 
             std::string osFilename(pszFilename);
@@ -2238,12 +2268,21 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                 CPLDebug("CADRG", "Creating file %s", osFilename.c_str());
             }
 
-            auto poPalettedDS = CADRGGetPalettedDataset(poSrcDS, &oCT);
-            if (!poPalettedDS)
-                return false;
-            return NITFDataset::CreateCopy(
-                osFilename.c_str(), poPalettedDS.get(), bStrict, papszOptions,
-                pfnProgress, pProgressData, nRecLevel + 1);
+            if (poCT)
+            {
+                return NITFDataset::CreateCopy(
+                    osFilename.c_str(), poSrcDS, bStrict, papszOptions,
+                    pfnProgress, pProgressData, nRecLevel + 1);
+            }
+            else
+            {
+                auto poPalettedDS = CADRGGetPalettedDataset(poSrcDS, &oCT);
+                if (!poPalettedDS)
+                    return false;
+                return NITFDataset::CreateCopy(
+                    osFilename.c_str(), poPalettedDS.get(), bStrict,
+                    papszOptions, pfnProgress, pProgressData, nRecLevel + 1);
+            }
         }
         else
         {
@@ -2410,6 +2449,25 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
               public:
                 NITFDummyDataset() = default;
             };
+
+            const char *pszClassification =
+                CSLFetchNameValueDef(papszOptions, "FSCLAS", "U");
+            const char chIndexClassification =
+                pszClassification && pszClassification[0] ? pszClassification[0]
+                                                          : 'U';
+            if (!RPFTOCCreate(
+                    osRPFDir,
+                    CPLFormFilenameSafe(osRPFDir.c_str(), "A.TOC", nullptr),
+                    chIndexClassification, nReciprocalScale,
+                    CSLFetchNameValueDef(papszOptions, "OSTAID",
+                                         ""),  // producer id
+                    CSLFetchNameValueDef(papszOptions, "ONAME",
+                                         ""),  // producer name
+                    CSLFetchNameValueDef(papszOptions, "SECURITY_COUNTRY_CODE",
+                                         "")))
+            {
+                return nullptr;
+            }
 
             return std::make_unique<NITFDummyDataset>();
         }

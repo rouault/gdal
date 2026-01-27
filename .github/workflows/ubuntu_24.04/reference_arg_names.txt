@@ -32,6 +32,7 @@ burn
 calc
 checksum
 chunk-size
+classification
 color
 color-count
 color-interpretation
@@ -41,6 +42,7 @@ color-threshold
 combine-bands
 connect-diagonal-pixels
 content-type
+contry-code
 convention
 convex-hull
 coordinate-system
@@ -236,6 +238,8 @@ position-crs
 position-dataset
 power
 preserve-boundary
+producer-id
+producer-name
 profile
 promote-pixel-value-to-z
 propagate-nodata
@@ -250,6 +254,7 @@ resampling
 resolution
 resume
 return-code
+scale
 scale-axes
 scheme
 sd-filename

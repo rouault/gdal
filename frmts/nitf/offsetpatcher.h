@@ -62,8 +62,9 @@ struct OffsetOrSizeReference
 class OffsetOrSizeDeclaration
 {
   public:
-    explicit OffsetOrSizeDeclaration(const std::string &osName)
-        : m_osName(osName)
+    explicit OffsetOrSizeDeclaration(const std::string &osName,
+                                     bool bRelativeToStartOfBuffer = false)
+        : m_osName(osName), m_bRelativeToStartOfBuffer(bRelativeToStartOfBuffer)
     {
     }
 
@@ -85,6 +86,7 @@ class OffsetOrSizeDeclaration
     friend class OffsetPatcher;
 
     const std::string m_osName;
+    const bool m_bRelativeToStartOfBuffer;
     OffsetOrSizeLocation m_location{};
     std::vector<OffsetOrSizeReference> m_references{};
 };
@@ -107,7 +109,8 @@ class OffsetPatcherBuffer
     {
     }
 
-    void AppendUInt32RefForOffset(const std::string &osName);
+    void AppendUInt32RefForOffset(const std::string &osName,
+                                  bool bRelativeToStartOfBuffer = false);
     void AppendUInt16RefForSizeOfBuffer(const std::string &osBufferName);
     void AppendUInt32RefForSizeOfBuffer(const std::string &osBufferName);
     void AppendByte(uint8_t byVal);

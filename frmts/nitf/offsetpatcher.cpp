@@ -59,12 +59,14 @@ void OffsetOrSizeDeclaration::SetReference(OffsetPatcherBuffer *buffer,
 /*           OffsetPatcherBuffer::AppendUInt32RefForOffset()            */
 /************************************************************************/
 
-void OffsetPatcherBuffer::AppendUInt32RefForOffset(const std::string &osName)
+void OffsetPatcherBuffer::AppendUInt32RefForOffset(
+    const std::string &osName, bool bRelativeToStartOfBuffer)
 {
     auto oIter = m_offsetPatcher.m_offsets.find(osName);
     if (oIter == m_offsetPatcher.m_offsets.end())
     {
-        auto offset = std::make_unique<OffsetOrSizeDeclaration>(osName);
+        auto offset = std::make_unique<OffsetOrSizeDeclaration>(
+            osName, bRelativeToStartOfBuffer);
         oIter = m_offsetPatcher.m_offsets
                     .insert(std::pair(osName, std::move(offset)))
                     .first;
@@ -278,7 +280,9 @@ bool OffsetPatcher::Finalize(VSILFILE *fp)
         }
 
         const vsi_l_offset nOffsetPosition =
-            declaration->m_location.buffer->m_nOffset +
+            (declaration->m_bRelativeToStartOfBuffer
+                 ? 0
+                 : declaration->m_location.buffer->m_nOffset) +
             declaration->m_location.offsetInBuffer;
 
         if (nOffsetPosition > UINT32_MAX)

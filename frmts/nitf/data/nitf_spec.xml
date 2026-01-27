@@ -2769,7 +2769,7 @@
                 <field name="FRAME_FILE_NAME" length="12" type="string"/>
                 <field name="GEOGRAPHIC_LOCATION" length="6" type="string"/>
                 <field name="FRAME_FILE_SECURITY_CLASSIFICATION" length="1" type="string"/>
-                <field name="FRAME_FILE_COUNTRY_CODE" length="2" type="string"/>
+                <field name="FRAME_FILE_SECURITY_COUNTRY_CODE" length="2" type="string"/>
                 <field name="FRAME_FILE_SECURITY_RELEASE_MARKING" length="2" type="string"/>
             </loop>
 

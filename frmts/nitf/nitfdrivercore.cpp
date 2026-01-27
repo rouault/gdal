@@ -205,6 +205,10 @@ void RPFTOCDriverSetCommonMetadata(GDALDriver *poDriver)
     poDriver->SetMetadataItem(GDAL_DMD_SUBDATASETS, "YES");
     poDriver->SetMetadataItem(GDAL_DCAP_OPEN, "YES");
     poDriver->pfnIdentify = RPFTOCDriverIdentify;
+
+#ifdef GDAL_ENABLE_ALGORITHMS
+    poDriver->DeclareAlgorithm({"create"});
+#endif
 }
 
 /************************************************************************/
