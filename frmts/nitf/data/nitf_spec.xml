@@ -2734,14 +2734,14 @@
                 <field name="SCALE_OR_RESOLUTION" length="12" type="string"/>
                 <field name="ZONE" length="1" type="string"/>
                 <field name="PRODUCER" length="5" type="string"/>
-                <field name="NORTHWEST_LONGITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
                 <field name="NORTHWEST_LATITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
-                <field name="SOUTHWEST_LONGITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
+                <field name="NORTHWEST_LONGITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
                 <field name="SOUTHWEST_LATITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
-                <field name="NORTHEAST_LONGITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
+                <field name="SOUTHWEST_LONGITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
                 <field name="NORTHEAST_LATITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
-                <field name="SOUTHEAST_LONGITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
+                <field name="NORTHEAST_LONGITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
                 <field name="SOUTHEAST_LATITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
+                <field name="SOUTHEAST_LONGITUDE" length="8" type="IEEE754_Float64_BigEndian"/>
                 <field name="NORTH_SOUTH_VERTICAL_RESOLUTION" length="8" type="IEEE754_Float64_BigEndian"/>
                 <field name="EAST_WEST_HORIZONTAL_RESOLUTION" length="8" type="IEEE754_Float64_BigEndian"/>
                 <field name="LATITUDE_VERTICAL_INTERVAL" length="8" type="IEEE754_Float64_BigEndian"/>
