@@ -988,6 +988,18 @@ bool GDALAlgorithmArg::RunValidationActions()
                 ret = false;
             }
         }
+
+        const int nMaxCharCount = GetMaxCharCount();
+        const auto &val = Get<std::string>();
+        if (val.size() > static_cast<size_t>(nMaxCharCount))
+        {
+            CPLError(
+                CE_Failure, CPLE_IllegalArg,
+                "Value of argument '%s' is '%s', but should have no more than "
+                "%d characters",
+                GetName().c_str(), val.c_str(), nMaxCharCount);
+            ret = false;
+        }
     }
     else if (GetType() == GAAT_STRING_LIST)
     {
@@ -1005,6 +1017,20 @@ bool GDALAlgorithmArg::RunValidationActions()
                         GetName().c_str(), val.c_str(), nMinCharCount);
                     ret = false;
                 }
+            }
+        }
+
+        const int nMaxCharCount = GetMaxCharCount();
+        for (const auto &val : Get<std::vector<std::string>>())
+        {
+            if (val.size() > static_cast<size_t>(nMaxCharCount))
+            {
+                CPLError(CE_Failure, CPLE_IllegalArg,
+                         "Value of argument '%s' is '%s', but should have no "
+                         "more than "
+                         "%d characters",
+                         GetName().c_str(), val.c_str(), nMaxCharCount);
+                ret = false;
             }
         }
     }

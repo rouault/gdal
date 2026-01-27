@@ -621,6 +621,15 @@ class CPL_DLL GDALAlgorithmArgDecl final
         return *this;
     }
 
+    /** Sets the maximum number of characters (for arguments of type
+     * GAAT_STRING and GAAT_STRING_LIST)
+     */
+    GDALAlgorithmArgDecl &SetMaxCharCount(int count)
+    {
+        m_maxCharCount = count;
+        return *this;
+    }
+
     //! @cond Doxygen_Suppress
     GDALAlgorithmArgDecl &SetHiddenChoices()
     {
@@ -835,6 +844,14 @@ class CPL_DLL GDALAlgorithmArgDecl final
     inline int GetMinCharCount() const
     {
         return m_minCharCount;
+    }
+
+    /** Return the maximum number of characters (for arguments of type
+     * GAAT_STRING and GAAT_STRING_LIST)
+     */
+    inline int GetMaxCharCount() const
+    {
+        return m_maxCharCount;
     }
 
     /** Return whether the argument is required. Defaults to false.
@@ -1135,6 +1152,7 @@ class CPL_DLL GDALAlgorithmArgDecl final
     bool m_minValIsIncluded = false;
     bool m_maxValIsIncluded = false;
     int m_minCharCount = 0;
+    int m_maxCharCount = std::numeric_limits<int>::max();
     GDALArgDatasetType m_datasetType =
         GDAL_OF_RASTER | GDAL_OF_VECTOR | GDAL_OF_MULTIDIM_RASTER;
 
@@ -1325,6 +1343,12 @@ class CPL_DLL GDALAlgorithmArg /* non-final */
     inline int GetMinCharCount() const
     {
         return m_decl.GetMinCharCount();
+    }
+
+    /** Alias for GDALAlgorithmArgDecl::GetMaxCharCount() */
+    inline int GetMaxCharCount() const
+    {
+        return m_decl.GetMaxCharCount();
     }
 
     /** Return whether the argument value has been explicitly set with Set() */
@@ -1982,6 +2006,13 @@ class CPL_DLL GDALInConstructionAlgorithmArg final : public GDALAlgorithmArg
     GDALInConstructionAlgorithmArg &SetMinCharCount(int count)
     {
         m_decl.SetMinCharCount(count);
+        return *this;
+    }
+
+    /** Alias for GDALAlgorithmArgDecl::SetMaxCharCount() */
+    GDALInConstructionAlgorithmArg &SetMaxCharCount(int count)
+    {
+        m_decl.SetMaxCharCount(count);
         return *this;
     }
 
