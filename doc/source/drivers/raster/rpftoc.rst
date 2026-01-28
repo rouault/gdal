@@ -8,10 +8,13 @@ RPFTOC -- Raster Product Format/RPF (a.toc)
 
 .. built_in_by_default::
 
-This is a read-only reader for RPF products, like CADRG or CIB, that
+This is a reader for RPF products, like CADRG or CIB, that
 uses the table of content file - A.TOC - from a RPF exchange, and
 exposes it as a virtual dataset whose coverage is the set of frames
 contained in the table of content.
+
+Starting with GDAL 3.13, the A.TOC file can also be generated using the
+``gdal driver rpftoc create`` program from existing CADRG frames.
 
 The driver will report a different subdataset for each subdataset found
 in the A.TOC file.
@@ -65,3 +68,55 @@ Driver capabilities
 .. supports_georeferencing::
 
 .. supports_virtualio::
+
+.. _raster.rpftoc.create:
+
+Creation of a A.TOC file from existing CADRG frames
+---------------------------------------------------
+
+.. versionadded:: 3.13
+
+Description
+++++++++++++
+
+:program:`gdal driver rpftoc create` can be used to create a A.TOC file from
+existing CADRG frames. The value of the ``input`` argument should be the
+path to the ``RPF`` directory under which the CADRG frames are found. The
+``A.TOC`` file will be written in that directory.
+
+Synopsis
+++++++++
+
+.. program-output:: gdal driver rpftoc create --help-doc
+
+
+Program-Specific Options
+++++++++++++++++++++++++
+
+.. option:: --scale <SCALE>
+
+   (Reciprocal) scale (e.g. 1000000). If not specified, guessed from content
+   of CADRG frames (except for those where this cannot be inferred automatically)
+
+.. option:: --producer-id <PRODUCER-ID>
+
+   Producer (short) identification. Up to 5 characters.
+
+.. option:: --producer-name <PRODUCER-NAME>
+
+   Producer name. Up to 10 characters.
+
+.. option:: --contry-code <CONTRY-CODE>
+
+   Two letter ISO country code for security classification
+
+.. option:: --classification U|R|C|S|T
+
+   Index classification. Defaults to U (Unclassified)
+
+Examples
+++++++++
+
+::
+
+    gdal driver rpftoc create /path/to/RPF --producer-id NIMA

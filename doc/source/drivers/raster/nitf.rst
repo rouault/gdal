@@ -1,7 +1,7 @@
 .. _raster.nitf:
 
 ================================================================================
-NITF -- National Imagery Transmission Format
+NITF -- National Imagery Transmission Format (also CIB, CADRG, ECRG, HRE)
 ================================================================================
 
 .. shortname:: NITF
@@ -25,6 +25,7 @@ The read support test has been tested on various products, including
 CIB (Controlled Image Base) and CADRG (Compressed ARC Digitized Raster Graphics)
 frames from RPF (Raster Product Format) products, ECRG (Enhanced Compressed
 Raster Graphics) frames, HRE (High Resolution Elevation) products.
+Write support for CADRG is available since GDAL 3.13.
 
 Color tables for pseudocolored images are read. In some cases nodata
 values may be identified.
@@ -115,7 +116,7 @@ reported when asking the metadata list.
 The following creation options are available:
 
 -  .. co:: IC
-      :choices: NC, C3, M3, C8
+      :choices: NC, C3, C4, M3, C8
       :default: NC
 
       Set the compression method.
@@ -127,6 +128,8 @@ The following creation options are available:
          Multi-block images can be written.
       -  M3 is a variation of C3. The only difference is that a block map
          is written, which allow for fast seeking to any block.
+      -  C4 means Vector Quantized (VQ) compression, and is only available when
+         PRODUCT_TYPE=CADRG.
       -  C8 means JPEG2000 compression (one block) and is available for
          CreateCopy() and/or Create() methods. See below paragraph for specificities.
 
@@ -339,6 +342,194 @@ The following creation options are available:
       NITF_xxx metadata items and TRE segments from the input dataset. It
       may needed to set this option to NO if changing the georeferencing of
       the input file.
+
+-  .. co:: PRODUCT_TYPE
+      :choices: REGULAR, CADRG
+      :default: REGULAR
+      :since: 3.13
+
+      Sub-specification the output dataset should respect
+
+
+The following options are only valid for PRODUCT_TYPE=CADRG.
+
+-  .. co:: SCALE
+      :choices: <integer>
+      :since: 3.13
+
+      Reciprocal scale to use when generating output frames. Special value GUESS
+      can be used. Valid values are in the range from 1000 (1:1K) to 20000000 (1:20M)
+      Only used when PRODUCT_TYPE=CADRG.
+
+-  .. co:: DPI
+      :choices: <float>
+      :since: 3.13
+
+      Dot-Per-Inch value for the input dataset, that may need to be specified
+      together with SCALE. Valid values are in the range from 1 to 7200.
+      Only used when PRODUCT_TYPE=CADRG.
+
+-  .. co:: SERIES_CODE
+      :choices: GN,JN,ON,TP,LF,JG,JA,JR,TF,AT,TC,TL,HA,CO,OA,CG,CM,MM
+      :default: MM
+      :since: 3.13
+
+      Two-letter code specifying the map/chart type.
+      Used to infer the scale, when not specified, for some of the values where the map/chart type
+      has a single nominal scale, and for the first 2 letters of the extension
+      of frame files.
+      Only used when PRODUCT_TYPE=CADRG.
+
+      +------+----------------------------------------+--------------+
+      | Code | Data series                            | Scale        |
+      +======+========================================+==============+
+      | GN   | Global Navigation Chart (GNC)          | 1:5 million  |
+      +------+----------------------------------------+--------------+
+      | JN   | Jet Navigation Chart (JNC)             | 1:2 million  |
+      +------+----------------------------------------+--------------+
+      | ON   | Operational Navigation Chart (ONC)     | 1:1 million  |
+      +------+----------------------------------------+--------------+
+      | TP   | Tactical Pilotage Chart (TPC)          | 1:500 K      |
+      +------+----------------------------------------+--------------+
+      | LF   | Low Flying Chart (LFC) - UK            | 1:500 K      |
+      +------+----------------------------------------+--------------+
+      | JG   | Joint Operation Graphic (JOG)          | 1:250 K      |
+      +------+----------------------------------------+--------------+
+      | JA   | Joint Operation Graphic, Air (JOG-A)   | 1:250 K      |
+      +------+----------------------------------------+--------------+
+      | JR   | Joint Operation Graphic, Radar (JOG-R) | 1:250 K      |
+      +------+----------------------------------------+--------------+
+      | TF   | Transit Flying Chart (TFC) - UK        | 1:250 K      |
+      +------+----------------------------------------+--------------+
+      | AT   | Series 200 Air Target Chart (ATC)      | 1:200 K      |
+      +------+----------------------------------------+--------------+
+      | TC   | Topographic Line Map 100 (TLM 100)     | 1:100 K      |
+      +------+----------------------------------------+--------------+
+      | TL   | Topographic Line Map 50 (TLM 50)       | 1:50 K       |
+      +------+----------------------------------------+--------------+
+      | HA   | Harbor and Approach Charts  (HAC)      | Various      |
+      +------+----------------------------------------+--------------+
+      | CO   | Coastal Charts                         | Various      |
+      +------+----------------------------------------+--------------+
+      | OP   | Naval Range Operating Area Chart       | Various      |
+      +------+----------------------------------------+--------------+
+      | CG   | City Graphics                          | Various      |
+      +------+----------------------------------------+--------------+
+      | CM   | Combat Charts                          | Various      |
+      +------+----------------------------------------+--------------+
+      | MM   | Miscellaneous Maps and Charts          | Various      |
+      +------+----------------------------------------+--------------+
+
+-  .. co:: VERSION_NUMBER
+      :choices: <string>
+      :default: 01
+      :since: 3.13
+
+      Two letter version number (using letters among 0-9, A-H and J).
+      Used for the 6th and 7th letters of the file name of frame files.
+      Only used when PRODUCT_TYPE=CADRG.
+
+-  .. co:: PRODUCER_CODE_ID
+      :choices: <string>
+      :default: 0
+      :since: 3.13
+
+      One letter code indicating the data producer. This is a base-34 encoded
+      value with valid letters '0' to '9', 'A' to 'Z' (excluding 'I' and 'O').
+      Used for the last letter of the file name of frame files.
+      Only used when PRODUCT_TYPE=CADRG.
+
+      +----+--------------------------+--------------------------------------------------------------+
+      | ID | Producer code            | Producer                                                     |
+      +====+==========================+==============================================================+
+      | 1  | AFACC                    | Air Force Air Combat Command                                 |
+      +----+--------------------------+--------------------------------------------------------------+
+      | 2  | AFESC                    | Air Force Electronic Systems Center                          |
+      +----+--------------------------+--------------------------------------------------------------+
+      | 3  | NIMA                     | National Imagery and Mapping Agency, Primary                 |
+      +----+--------------------------+--------------------------------------------------------------+
+      | 4  | NIMA1                    | NIMA, Alternate Site 1                                       |
+      +----+--------------------------+--------------------------------------------------------------+
+      | 5  | NIMA2                    | NIMA, Alternate Site 2                                       |
+      +----+--------------------------+--------------------------------------------------------------+
+      | 6  | NIMA3                    | NIMA, Alternate Site 3                                       |
+      +----+--------------------------+--------------------------------------------------------------+
+      | 7  | SOCAF                    | Air Force Special Operations Command                         |
+      +----+--------------------------+--------------------------------------------------------------+
+      | 8  | SOCOM                    | United States Special Operations Command                     |
+      +----+--------------------------+--------------------------------------------------------------+
+      | 9  | PACAF                    | Pacific Air Forces                                           |
+      +----+--------------------------+--------------------------------------------------------------+
+      | A  | USAFE                    | United States Air Force, Europe                              |
+      +----+--------------------------+--------------------------------------------------------------+
+      | B  | Non-DoD (NonDD)          | US producer outside the Department of Defense                |
+      +----+--------------------------+--------------------------------------------------------------+
+      | C  | Non-US (NonUS)           | Non-US producer                                              |
+      +----+--------------------------+--------------------------------------------------------------+
+      | D  | NIMA DCHUM (DCHUM)       | NIMA produced Digital CHUM file                              |
+      +----+--------------------------+--------------------------------------------------------------+
+      | E  | Non-NIMA DCHUM (DCHMD)   | DoD producer of Digital CHUM file other than NIMA            |
+      +----+--------------------------+--------------------------------------------------------------+
+      | F  | Non-US DCHUM (DCHMF)     | Non-US (foreign) producer of Digital CHUM files              |
+      +----+--------------------------+--------------------------------------------------------------+
+      | G  | Non-DoD DCHUM (DCHMG)    | US producer of Digital CHUM files outside DoD                |
+      +----+--------------------------+--------------------------------------------------------------+
+      | H  | IMG2RPF                  | Non-specified, Imagery formatted to RPF                      |
+      +----+--------------------------+--------------------------------------------------------------+
+      | I–Z| Reserved                 | Reserved for future standardization                          |
+      +----+--------------------------+--------------------------------------------------------------+
+
+-  .. co:: SECURITY_COUNTRY_CODE
+      :choices: <string>
+      :since: 3.13
+
+      Two letter country ISO code of the security classification.
+      Only used when PRODUCT_TYPE=CADRG.
+
+-  .. co:: CURRENCY_DATE
+      :choices: <string>
+      :since: 3.13
+
+      Date of the most recent revision to the RPF product, as YYYYMMDD.
+      Can be set to empty to avoid writing it, or the special value NOW for the
+      current date, otherwise a default value of 20260101 is used.
+      Only used when PRODUCT_TYPE=CADRG.
+
+-  .. co:: PRODUCTION_DATE
+      :choices: <string>
+      :since: 3.13
+
+      Date that the source data was transferred to RPF format, as YYYYMMDD.
+      Can be set to empty to avoid writing it, or the special value NOW for the
+      current date, otherwise a default value of 20260101 is used.
+      Only used when PRODUCT_TYPE=CADRG.
+
+-  .. co:: SIGNIFICANT_DATE
+      :choices: <string>
+      :since: 3.13
+
+      Date describing the basic date of the source product, as YYYYMMDD.
+      Can be set to empty to avoid writing it, or the special value NOW for the
+      current date, otherwise a default value of 20260101 is used.
+      Only used when PRODUCT_TYPE=CADRG.
+
+-  .. co:: DATA_SERIES_DESIGNATION
+      :choices: <string>
+      :since: 3.13
+
+      Short title for the identification of a group of products usually having
+      the same scale and/or cartographic specification (e.g. JOG 1501A).
+      Up to 10 characters. Derived from SERIES_CODE and SCALE when not specified.
+      Only used when PRODUCT_TYPE=CADRG.
+
+-  .. co:: MAP_DESIGNATION
+      :choices: <string>
+      :since: 3.13
+
+      Designation, within the data series, of the hard-copy source (e.g. G18 if
+      the hard-copy source is ONC G18).
+      Up to 8 characters.
+      Only used when PRODUCT_TYPE=CADRG.
 
 
 The following creation options to set fields in the NITF file header are available:
@@ -681,6 +872,63 @@ the JPEG2000 capable driver to use.
   When those profiles are specified, the J2KLRA TRE will also be written, unless
   the ``J2KLRA=NO`` creation option is specified.
 
+CADRG (Compressed ARC Digitized Raster Graphics) (write support)
+----------------------------------------------------------------
+
+.. versionadded:: 3.13
+
+The driver supports generating CADRG frames from any georeferenced source dataset,
+which has a single band with a color table of up to 216 colors, a 3-band RGB
+source dataset or a 4-band RGBA datasets. It will automatically create the CADRG
+frames intersecting the source dataset extent in the appropriate Arc zones, at
+the target scale. The :co:`PRODUCT_TYPE` creation option must be set to
+``CADRG``. The output dataset name must be a directory name.
+
+The target scale is determined by decreasing order of priority:
+
+- from the value of the :co:`SCALE` creation option, if specified.
+
+- from the value of the :co:`DPI` creation option, if specified.
+
+- from the value of the :co:`SERIES_CODE` creation option, if a scale is associated
+  with it (which is the case of all valid codes except
+  ``HA``, ``CO``, ``OP``, ``CG``, ``CM`` and ``MM``)
+
+- from the value of the TIFFTAG_RESOLUTIONUNIT and TIFFTAG_YRESOLUTION metadata
+  items, if existing in the source dataset.
+
+By default, hard-coded values of dates/date-times are written in the file, so
+as to get binary reproducible outputs from a given input. It is possible to customize
+them by setting the :co:`FDT`, :co:`IDATIM`, :co:`CURRENCY_DATE`, :co:`PRODUCTION_DATE`
+and :co:`SIGNIFICANT_DATE` creation options. For all of them the special value ``NOW``
+to mean the current timestamp can be used.
+
+The frame index ``A.TOC`` file is automatically generated (it can also be
+generated manually with the :ref:`gdal driver rpftoc create <raster.rpftoc.create>`
+program.
+
+.. example::
+   :title: Create CADRG frames from a VRT mosaic, specifying it is an
+           Operational Navigation Chart (scale 1:5 million), using hard-coded dates
+
+   .. code-block:: bash
+
+        gdal raster create input_mosaic.vrt output_directory \
+            --format=NITF --co PRODUCT_TYPE=CADRG --co SERIES_CODE=ON
+
+.. example::
+   :title: Create CADRG frames from a VRT mosaic, specifying it is a City Graphic
+           map at scale 1:5,000, with dates corresponding to the current timestamp.
+
+   .. code-block:: bash
+
+        gdal raster create input_mosaic.vrt output_directory \
+            --format=NITF --co PRODUCT_TYPE=CADRG --co SERIES_CODE=CG --co SCALE=5000 \
+            --co OSTAID=MyCompany --co ONAME=Norway --co PRODUCER_CODE_ID=X --co SECURITY_COUNTRY_CODE=NO \
+            --co FDT=NOW --co IDATIM=NOW --co CURRENCY_DATE=NOW \
+            --co PRODUCTION_DATE=NOW --co SIGNIFICANT_DATE=NOW
+
+
 Links
 -----
 
@@ -702,3 +950,12 @@ The author wishes to thank `AUG Signals <http://www.augsignals.com/>`__
 and the `GeoConnections <http://geoconnections.org/>`__ program for
 supporting development of this driver, and to thank Steve Rawlinson
 (JPEG), Reiner Beck (BLOCKA) for assistance adding features.
+
+
+
+.. below is an allow-list for spelling checker.
+
+.. spelling:word-list::
+        Pilotage
+        DoD
+        NIMA
