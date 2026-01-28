@@ -408,6 +408,12 @@ typedef struct
 /** Return not freeable (maybe NULL if no matching) */
 const NITFSeries CPL_DLL *NITFGetSeriesInfo(const char *pszFilename);
 
+const NITFSeries *NITFGetRPFSeriesInfoFromIndex(int nIdx);
+const NITFSeries *NITFGetRPFSeriesInfoFromCode(const char *pszCode);
+bool NITFIsKnownRPFDataSeriesCode(const char *pszCode,
+                                  const char *pszProductType);
+int NITFGetScaleFromScaleResolution(const char *scaleResolution);
+
 /* -------------------------------------------------------------------- */
 /*                           Internal use                               */
 /* -------------------------------------------------------------------- */
@@ -430,9 +436,9 @@ class OffsetPatcher;
 }
 
 int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
-                 int nBitsPerSample, const char *pszPVType, CSLConstList papszOptions,
-                 int *pnIndex, int *pnImageCount, vsi_l_offset *pnImageOffset,
-                 vsi_l_offset *pnICOffset,
+                 int nBitsPerSample, const char *pszPVType,
+                 CSLConstList papszOptions, int *pnIndex, int *pnImageCount,
+                 vsi_l_offset *pnImageOffset, vsi_l_offset *pnICOffset,
                  GDALOffsetPatcher::OffsetPatcher *offsetPatcher);
 
 #endif  // __cplusplus

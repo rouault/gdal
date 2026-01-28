@@ -389,6 +389,9 @@ The following options are only valid for PRODUCT_TYPE=CADRG.
       of frame files.
       Only used when PRODUCT_TYPE=CADRG.
 
+      Below the codes from the initial version of MIL-STD-2411-1.
+      Full table available in `MIL-STD-2411/1 (W/CHANGE 3) <https://everyspec.com/MIL-STD/MIL-STD-2000-2999/MIL-STD-2411_1_CHG-3_26002/>`__, pages 9-13.
+
       +------+----------------------------------------+--------------+
       | Code | Data series                            | Scale        |
       +======+========================================+==============+

@@ -2584,6 +2584,7 @@ int GDALValidateOptions(const char *pszOptionList,
             else if (EQUAL(pszType, "STRING-SELECT"))
             {
                 bool bMatchFound = false;
+                bool bOtherValuesElementFound = false;
                 CPLXMLNode *psStringSelect = psChildNode->psChild;
                 while (psStringSelect)
                 {
@@ -2614,9 +2615,14 @@ int GDALValidateOptions(const char *pszOptionList,
                         if (bMatchFound)
                             break;
                     }
+                    else if (psStringSelect->eType == CXT_Element &&
+                             EQUAL(psStringSelect->pszValue, "OtherValues"))
+                    {
+                        bOtherValuesElementFound = true;
+                    }
                     psStringSelect = psStringSelect->psNext;
                 }
-                if (!bMatchFound)
+                if (!bMatchFound && !bOtherValuesElementFound)
                 {
                     CPLError(CE_Warning, CPLE_NotSupported,
                              "'%s' is an unexpected value for %s %s of type "

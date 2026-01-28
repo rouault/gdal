@@ -19,6 +19,7 @@
 #include "cpl_time.h"
 #include <stdbool.h>
 
+#include <algorithm>
 #include <map>
 
 #ifdef EMBED_RESOURCE_FILES
@@ -2447,6 +2448,51 @@ static const NITFSeries nitfSeries[] = {
     {"ZV", "", "1:10M", "IFR Enroute High/Low", "CADRG"},
     {"ZZ", "", "1:12M", "IFR Enroute High/Low", "CADRG"}};
 
+const NITFSeries *NITFGetRPFSeriesInfoFromIndex(int nIdx)
+{
+    if (nIdx >= 0 && static_cast<size_t>(nIdx) < CPL_ARRAYSIZE(nitfSeries))
+        return &nitfSeries[nIdx];
+    return nullptr;
+}
+
+const NITFSeries *NITFGetRPFSeriesInfoFromCode(const char *pszCode)
+{
+    for (const auto &series : nitfSeries)
+    {
+        if (EQUAL(pszCode, series.code))
+        {
+            return &series;
+        }
+    }
+    return nullptr;
+}
+
+bool NITFIsKnownRPFDataSeriesCode(const char *pszCode,
+                                  const char *pszProductType)
+{
+    return std::find_if(std::begin(nitfSeries), std::end(nitfSeries),
+                        [pszCode, &pszProductType](const auto &sEntry)
+                        {
+                            return EQUAL(pszCode, sEntry.code) &&
+                                   (!pszProductType ||
+                                    EQUAL(pszProductType, sEntry.rpfDataType));
+                        }) != std::end(nitfSeries);
+}
+
+int NITFGetScaleFromScaleResolution(const char *scaleResolution)
+{
+    int nVal = 0;
+    if (STARTS_WITH(scaleResolution, "1:"))
+    {
+        nVal = atoi(scaleResolution + strlen("1:"));
+        if (strchr(scaleResolution, 'K'))
+            nVal *= 1000;
+        else if (strchr(scaleResolution, 'M'))
+            nVal *= 1000 * 1000;
+    }
+    return nVal;
+}
+
 /* See 24111CN1.pdf paragraph 5.1.4 */
 const NITFSeries *NITFGetSeriesInfo(const char *pszFilename)
 {
@@ -2462,14 +2508,7 @@ const NITFSeries *NITFGetSeriesInfo(const char *pszFilename)
             {
                 seriesCode[0] = pszFilename[i + 1];
                 seriesCode[1] = pszFilename[i + 2];
-                for (const auto &series : nitfSeries)
-                {
-                    if (EQUAL(seriesCode, series.code))
-                    {
-                        return &series;
-                    }
-                }
-                return nullptr;
+                return NITFGetRPFSeriesInfoFromCode(seriesCode);
             }
         }
     }

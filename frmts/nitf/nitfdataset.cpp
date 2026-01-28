@@ -7650,6 +7650,7 @@ void NITFDriver::InitCreationOptionList()
         "       <Value>CG</Value>"
         "       <Value>CM</Value>"
         "       <Value>MM</Value>"
+        "       <OtherValues/>"
         "   </Option>"
         "   <Option name='VERSION_NUMBER' type='string' description='"
         "Two letter version number (using letters among 0-9, A-H and J). "

@@ -141,10 +141,14 @@ def get_schema_creationoptionslist_xml(root_element="CreationOptionList"):
       </xs:simpleContent>
     </xs:complexType>
   </xs:element>
+  <xs:element name="OtherValues">
+    <xs:complexType/>
+  </xs:element>
   <xs:element name="Option">
     <xs:complexType mixed="true">
       <xs:sequence>
         <xs:element ref="Value" maxOccurs="unbounded" minOccurs="0"/>
+        <xs:element ref="OtherValues" maxOccurs="1" minOccurs="0"/>
       </xs:sequence>
       <xs:attribute name="name" use="required">
         <xs:simpleType>

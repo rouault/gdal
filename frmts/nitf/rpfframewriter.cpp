@@ -55,35 +55,6 @@ constexpr int TRANSPARENT_COLOR_TABLE_ENTRY = CADRG_MAX_COLOR_ENTRY_COUNT;
 
 constexpr double CADRG_PITCH_IN_CM = 0.0150;  // 150 micrometers
 
-// Cf MIL-STD-2411-1 page 9
-constexpr const struct
-{
-    const char *pszCode;
-    const char *pszAbbreviation;
-    int nReciprocalScale;
-} CADRG_DATA_SERIES[] = {
-    // clang-format off
-    {"GN", "GNC",     5 * Million},
-    {"JN", "JNC",     2 * Million},
-    {"ON", "ONC",     1 * Million},
-    {"TP", "TPC",     500 * Kilo},
-    {"LF", "LFC",     500 * Kilo},
-    {"JG", "JOG",     250 * Kilo},
-    {"JA", "JOG-A",   250 * Kilo},
-    {"JR", "JOG-R",   250 * Kilo},
-    {"TF", "TFC",     250 * Kilo},
-    {"AT", "ATC",     200 * Kilo},
-    {"TC", "TLM 100", 100 * Kilo},
-    {"TL", "TLM 50",   50 * Kilo},
-    {"HA", "HA",               0},
-    {"CO", "CO",               0},
-    {"OA", "OPAREA",           0},
-    {"CG", "CG",               0},
-    {"CM", nullptr,            0},
-    {"MM", nullptr,            0},
-    // clang-format on
-};
-
 /************************************************************************/
 /*                        RPFCADRGIsValidZone()                         */
 /************************************************************************/
@@ -132,12 +103,13 @@ int RPFCADRGZoneCharToNum(char chZone)
 
 int RPFCADRGGetScaleFromDataSeriesCode(const char *pszCode)
 {
-    for (const auto &sEntry : CADRG_DATA_SERIES)
+    int nVal = 0;
+    const auto *psEntry = NITFGetRPFSeriesInfoFromCode(pszCode);
+    if (psEntry)
     {
-        if (EQUAL(pszCode, sEntry.pszCode))
-            return sEntry.nReciprocalScale;
+        nVal = NITFGetScaleFromScaleResolution(psEntry->scaleResolution);
     }
-    return 0;
+    return nVal;
 }
 
 /************************************************************************/
@@ -146,11 +118,7 @@ int RPFCADRGGetScaleFromDataSeriesCode(const char *pszCode)
 
 bool RPFCADRGIsKnownDataSeriesCode(const char *pszCode)
 {
-    return std::find_if(std::begin(CADRG_DATA_SERIES),
-                        std::end(CADRG_DATA_SERIES),
-                        [pszCode](const auto &sEntry)
-                        { return EQUAL(pszCode, sEntry.pszCode); }) !=
-           std::end(CADRG_DATA_SERIES);
+    return NITFIsKnownRPFDataSeriesCode(pszCode, "CADRG");
 }
 
 /************************************************************************/
@@ -772,10 +740,18 @@ int RPFGetCADRGClosestReciprocalScale(GDALDataset *poSrcDS,
     const double dfYResAtNominalCADRGDPI = dfYRes * dfDPI / CADRG_DPI;
 
     std::set<int> anSetReciprocalScales;
-    for (const auto &sEntry : CADRG_DATA_SERIES)
+    for (int nIdx = 0;; ++nIdx)
     {
-        if (sEntry.nReciprocalScale)
-            anSetReciprocalScales.insert(sEntry.nReciprocalScale);
+        const auto *psEntry = NITFGetRPFSeriesInfoFromIndex(nIdx);
+        if (!psEntry)
+            break;
+        if (EQUAL(psEntry->rpfDataType, "CADRG"))
+        {
+            const int nVal =
+                NITFGetScaleFromScaleResolution(psEntry->scaleResolution);
+            if (nVal)
+                anSetReciprocalScales.insert(nVal);
+        }
     }
 
     int nCandidateReciprocalScale = 0;
@@ -1722,29 +1698,21 @@ bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     else if (const char *pszSeriesCode =
                  aosOptions.FetchNameValue("SERIES_CODE"))
     {
-        for (const auto &sEntry : CADRG_DATA_SERIES)
+        const auto *psEntry = NITFGetRPFSeriesInfoFromCode(pszSeriesCode);
+        if (psEntry && psEntry->abbreviation[0])
         {
-            if (EQUAL(sEntry.pszCode, pszSeriesCode))
+            // If the data series abbreviation doesn't contain a scale indication,
+            // add it.
+            std::string osVal(psEntry->abbreviation);
+            if (osVal.find('0') != std::string::npos)
             {
-                if (sEntry.pszAbbreviation)
-                {
-                    // If the data series abbreviation doesn't contain a scale indication,
-                    // add it.
-                    std::string osVal(sEntry.pszAbbreviation);
-                    if (osVal.find('0') != std::string::npos)
-                    {
-                        if (nReciprocalScale >= Million)
-                            osVal +=
-                                CPLSPrintf(" %dM", nReciprocalScale / Million);
-                        else if (nReciprocalScale >= Kilo)
-                            osVal +=
-                                CPLSPrintf(" %dK", nReciprocalScale / Kilo);
-                    }
-
-                    asAttributes.emplace_back(4, 1, StrPadTruncate(osVal, 10));
-                }
-                break;
+                if (nReciprocalScale >= Million)
+                    osVal += CPLSPrintf(" %dM", nReciprocalScale / Million);
+                else if (nReciprocalScale >= Kilo)
+                    osVal += CPLSPrintf(" %dK", nReciprocalScale / Kilo);
             }
+
+            asAttributes.emplace_back(4, 1, StrPadTruncate(osVal, 10));
         }
     }
 
@@ -2030,14 +1998,8 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
     if (!bLooksLikeCADRGFilename && osExtUpperCase.size() == 3 &&
         RPFCADRGZoneCharToNum(osExtUpperCase[2]) > 0)
     {
-        for (const auto &sEntry : CADRG_DATA_SERIES)
-        {
-            if (osExtUpperCase.compare(0, 2, sEntry.pszCode) == 0)
-            {
-                bLooksLikeCADRGFilename = true;
-                break;
-            }
-        }
+        bLooksLikeCADRGFilename =
+            RPFCADRGIsKnownDataSeriesCode(osExtUpperCase.substr(0, 2).c_str());
     }
 
     if (!(poSrcDS->GetRasterXSize() == CADRG_FRAME_PIXEL_COUNT &&
