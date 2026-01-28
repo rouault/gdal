@@ -351,7 +351,9 @@ The following creation options to set fields in the NITF file header are availab
 -  .. co:: FDT
       :choices: string of up to 14 characters
 
-      File Date and Time
+      File Date and Time.
+      Format is DDHHMMSSZMONYY for NITF 2.0 and CCYYMMDDhhmmss for NITF 2.1.
+      ``NOW`` is also accepted as a special value for the current date-time.
 
 -  .. co:: FTITLE
       :choices: string of up to 80 characters
@@ -479,7 +481,9 @@ for NITF 02.10 and NSIF 1.0. For NITF 02.00, consult MIL-STD-2500A.
 -  .. co:: IDATIM
       :choices: string of 14 characters
 
-      Image Date and Time
+      Image Date and Time.
+      Format is DDHHMMSSZMONYY for NITF 2.0 and CCYYMMDDhhmmss for NITF 2.1.
+      ``NOW`` is also accepted as a special value for the current date-time.
 
 -  .. co:: TGTID
       :choices: string of up to 17 characters

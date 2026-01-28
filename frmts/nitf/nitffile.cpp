@@ -16,6 +16,7 @@
 #include "cpl_vsi.h"
 #include "cpl_conv.h"
 #include "cpl_string.h"
+#include "cpl_time.h"
 #include <stdbool.h>
 
 #include <map>
@@ -858,6 +859,49 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
         bOK &= VSIFWriteL(&cVal, 1, 1, fp) == 1;                               \
     } while (0)
 
+    const auto FormatDate = [pszVersion, papszOptions](const char *pszItem)
+    {
+        const char *pszV = CSLFetchNameValue(papszOptions, pszItem);
+        if (!pszV || EQUAL(pszV, "DEFAULT"))
+        {
+            const char *pszDefaultDate = EQUAL(pszVersion, "NITF02.00")
+                                             ? "01000000ZJAN26"
+                                             : "20021216151629";
+            return pszDefaultDate;
+        }
+        if (EQUAL(pszV, "NOW"))
+        {
+            time_t now;
+            time(&now);
+            struct tm brokenDownTime;
+            CPLUnixTimeToYMDHMS(now, &brokenDownTime);
+            if (EQUAL(pszVersion, "NITF02.00"))
+            {
+                // DDHHMMSSZMONYY
+                const char *const aszMonth[] = {"JAN", "FEB", "MAR", "APR",
+                                                "MAY", "JUN", "JUL", "AUG",
+                                                "SEP", "OCT", "NOV", "DEC"};
+                return CPLSPrintf(
+                    "%02d%02d%02d%02dZ%s%02d", brokenDownTime.tm_mday,
+                    brokenDownTime.tm_hour, brokenDownTime.tm_min,
+                    brokenDownTime.tm_sec,
+                    aszMonth[std::max(0, brokenDownTime.tm_mon) % 12],
+                    brokenDownTime.tm_year % 100);
+            }
+            else
+            {
+                // CCYYMMDDhhmmss
+                return CPLSPrintf(
+                    "%04d%02d%02d%02d%02d%02d", brokenDownTime.tm_year + 1900,
+                    brokenDownTime.tm_mon + 1, brokenDownTime.tm_mday,
+                    brokenDownTime.tm_hour, brokenDownTime.tm_min,
+                    brokenDownTime.tm_sec);
+            }
+        }
+
+        return pszV;
+    };
+
     int nCOff = 0;
     if (!bAppendSubdataset)
     {
@@ -865,9 +909,7 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
         OVR(2, 9, CLEVEL, "03"); /* Patched at the end */
         PLACE(11, STYPE, EQUAL(pszVersion, "NITF02.00") ? "    " : "BF01");
         OVR(10, 15, OSTAID, "GDAL");
-        OVR(14, 25, FDT,
-            EQUAL(pszVersion, "NITF02.00") ? "01000000ZJAN26"
-                                           : "20021216151629");
+        OVR(14, 25, FDT, FormatDate("NITF_FDT"));
         OVR(80, 39, FTITLE, "");
         OVR(1, 119, FSCLAS, "U");
 
@@ -1129,9 +1171,7 @@ int NITFCreateEx(const char *pszFilename, int nPixels, int nLines, int nBands,
 
         PLACE(nCur + 0, IM, "IM");
         OVR(10, nCur + 2, IID1, "Missing");
-        OVR(14, nCur + 12, IDATIM,
-            EQUAL(pszVersion, "NITF02.00") ? "01000000ZJAN26"
-                                           : "20021216151629");
+        OVR(14, nCur + 12, IDATIM, FormatDate("NITF_IDATIM"));
         OVR(17, nCur + 26, TGTID, "");
         if (EQUAL(pszVersion, "NITF02.00"))
         {
