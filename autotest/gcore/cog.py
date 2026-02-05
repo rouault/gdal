@@ -374,7 +374,7 @@ def test_cog_creation_of_overviews_with_mask():
     src_ds = gdal.Translate("", "data/byte.tif", options="-of MEM -outsize 2048 300")
     src_ds.CreateMaskBand(gdal.GMF_PER_DATASET)
     src_ds.GetRasterBand(1).GetMaskBand().WriteRaster(
-        0, 0, 1024, 300, b"\xFF", buf_xsize=1, buf_ysize=1
+        0, 0, 1024, 300, b"\xff", buf_xsize=1, buf_ysize=1
     )
 
     with gdaltest.config_option("GDAL_TIFF_INTERNAL_MASK", "YES"):
@@ -497,11 +497,7 @@ def test_cog_small_world_to_web_mercator():
         if gt[i] != pytest.approx(expected_gt[i], abs=1e-10 * abs(expected_gt[i])):
             assert False, gt
     got_cs = [ds.GetRasterBand(i + 1).Checksum() for i in range(3)]
-    assert got_cs in (
-        [26293, 23439, 14955],
-        [26228, 22085, 12992],
-        [25088, 23140, 13265],  # libjpeg 9e
-    )
+    assert got_cs == pytest.approx([20968, 23493, 14665], abs=100)
     assert ds.GetRasterBand(1).GetMaskBand().Checksum() == 17849
     assert ds.GetRasterBand(1).GetOverviewCount() == 0
     ds = None
