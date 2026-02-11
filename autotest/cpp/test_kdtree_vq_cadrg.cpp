@@ -130,7 +130,7 @@ TEST_F(test_kdtree_vq_cadrg, kdtree)
         13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13});
     const auto &got_1 = items[1].m_vec;
     EXPECT_EQ(got_1, expect_v1);
-    const std::vector<int> indices_1{14, 12, 13};
+    const std::vector<int> indices_1{12, 13, 14};
     EXPECT_EQ(indices_1, items[1].m_origVectorIndices);
 
     EXPECT_EQ(items[2].m_count, 4);

@@ -51,6 +51,8 @@
 
 #include "cpl_error.h"
 
+// #define DEBUG_INVARIANTS
+
 #ifdef KDTREE_DEBUG_TIMING
 #include <sys/time.h>
 
@@ -323,6 +325,16 @@ int PNNKDTree<T>::insert(std::vector<BucketItem<T>> &&vectors, int totalCount,
                          std::vector<BucketItem<T>> &vectLeft,
                          std::vector<BucketItem<T>> &vectRight, const T &ctxt)
 {
+#ifdef DEBUG_INVARIANTS
+    std::map<Vector<T>, int> mapValuesToBucketIdx;
+    for (int i = 0; i < static_cast<int>(vectors.size()); ++i)
+    {
+        CPLAssert(mapValuesToBucketIdx.find(vectors[i].m_vec) ==
+                  mapValuesToBucketIdx.end());
+        mapValuesToBucketIdx[vectors[i].m_vec] = i;
+    }
+#endif
+
     if (vectors.size() <= BUCKET_MAX_SIZE)
     {
         m_bucketItems = std::move(vectors);
@@ -686,6 +698,9 @@ int PNNKDTree<T>::cluster(int initialBucketCount, int targetCount,
     distCollector.reserve(curBucketCount);
 
     int iter = 0;
+#ifdef DEBUG_INVARIANTS
+    std::map<Vector<T>, int> mapValuesToBucketIdx;
+#endif
     while (curBucketCount > targetCount)
     {
         /* For each bucket (leaf node), compute the increase in distortion
@@ -804,7 +819,6 @@ int PNNKDTree<T>::cluster(int initialBucketCount, int targetCount,
                     invalidatedClusters.insert(std::pair(tupleInfo.bucket, 0))
                         .first;
             }
-            oIter->second |= ((1U << tupleInfo.i) | (1U << tupleInfo.j));
 
             auto &bucketItemI = tupleInfo.bucket->m_bucketItems[tupleInfo.i];
             const auto &bucketItemJ =
@@ -818,18 +832,49 @@ int PNNKDTree<T>::cluster(int initialBucketCount, int targetCount,
             struct timeval tv1, tv2;
             gettimeofday(&tv1, nullptr);
 #endif
-            tupleInfo.bucket->m_bucketItems.emplace_back(
-                Vector<T>::centroid(bucketItemI.m_vec, bucketItemI.m_count,
-                                    bucketItemJ.m_vec, bucketItemJ.m_count,
-                                    ctxt),
-                bucketItemI.m_count + bucketItemJ.m_count,
-                std::move(origVectorIndices));
+            auto newVal = Vector<T>::centroid(
+                bucketItemI.m_vec, bucketItemI.m_count, bucketItemJ.m_vec,
+                bucketItemJ.m_count, ctxt);
 
 #ifdef KDTREE_DEBUG_TIMING
             gettimeofday(&tv2, nullptr);
             totalTimeCentroid += (tv2.tv_sec + tv2.tv_usec * 1e-6) -
                                  (tv1.tv_sec + tv1.tv_usec * 1e-6);
 #endif
+
+            // Look if there is an existing item in the bucket with the new
+            // vector value
+            int bucketItemIdx = -1;
+            for (int i = 0;
+                 i < static_cast<int>(tupleInfo.bucket->m_bucketItems.size());
+                 ++i)
+            {
+                if ((oIter->second & (1U << i)) == 0 &&
+                    tupleInfo.bucket->m_bucketItems[i].m_vec == newVal)
+                {
+                    bucketItemIdx = i;
+                    break;
+                }
+            }
+            oIter->second |= ((1U << tupleInfo.i) | (1U << tupleInfo.j));
+            int newCount = bucketItemI.m_count + bucketItemJ.m_count;
+            if (bucketItemIdx >= 0 && bucketItemIdx != tupleInfo.i &&
+                bucketItemIdx != tupleInfo.j)
+            {
+                oIter->second |= ((1U << bucketItemIdx));
+                auto &existingItem =
+                    tupleInfo.bucket->m_bucketItems[bucketItemIdx];
+                newCount += existingItem.m_count;
+                origVectorIndices.insert(
+                    origVectorIndices.end(),
+                    std::make_move_iterator(
+                        existingItem.m_origVectorIndices.begin()),
+                    std::make_move_iterator(
+                        existingItem.m_origVectorIndices.end()));
+            }
+            // Insert the new bucket item
+            tupleInfo.bucket->m_bucketItems.emplace_back(
+                std::move(newVal), newCount, std::move(origVectorIndices));
 
             --expectedBucketCount;
         }
@@ -839,13 +884,26 @@ int PNNKDTree<T>::cluster(int initialBucketCount, int targetCount,
         {
             // Inside a same bucket, be careful to remove from the end so that
             // noted indices are still valid...
-            for (int i = BUCKET_MAX_SIZE - 1; i >= 0; --i)
+            for (int i = static_cast<int>(node->m_bucketItems.size()) - 1;
+                 i >= 0; --i)
             {
                 if ((indices & (1U << i)) != 0)
                 {
                     node->m_bucketItems.erase(node->m_bucketItems.begin() + i);
                 }
             }
+
+#ifdef DEBUG_INVARIANTS
+            mapValuesToBucketIdx.clear();
+            for (int i = 0; i < static_cast<int>(node->m_bucketItems.size());
+                 ++i)
+            {
+                CPLAssert(
+                    mapValuesToBucketIdx.find(node->m_bucketItems[i].m_vec) ==
+                    mapValuesToBucketIdx.end());
+                mapValuesToBucketIdx[node->m_bucketItems[i].m_vec] = i;
+            }
+#endif
         }
 
         // Rebalance the tree only half of the time, to speed up things a bit
@@ -897,20 +955,47 @@ int PNNKDTree<T>::rebalance(const T &ctxt,
         struct timeval tv1, tv2;
         gettimeofday(&tv1, nullptr);
 #endif
-        newLeaves.clear();
+        std::map<Vector<T>,
+                 std::pair<int, std::vector<typename BucketItem<T>::IdxType>>>
+            mapVectors;
         int totalCount = 0;
+        // Rebuild a new map of vector values -> (count, indices)
+        // This needs to be a map as we cannot guarantee the uniqueness
+        // of vector values after the clustering pass
         iterateOverLeaves(
-            [&newLeaves, &totalCount](PNNKDTree &bucket)
+            [&mapVectors, &totalCount](PNNKDTree &bucket)
             {
-                for (const auto &item : bucket.m_bucketItems)
+                for (auto &item : bucket.m_bucketItems)
+                {
                     totalCount += item.m_count;
-                newLeaves.insert(
-                    newLeaves.end(),
-                    std::make_move_iterator(bucket.m_bucketItems.begin()),
-                    std::make_move_iterator(bucket.m_bucketItems.end()));
+                    auto oIter = mapVectors.find(item.m_vec);
+                    if (oIter == mapVectors.end())
+                    {
+                        mapVectors[item.m_vec] = std::make_pair(
+                            item.m_count, std::move(item.m_origVectorIndices));
+                    }
+                    else
+                    {
+                        oIter->second.first += item.m_count;
+                        oIter->second.second.insert(
+                            oIter->second.second.end(),
+                            std::make_move_iterator(
+                                item.m_origVectorIndices.begin()),
+                            std::make_move_iterator(
+                                item.m_origVectorIndices.end()));
+                    }
+                }
             });
 
         freeAndMoveToQueue(queueNodes);
+
+        // Convert the map to an array
+        newLeaves.clear();
+        for (auto &[key, value] : mapVectors)
+        {
+            newLeaves.emplace_back(std::move(key), value.first,
+                                   std::move(value.second));
+        }
 
         std::vector<ValType> vals;
         std::vector<BucketItem<T>> vectLeft;

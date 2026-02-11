@@ -7053,7 +7053,7 @@ def test_nitf_create_cadrg(tmp_path):
     ds = gdal.Open(tmp_path / "1" / "out_cadrg.ntf")
     assert ds.RasterCount == 1
     assert ds.GetRasterBand(1).GetColorTable().GetCount() == 216
-    assert ds.GetRasterBand(1).Checksum() == 33977
+    assert ds.GetRasterBand(1).Checksum() == 41955
     assert ds.GetMetadata_Dict() == {
         "NITF_ABPP": "08",
         "NITF_CCS_COLUMN": "0",
@@ -7355,7 +7355,7 @@ def test_nitf_create_cadrg_with_transparency(tmp_path):
     )
     assert ds.GetRasterBand(1).ReadRaster(1534, 0, 2, 2) == b"\xd8" * 4
     assert ds.GetRasterBand(1).GetColorTable().GetCount() == 217
-    assert ds.GetRasterBand(1).Checksum() == 35506
+    assert ds.GetRasterBand(1).Checksum() == 51475
 
     tres = ds.GetMetadata("xml:TRE")[0]
     # print(tres)
@@ -7431,7 +7431,7 @@ def test_nitf_create_cadrg_auto_tile_north_hemisphere(tmp_path):
         assert ds.GetGeoTransform() == pytest.approx(
             (-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232)
         )
-        assert ds.GetRasterBand(1).Checksum() == 42233
+        assert ds.GetRasterBand(1).Checksum() == 42239
 
     with gdal.Open(tmp_path / "RPF/ZONE2/0000A010.MM2") as ds:
         assert ds.GetGeoTransform() == pytest.approx(
@@ -7450,7 +7450,7 @@ def test_nitf_create_cadrg_auto_tile_north_hemisphere(tmp_path):
         assert ds.GetGeoTransform() == pytest.approx(
             (-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232)
         )
-        assert ds.GetRasterBand(1).Checksum() == 42233
+        assert ds.GetRasterBand(1).Checksum() == 42239
 
     src_rgb_ds = gdal.Translate("", src_ds, options="-of VRT -expand rgb")
     gdal.Translate(
@@ -7464,7 +7464,7 @@ def test_nitf_create_cadrg_auto_tile_north_hemisphere(tmp_path):
         assert ds.GetGeoTransform() == pytest.approx(
             (-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232)
         )
-        assert ds.GetRasterBand(1).Checksum() == 51323
+        assert ds.GetRasterBand(1).Checksum() == 53526
 
 
 ###############################################################################
