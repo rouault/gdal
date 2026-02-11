@@ -4588,19 +4588,20 @@ PDFDataset *PDFDataset::Open(GDALOpenInfo *poOpenInfo)
 #ifdef HAVE_POPPLER
     if (bUseLib.test(PDFLIB_POPPLER))
     {
-        static bool globalParamsCreatedByGDAL = false;
+        static bool globalParamsCreatedByGDAL = []()
         {
-            CPLMutexHolderD(&hGlobalParamsMutex);
+            bool ret = false;
             /* poppler global variable */
-            if (globalParams == nullptr)
+            if (!globalParams)
             {
-                globalParamsCreatedByGDAL = true;
-                globalParams.reset(new GlobalParams());
+                ret = true;
+                globalParams = std::make_unique<GlobalParams>();
             }
+            return ret;
+        }();
 
-            globalParams->setPrintCommands(CPLTestBool(
-                CPLGetConfigOption("GDAL_PDF_PRINT_COMMANDS", "FALSE")));
-        }
+        globalParams->setPrintCommands(CPLTestBool(
+            CPLGetConfigOption("GDAL_PDF_PRINT_COMMANDS", "FALSE")));
 
         const auto registerErrorCallback = []()
         {

@@ -1330,15 +1330,15 @@ GDALCOGCreator::Create(const char *pszFilename, GDALDataset *const poSrcDS,
     {
         if (pszOverviewQuality && CPLAtof(pszOverviewQuality) == 100.0)
         {
-            poWebpLosslessSetter.reset(new CPLConfigOptionSetter(
-                "WEBP_LOSSLESS_OVERVIEW", "TRUE", true));
+            poWebpLosslessSetter = std::make_unique<CPLConfigOptionSetter>(
+                "WEBP_LOSSLESS_OVERVIEW", "TRUE", true);
         }
         else
         {
-            poWebpLosslessSetter.reset(new CPLConfigOptionSetter(
-                "WEBP_LOSSLESS_OVERVIEW", "FALSE", true));
-            poWebpLevelSetter.reset(new CPLConfigOptionSetter(
-                "WEBP_LEVEL_OVERVIEW", pszOverviewQuality, true));
+            poWebpLosslessSetter = std::make_unique<CPLConfigOptionSetter>(
+                "WEBP_LOSSLESS_OVERVIEW", "FALSE", true);
+            poWebpLevelSetter = std::make_unique<CPLConfigOptionSetter>(
+                "WEBP_LEVEL_OVERVIEW", pszOverviewQuality, true);
         }
     }
 
@@ -1346,8 +1346,8 @@ GDALCOGCreator::Create(const char *pszFilename, GDALDataset *const poSrcDS,
     if (nBands == 3 && EQUAL(pszOverviewCompress, "JPEG") &&
         EQUAL(pszInterleave, "PIXEL"))
     {
-        poPhotometricSetter.reset(
-            new CPLConfigOptionSetter("PHOTOMETRIC_OVERVIEW", "YCBCR", true));
+        poPhotometricSetter = std::make_unique<CPLConfigOptionSetter>(
+            "PHOTOMETRIC_OVERVIEW", "YCBCR", true);
     }
 
     const char *osOvrPredictor =
@@ -1360,8 +1360,10 @@ GDALCOGCreator::Create(const char *pszFilename, GDALDataset *const poSrcDS,
         GDALDriver::FromHandle(GDALGetDriverByName("GTiff"));
     if (!poGTiffDrv)
         return nullptr;
-    void *pScaledProgress = GDALCreateScaledProgress(
-        dfCurPixels / dfTotalPixelsToProcess, 1.0, pfnProgress, pProgressData);
+    std::unique_ptr<void, decltype(&GDALDestroyScaledProgress)> pScaledProgress(
+        GDALCreateScaledProgress(dfCurPixels / dfTotalPixelsToProcess, 1.0,
+                                 pfnProgress, pProgressData),
+        GDALDestroyScaledProgress);
 
     CPLConfigOptionSetter oSetterInternalMask("GDAL_TIFF_INTERNAL_MASK", "YES",
                                               false);
@@ -1392,9 +1394,11 @@ GDALCOGCreator::Create(const char *pszFilename, GDALDataset *const poSrcDS,
     CPLDebug("COG", "Generating final product: start");
     auto poRet = std::unique_ptr<GDALDataset>(
         poGTiffDrv->CreateCopy(pszFilename, poCurDS, false, aosOptions.List(),
-                               GDALScaledProgress, pScaledProgress));
+                               GDALScaledProgress, pScaledProgress.get()));
 
-    GDALDestroyScaledProgress(pScaledProgress);
+    CPL_IGNORE_RET_VAL(poWebpLosslessSetter);
+    CPL_IGNORE_RET_VAL(poWebpLevelSetter);
+    CPL_IGNORE_RET_VAL(poPhotometricSetter);
 
     CPLDebug("COG", "Generating final product: end");
     return poRet;

@@ -2419,8 +2419,8 @@ static bool GetCompoundDataType(int gid, int nVarType,
         comps.emplace_back(std::make_unique<GDALEDTComponent>(
             std::string(field_name), field_offset, *subDt));
     }
-    dt.reset(new GDALExtendedDataType(
-        GDALExtendedDataType::Create(szName, compoundsize, std::move(comps))));
+    dt = std::make_unique<GDALExtendedDataType>(
+        GDALExtendedDataType::Create(szName, compoundsize, std::move(comps)));
 
     return dt->GetClass() == GEDTC_COMPOUND;
 }
@@ -2448,8 +2448,8 @@ static bool BuildDataType(int gid, int varid, const int nVarTypeIn,
             if (eDataType != GDT_Unknown)
             {
                 bPerfectDataTypeMatch = true;
-                dt.reset(new GDALExtendedDataType(
-                    GDALExtendedDataType::Create(eDataType)));
+                dt = std::make_unique<GDALExtendedDataType>(
+                    GDALExtendedDataType::Create(eDataType));
                 return true;
             }
             else if (GetCompoundDataType(gid, nVarType, dt,
@@ -2622,13 +2622,14 @@ static bool BuildDataType(int gid, int varid, const int nVarTypeIn,
             poRAT->SetValue(i, 0, nValue);
             poRAT->SetValue(i, 1, szName);
         }
-        dt.reset(new GDALExtendedDataType(GDALExtendedDataType::Create(
-            szEnumName, eDataType, std::move(poRAT))));
+        dt =
+            std::make_unique<GDALExtendedDataType>(GDALExtendedDataType::Create(
+                szEnumName, eDataType, std::move(poRAT)));
     }
     else
     {
-        dt.reset(
-            new GDALExtendedDataType(GDALExtendedDataType::Create(eDataType)));
+        dt = std::make_unique<GDALExtendedDataType>(
+            GDALExtendedDataType::Create(eDataType));
     }
     return true;
 }
@@ -2646,13 +2647,13 @@ const GDALExtendedDataType &netCDFVariable::GetDataType() const
     if (m_nDims == 2 && m_nVarType == NC_CHAR && m_nTextLength > 0)
     {
         m_bPerfectDataTypeMatch = true;
-        m_dt.reset(new GDALExtendedDataType(
-            GDALExtendedDataType::CreateString(m_nTextLength)));
+        m_dt = std::make_unique<GDALExtendedDataType>(
+            GDALExtendedDataType::CreateString(m_nTextLength));
     }
     else
     {
-        m_dt.reset(new GDALExtendedDataType(
-            GDALExtendedDataType::Create(GDT_Unknown)));
+        m_dt = std::make_unique<GDALExtendedDataType>(
+            GDALExtendedDataType::Create(GDT_Unknown));
 
         BuildDataType(m_gid, m_varid, m_nVarType, m_dt,
                       m_bPerfectDataTypeMatch);
@@ -4511,7 +4512,7 @@ netCDFAttribute::netCDFAttribute(
     CPLMutexHolderD(&hNCMutex);
     m_bPerfectDataTypeMatch = true;
     m_nAttType = CreateOrGetType(gid, oDataType);
-    m_dt.reset(new GDALExtendedDataType(oDataType));
+    m_dt = std::make_unique<GDALExtendedDataType>(oDataType);
     if (!anDimensions.empty())
     {
         m_dims.emplace_back(std::make_shared<GDALDimension>(
@@ -4636,13 +4637,13 @@ const GDALExtendedDataType &netCDFAttribute::GetDataType() const
 
     if (m_nAttType == NC_CHAR)
     {
-        m_dt.reset(
-            new GDALExtendedDataType(GDALExtendedDataType::CreateString()));
+        m_dt = std::make_unique<GDALExtendedDataType>(
+            GDALExtendedDataType::CreateString());
     }
     else
     {
-        m_dt.reset(new GDALExtendedDataType(
-            GDALExtendedDataType::Create(GDT_Unknown)));
+        m_dt = std::make_unique<GDALExtendedDataType>(
+            GDALExtendedDataType::Create(GDT_Unknown));
         BuildDataType(m_gid, m_varid, m_nAttType, m_dt,
                       m_bPerfectDataTypeMatch);
     }
