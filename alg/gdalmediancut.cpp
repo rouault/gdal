@@ -1262,3 +1262,31 @@ template int GDALComputeMedianCutPCTInternal<GUIntBig>(
     int (*pfnIncludePixel)(int, int, void *), int nColors, int nBits,
     GUIntBig *panHistogram, GDALColorTableH hColorTable,
     GDALProgressFunc pfnProgress, void *pProgressArg);
+
+int GDALComputeMedianCutPCT(GDALRasterBandH hRed, GDALRasterBandH hGreen,
+                            GDALRasterBandH hBlue, GByte *pabyRedBand,
+                            GByte *pabyGreenBand, GByte *pabyBlueBand,
+                            int (*pfnIncludePixel)(int, int, void *),
+                            int nColors, int nBits, GUInt32 *panHistogram,
+                            GDALColorTableH hColorTable,
+                            GDALProgressFunc pfnProgress, void *pProgressArg)
+{
+    return GDALComputeMedianCutPCTInternal<GUInt32>(
+        hRed, hGreen, hBlue, pabyRedBand, pabyGreenBand, pabyBlueBand,
+        pfnIncludePixel, nColors, nBits, panHistogram, hColorTable, pfnProgress,
+        pProgressArg);
+}
+
+int GDALComputeMedianCutPCT(GDALRasterBandH hRed, GDALRasterBandH hGreen,
+                            GDALRasterBandH hBlue, GByte *pabyRedBand,
+                            GByte *pabyGreenBand, GByte *pabyBlueBand,
+                            int (*pfnIncludePixel)(int, int, void *),
+                            int nColors, int nBits, GUIntBig *panHistogram,
+                            GDALColorTableH hColorTable,
+                            GDALProgressFunc pfnProgress, void *pProgressArg)
+{
+    return GDALComputeMedianCutPCTInternal<GUIntBig>(
+        hRed, hGreen, hBlue, pabyRedBand, pabyGreenBand, pabyBlueBand,
+        pfnIncludePixel, nColors, nBits, panHistogram, hColorTable, pfnProgress,
+        pProgressArg);
+}

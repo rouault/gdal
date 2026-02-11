@@ -7330,6 +7330,36 @@ def test_nitf_create_cadrg(tmp_path):
 
 
 @gdaltest.enable_exceptions()
+@pytest.mark.parametrize(
+    "COLOR_QUANTIZATION_BITS,expected_cs", [(5, 29165), (8, 17498)]
+)
+def test_nitf_create_cadrg_color_quantization_bits(
+    tmp_path, COLOR_QUANTIZATION_BITS, expected_cs
+):
+
+    gdal.Translate(
+        tmp_path / "out",
+        gdal.Translate(
+            "", gdal.Open("data/small_world.tif"), format="MEM", projWin=[2, 50, 4, 48]
+        ),
+        format="NITF",
+        creationOptions=[
+            "PRODUCT_TYPE=CADRG",
+            "SCALE=10000000",
+            "COLOR_QUANTIZATION_BITS=" + str(COLOR_QUANTIZATION_BITS),
+        ],
+    )
+
+    ds = gdal.Open(tmp_path / "out" / "RPF" / "ZONE2" / "0000L010.MM2")
+    assert ds.RasterCount == 1
+    assert ds.GetRasterBand(1).GetColorTable().GetCount() == 217
+    assert ds.GetRasterBand(1).Checksum() == expected_cs
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
 def test_nitf_create_cadrg_with_transparency(tmp_path):
 
     gdal.alg.raster.pipeline(

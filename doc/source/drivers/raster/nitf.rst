@@ -353,6 +353,15 @@ The following creation options are available:
 
 The following options are only valid for PRODUCT_TYPE=CADRG.
 
+-  .. co:: COLOR_QUANTIZATION_BITS
+      :choices: 5, 6, 7, 8
+      :default: 5
+      :since: 3.13
+
+      Number of bits per R,G,B color component used during color palette
+      computation. The higher the better quality and slower computation time.
+      Only used when PRODUCT_TYPE=CADRG.
+
 -  .. co:: SCALE
       :choices: <integer>
       :since: 3.13
