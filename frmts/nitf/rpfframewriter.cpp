@@ -15,12 +15,14 @@
 #include "cpl_enumerate.h"
 #include "cpl_string.h"
 #include "cpl_time.h"
+#include "cpl_worker_thread_pool.h"
 #include "gdal_alg.h"
 #include "gdal_alg_priv.h"
 #include "gdal_colortable.h"
 #include "gdal_dataset.h"
 #include "gdal_geotransform.h"
 #include "gdal_rasterband.h"
+#include "gdal_thread_pool.h"
 #include "gdal_utils.h"
 #include "offsetpatcher.h"
 #include "nitfdataset.h"
@@ -31,6 +33,7 @@
 #include <algorithm>
 #include <array>
 #include <map>
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -2445,11 +2448,35 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                 aosOptions.SetNameValue("ZONE",
                                         CPLSPrintf("%d", frameDef.nZone));
 
-                for (int iY = frameDef.nFrameMinY; iY <= frameDef.nFrameMaxY;
-                     ++iY)
+                const int nFrameCountThisZone =
+                    (frameDef.nFrameMaxY - frameDef.nFrameMinY + 1) *
+                    (frameDef.nFrameMaxX - frameDef.nFrameMinX + 1);
+                // Limit to 4 as it doesn't scale beyond
+                const int nNumThreads =
+                    std::min(GDALGetNumThreads(/* nMaxThreads = */ 4,
+                                               /* bDefaultToAllCPUs = */ true),
+                             nFrameCountThisZone);
+                CPLJobQueuePtr jobQueue;
+                std::unique_ptr<CPLWorkerThreadPool> poTP;
+                if (nNumThreads > 1)
+                {
+                    poTP = std::make_unique<CPLWorkerThreadPool>();
+                    if (poTP->Setup(nNumThreads, nullptr, nullptr))
+                    {
+                        jobQueue = poTP->CreateJobQueue();
+                    }
+                }
+
+                std::mutex oMutex;
+                bool bError = false;
+                bool bErrorLocal = false;
+                int nCurFrameThisZone = 0;
+                std::string osErrorMsg;
+                for (int iY = frameDef.nFrameMinY;
+                     !bErrorLocal && iY <= frameDef.nFrameMaxY; ++iY)
                 {
                     for (int iX = frameDef.nFrameMinX;
-                         iX <= frameDef.nFrameMaxX; ++iX)
+                         !bErrorLocal && iX <= frameDef.nFrameMaxX; ++iX)
                     {
                         std::string osFilename = CPLFormFilenameSafe(
                             osZoneDir.c_str(),
@@ -2462,82 +2489,165 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                         osFilename += '.';
                         osFilename += pszSeriesCode;
                         osFilename += RPFCADRGZoneNumToChar(frameDef.nZone);
-                        CPLDebug("CADRG", "Creating file %s",
-                                 osFilename.c_str());
 
-                        RPFGetCADRGFrameExtent(
-                            frameDef.nZone, frameDef.nReciprocalScale, iX, iY,
-                            dfXMin, dfYMin, dfXMax, dfYMax);
-                        CPLDebugOnly("CADRG", "Frame extent: %f %f %f %f",
-                                     dfXMin, dfYMin, dfXMax, dfYMax);
-
-                        auto poClippedDS = CADRGGetClippedDataset(
-                            poWarpedDS.get(), dfXMin, dfYMin, dfXMax, dfYMax);
-                        if (poClippedDS)
+                        const auto task =
+                            [osFilename, dfFrameMinX, dfFrameMinY, dfFrameMaxX,
+                             dfFrameMaxY, bFrameFullyInSrcDS, poCT, nRecLevel,
+                             nColorQuantizationBits, bStrict,
+                             bColorTablePerFrame, &oMutex, &poWarpedDS,
+                             &nCurFrameThisZone, &nCurFrameCounter, &bError,
+                             &oCT, &aosOptions, &bMissingFramesFound,
+                             &osErrorMsg]()
                         {
-                            if (poCT)
                             {
-                                if (!(dfXMin >= sExtent.MinX &&
-                                      dfYMin >= sExtent.MinY &&
-                                      dfXMax <= sExtent.MaxX &&
-                                      dfYMax <= sExtent.MaxY))
+                                std::lock_guard oLock(oMutex);
+                                if (bError)
+                                    return;
+                            }
+                            CPLDebug("CADRG", "Creating file %s",
+                                     osFilename.c_str());
+
+                            double dfFrameMinX = 0;
+                            double dfFrameMinY = 0;
+                            double dfFrameMaxX = 0;
+                            double dfFrameMaxY = 0;
+                            RPFGetCADRGFrameExtent(
+                                frameDef.nZone, frameDef.nReciprocalScale, iX,
+                                iY, dfFrameMinX, dfFrameMinY, dfFrameMaxX,
+                                dfFrameMaxY);
+                            CPLDebugOnly("CADRG", "Frame extent: %f %f %f %f",
+                                         dfFrameMinX, dfFrameMinY, dfFrameMaxX,
+                                         dfFrameMaxY);
+
+                            std::unique_ptr<GDALDataset> poClippedDS;
+                            {
+                                // Lock because poWarpedDS is not thread-safe
+                                std::lock_guard oLock(oMutex);
+                                poClippedDS = CADRGGetClippedDataset(
+                                    poWarpedDS.get(), dfFrameMinX, dfFrameMinY,
+                                    dfFrameMaxX, dfFrameMaxY);
+                            }
+                            if (poClippedDS)
+                            {
+                                if (poCT)
                                 {
-                                    // If the CADRG frame is not strictly inside
-                                    // the zone extent, add a transparent color
-                                    poClippedDS->GetRasterBand(1)
-                                        ->SetNoDataValue(
-                                            TRANSPARENT_COLOR_TABLE_ENTRY);
-                                    GDALColorEntry sEntry = {0, 0, 0, 0};
-                                    poClippedDS->GetRasterBand(1)
-                                        ->GetColorTable()
-                                        ->SetColorEntry(
-                                            TRANSPARENT_COLOR_TABLE_ENTRY,
-                                            &sEntry);
+                                    if (!(dfFrameMinX >= sExtent.MinX &&
+                                          dfFrameMinY >= sExtent.MinY &&
+                                          dfFrameMaxX <= sExtent.MaxX &&
+                                          dfFrameMaxY <= sExtent.MaxY))
+                                    {
+                                        // If the CADRG frame is not strictly inside
+                                        // the zone extent, add a transparent color
+                                        poClippedDS->GetRasterBand(1)
+                                            ->SetNoDataValue(
+                                                TRANSPARENT_COLOR_TABLE_ENTRY);
+                                        GDALColorEntry sEntry = {0, 0, 0, 0};
+                                        poClippedDS->GetRasterBand(1)
+                                            ->GetColorTable()
+                                            ->SetColorEntry(
+                                                TRANSPARENT_COLOR_TABLE_ENTRY,
+                                                &sEntry);
+                                    }
+                                }
+                                else if (!bColorTablePerFrame)
+                                {
+                                    poClippedDS = CADRGGetPalettedDataset(
+                                        poClippedDS.get(), &oCT,
+                                        nColorQuantizationBits);
                                 }
                             }
-                            else if (!bColorTablePerFrame)
+
+                            std::unique_ptr<GDALDataset> poDS_CADRG;
+                            if (poClippedDS)
                             {
-                                poClippedDS = CADRGGetPalettedDataset(
-                                    poClippedDS.get(), &oCT,
-                                    nColorQuantizationBits);
+                                poDS_CADRG = NITFDataset::CreateCopy(
+                                    osFilename.c_str(), poClippedDS.get(),
+                                    bStrict, aosOptions.List(), nullptr,
+                                    nullptr, nRecLevel + 1);
+                            }
+                            if (!poDS_CADRG)
+                            {
+                                std::lock_guard oLock(oMutex);
+                                if (osErrorMsg.empty())
+                                    osErrorMsg = CPLGetLastErrorMsg();
+                                bError = true;
+                                return;
+                            }
+                            if (dynamic_cast<NITFDummyDataset *>(
+                                    poDS_CADRG.get()))
+                            {
+                                std::lock_guard oLock(oMutex);
+                                bMissingFramesFound = true;
+                            }
+                            poDS_CADRG.reset();
+                            VSIUnlink((osFilename + ".aux.xml").c_str());
+
+                            std::lock_guard oLock(oMutex);
+                            ++nCurFrameThisZone;
+                            ++nCurFrameCounter;
+                        };
+
+                        if (jobQueue)
+                        {
+                            if (!jobQueue->SubmitJob(task))
+                            {
+                                {
+                                    std::lock_guard oLock(oMutex);
+                                    bError = true;
+                                }
+                                bErrorLocal = true;
                             }
                         }
-
-                        const double dfProgressStart = dfLastPct;
-                        const double dfProgressRatio = 1.0 - dfLastPct;
-                        std::unique_ptr<void,
-                                        decltype(&GDALDestroyScaledProgress)>
-                            pScaledData(
-                                GDALCreateScaledProgress(
-                                    dfProgressStart +
-                                        dfProgressRatio * nCurFrameCounter /
+                        else
+                        {
+                            task();
+                            if (bError)
+                                return false;
+                            if (pfnProgress &&
+                                !pfnProgress(
+                                    dfLastPct +
+                                        (1.0 - dfLastPct) * nCurFrameCounter /
                                             std::max(1, nTotalFrameCount),
-                                    dfProgressStart +
-                                        dfProgressRatio *
-                                            (nCurFrameCounter + 1) /
-                                            std::max(1, nTotalFrameCount),
-                                    pfnProgress, pProgressData),
-                                GDALDestroyScaledProgress);
-                        std::unique_ptr<GDALDataset> poDS_CADRG;
-                        if (poClippedDS)
-                        {
-                            poDS_CADRG = NITFDataset::CreateCopy(
-                                osFilename.c_str(), poClippedDS.get(), bStrict,
-                                aosOptions.List(), GDALScaledProgress,
-                                pScaledData.get(), nRecLevel + 1);
+                                    "", pProgressData))
+                            {
+                                return false;
+                            }
                         }
-                        if (!poDS_CADRG)
-                        {
-                            return false;
-                        }
-                        if (dynamic_cast<NITFDummyDataset *>(poDS_CADRG.get()))
-                        {
-                            bMissingFramesFound = true;
-                        }
-                        poDS_CADRG.reset();
-                        VSIUnlink((osFilename + ".aux.xml").c_str());
+                    }
+                }
 
-                        ++nCurFrameCounter;
+                if (jobQueue)
+                {
+                    while (true)
+                    {
+                        {
+                            std::lock_guard oLock(oMutex);
+                            if (pfnProgress &&
+                                !pfnProgress(
+                                    dfLastPct +
+                                        (1.0 - dfLastPct) * nCurFrameCounter /
+                                            std::max(1, nTotalFrameCount),
+                                    "", pProgressData))
+                            {
+                                bError = true;
+                            }
+                            if (bError ||
+                                nCurFrameThisZone == nFrameCountThisZone)
+                                break;
+                        }
+                        jobQueue->WaitEvent();
+                    }
+
+                    jobQueue->WaitCompletion();
+                    std::lock_guard oLock(oMutex);
+                    if (bError)
+                    {
+                        if (!osErrorMsg.empty())
+                        {
+                            CPLError(CE_Failure, CPLE_AppDefined, "%s",
+                                     osErrorMsg.c_str());
+                        }
+                        return false;
                     }
                 }
             }
