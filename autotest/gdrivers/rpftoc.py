@@ -54,15 +54,24 @@ def test_rpftoc_1():
 
 
 def test_rpftoc_2():
-    with gdal.config_option("RPFTOC_FORCE_RGBA", "YES"):
-        tst = gdaltest.GDALTest(
-            "RPFTOC",
-            "NITF_TOC_ENTRY:CADRG_ONC_1,000,000_2_0:data/nitf/A.TOC",
-            1,
-            0,
-            filename_absolute=1,
-        )
-        tst.testOpen()
+    with gdal.config_option("RPFTOC_FORCE_RGBA", "YES"), gdal.Open(
+        "NITF_TOC_ENTRY:CADRG_ONC_1,000,000_2_0:data/nitf/A.TOC"
+    ) as ds:
+        assert ds.RasterCount == 4
+        assert [ds.GetRasterBand(i + 1).Checksum() for i in range(4)] == [0, 0, 0, 0]
+
+
+###############################################################################
+# Same test as rpftoc_1, but the dataset is forced to be opened in RGBA mode
+
+
+def test_rpftoc_force_rgba_open_option():
+    with gdal.OpenEx(
+        "NITF_TOC_ENTRY:CADRG_ONC_1,000,000_2_0:data/nitf/A.TOC",
+        open_options=["FORCE_RGBA=YES"],
+    ) as ds:
+        assert ds.RasterCount == 4
+        assert [ds.GetRasterBand(i + 1).Checksum() for i in range(4)] == [0, 0, 0, 0]
 
 
 ###############################################################################

@@ -35,22 +35,13 @@ Result of a gdalinfo on a A.TOC file.
      SUBDATASET_13_NAME=NITF_TOC_ENTRY:CADRG_JNC_2M_8_13:GNCJNCN/rpf/a.toc
      SUBDATASET_13_DESC=CADRG:JNC:Jet Navigation Chart:2M:8:13
 
-In some situations, :ref:`raster.nitf` tiles inside a subdataset
-don't share the same palettes. The RPFTOC driver will do its best to
-remap palettes to the reported palette by gdalinfo (which is the palette
-of the first tile of the subdataset). In situations where it would not
-give a good result, you can try to set the RPFTOC_FORCE_RGBA environment
-variable to TRUE before opening the subdataset. This will cause the
-driver to expose the subdataset as a RGBA dataset, instead of a paletted
-one.
-
 It is possible to build external overviews for a subdataset. The
 overview for the first subdataset will be named A.TOC.1.ovr for example,
 for the second dataset it will be A.TOC.2.ovr, etc. Note that you must
-re-open the subdataset with the same setting of RPFTOC_FORCE_RGBA as the
+re-open the subdataset with the same setting of :config:`RPFTOC_FORCE_RGBA` as the
 one you have used when you have created it. Do not use any method other
 than NEAREST resampling when building overviews on a paletted subdataset
-(RPFTOC_FORCE_RGBA unset)
+(:config:`RPFTOC_FORCE_RGBA` unset)
 
 A gdalinfo on one of this subdataset will return the various NITF
 metadata, as well as the list of the NITF tiles of the subdataset.
@@ -68,6 +59,39 @@ Driver capabilities
 .. supports_georeferencing::
 
 .. supports_virtualio::
+
+Open options
+------------
+
+|about-open-options|
+This driver supports the following open options:
+
+- .. oo:: FORCE_RGBA
+     :choices: YES, NO
+     :default: NO
+     :since: 3.13
+
+     In some situations, :ref:`raster.nitf` tiles inside a subdataset
+     don't share the same palettes. The RPFTOC driver will do its best to
+     remap palettes to the reported palette by gdalinfo (which is the palette
+     of the first tile of the subdataset). If it does not give a good result,
+     you can set this option to YES t get a RGBA dataset, instead of a paletted
+     one.
+
+     Equivalent to setting the :config:`RPFTOC_FORCE_RGBA` configuration option.
+
+Configuration options
+---------------------
+
+|about-config-options|
+This paragraph lists the configuration options that can be set to alter
+the default behavior of the RPFTC driver.
+
+-  .. config:: RPFTOC_FORCE_RGBA
+     :choices: YES, NO
+     :default: NO
+
+      Equivalent to setting the :oo:`FORCE_RGBA` open option.
 
 .. _raster.rpftoc.create:
 

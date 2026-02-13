@@ -206,6 +206,14 @@ void RPFTOCDriverSetCommonMetadata(GDALDriver *poDriver)
     poDriver->SetMetadataItem(GDAL_DCAP_OPEN, "YES");
     poDriver->pfnIdentify = RPFTOCDriverIdentify;
 
+    poDriver->SetMetadataItem(
+        GDAL_DMD_OPENOPTIONLIST,
+        "<OpenOptionList>"
+        "  <Option name='FORCE_RGBA' type='boolean' description='Whether "
+        "dataset should be exposed as RGBA rather than single band with "
+        "color palette' default='NO' />"
+        "</OpenOptionList>");
+
 #ifdef GDAL_ENABLE_ALGORITHMS
     poDriver->DeclareAlgorithm({"create"});
 #endif

@@ -127,7 +127,8 @@ class RPFTOCDataset final : public GDALPamDataset
     static int IsNITFFileTOC(NITFFile *psFile);
     static GDALDataset *OpenFileTOC(NITFFile *psFile, const char *pszFilename,
                                     const char *entryName,
-                                    const char *openInformationName);
+                                    const char *openInformationName,
+                                    CSLConstList papszOpenOptions);
 
     static GDALDataset *Open(GDALOpenInfo *poOpenInfo);
 };
@@ -1099,7 +1100,8 @@ int RPFTOCDataset::IsNITFFileTOC(NITFFile *psFile)
 GDALDataset *RPFTOCDataset::OpenFileTOC(NITFFile *psFile,
                                         const char *pszFilename,
                                         const char *entryName,
-                                        const char *openInformationName)
+                                        const char *openInformationName,
+                                        CSLConstList papszOpenOptionsIn)
 {
     char buffer[48];
     VSILFILE *fp = nullptr;
@@ -1120,8 +1122,9 @@ GDALDataset *RPFTOCDataset::OpenFileTOC(NITFFile *psFile,
             return nullptr;
         }
     }
-    const int isRGBA =
-        CPLTestBool(CPLGetConfigOption("RPFTOC_FORCE_RGBA", "NO"));
+    const bool isRGBA = CPLTestBool(
+        CSLFetchNameValueDef(papszOpenOptionsIn, "FORCE_RGBA",
+                             CPLGetConfigOption("RPFTOC_FORCE_RGBA", "NO")));
     RPFToc *toc = (psFile) ? RPFTOCRead(pszFilename, psFile)
                            : RPFTOCReadFromBuffer(pszFilename, fp, buffer);
     if (fp)
@@ -1286,8 +1289,9 @@ GDALDataset *RPFTOCDataset::Open(GDALOpenInfo *poOpenInfo)
     if (RPFTOCIsNonNITFFileTOC((entryName != nullptr) ? nullptr : poOpenInfo,
                                pszFilename))
     {
-        GDALDataset *poDS = OpenFileTOC(nullptr, pszFilename, entryName,
-                                        poOpenInfo->pszFilename);
+        GDALDataset *poDS =
+            OpenFileTOC(nullptr, pszFilename, entryName,
+                        poOpenInfo->pszFilename, poOpenInfo->papszOpenOptions);
 
         CPLFree(entryName);
 
@@ -1316,8 +1320,9 @@ GDALDataset *RPFTOCDataset::Open(GDALOpenInfo *poOpenInfo)
     /* -------------------------------------------------------------------- */
     if (IsNITFFileTOC(psFile))
     {
-        GDALDataset *poDS = OpenFileTOC(psFile, pszFilename, entryName,
-                                        poOpenInfo->pszFilename);
+        GDALDataset *poDS =
+            OpenFileTOC(psFile, pszFilename, entryName, poOpenInfo->pszFilename,
+                        poOpenInfo->papszOpenOptions);
         NITFClose(psFile);
         CPLFree(entryName);
 
