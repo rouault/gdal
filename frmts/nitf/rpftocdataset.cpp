@@ -1414,7 +1414,8 @@ bool RPFTOCAlgorithmCreate::RunImpl(GDALProgressFunc, void *)
     if (m_output.empty())
         m_output = CPLFormFilenameSafe(m_input.c_str(), "A.TOC", nullptr);
     return RPFTOCCreate(m_input, m_output, m_classification[0], m_scale,
-                        m_producerID, m_producerName, m_securityCountryCode);
+                        m_producerID, m_producerName, m_securityCountryCode,
+                        /* bDoNotCreateIfNoFrame = */ false);
 }
 
 /************************************************************************/

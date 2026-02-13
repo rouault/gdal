@@ -20,6 +20,7 @@ bool RPFTOCCreate(const std::string &osInputDirectory,
                   const char chIndexClassification, const int nScale,
                   const std::string &osProducerID,
                   const std::string &osProducerName,
-                  const std::string &osSecurityCountryCode);
+                  const std::string &osSecurityCountryCode,
+                  bool bDoNotCreateIfNoFrame);
 
 #endif

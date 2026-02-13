@@ -702,13 +702,6 @@ static bool RPFTOCCollectFrames(
                   });
     }
 
-    if (oMapScaleZoneToFrames.empty())
-    {
-        CPLError(CE_Failure, CPLE_AppDefined, "No CADRG frame found in %s",
-                 osInputDirectory.c_str());
-        return false;
-    }
-
     return true;
 }
 
@@ -721,7 +714,8 @@ bool RPFTOCCreate(const std::string &osInputDirectory,
                   const char chIndexClassification, const int nScale,
                   const std::string &osProducerID,
                   const std::string &osProducerName,
-                  const std::string &osSecurityCountryCode)
+                  const std::string &osSecurityCountryCode,
+                  bool bDoNotCreateIfNoFrame)
 {
     std::unique_ptr<VSIDIR, decltype(&VSICloseDir)> psDir(
         VSIOpenDir(osInputDirectory.c_str(), -1 /* unlimited recursion */,
@@ -742,6 +736,20 @@ bool RPFTOCCreate(const std::string &osInputDirectory,
                              oMapScaleZoneToMinMaxFrameXY))
     {
         return false;
+    }
+
+    if (oMapScaleZoneToFrames.empty())
+    {
+        if (bDoNotCreateIfNoFrame)
+        {
+            return true;
+        }
+        else
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "No CADRG frame found in %s",
+                     osInputDirectory.c_str());
+            return false;
+        }
     }
 
     GDALOffsetPatcher::OffsetPatcher offsetPatcher;

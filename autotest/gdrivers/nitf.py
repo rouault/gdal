@@ -7711,3 +7711,96 @@ def test_nitf_create_cadrg_error_cases(tmp_vsimem, tmp_path):
             creationOptions=["PRODUCT_TYPE=CADRG", "SCALE=20000000"],
             format="NITF",
         )
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_blank_frame_rgb_0(tmp_vsimem):
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 1536, 1536, 3)
+    src_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+    src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
+    src_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    src_ds.SetGeoTransform(
+        [-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232]
+    )
+    gdal.GetDriverByName("NITF").CreateCopy(
+        tmp_vsimem / "out.ntf",
+        src_ds,
+        options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=MM", "SCALE=20000000", "ZONE=2"],
+    )
+
+    assert gdal.VSIStatL(tmp_vsimem / "out.ntf") is None
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_blank_frame_rgb_255(tmp_vsimem):
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 1536, 1536, 3)
+    src_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+    src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
+    src_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+    src_ds.GetRasterBand(1).Fill(255)
+    src_ds.GetRasterBand(2).Fill(255)
+    src_ds.GetRasterBand(3).Fill(255)
+    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    src_ds.SetGeoTransform(
+        [-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232]
+    )
+    gdal.GetDriverByName("NITF").CreateCopy(
+        tmp_vsimem / "out.ntf",
+        src_ds,
+        options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=MM", "SCALE=20000000", "ZONE=2"],
+    )
+
+    assert gdal.VSIStatL(tmp_vsimem / "out.ntf") is None
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_blank_frame_rgba(tmp_vsimem):
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 1, 1, 4)
+    src_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+    src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
+    src_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+    src_ds.GetRasterBand(4).SetColorInterpretation(gdal.GCI_AlphaBand)
+    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    src_ds.SetGeoTransform([2, 1, 0, 49, 0, -1])
+    gdal.GetDriverByName("NITF").CreateCopy(
+        tmp_vsimem, src_ds, options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=GN"]
+    )
+
+    assert gdal.ReadDirRecursive(tmp_vsimem) == ["RPF/", "RPF/ZONE1/"]
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_blank_frame_color_table(tmp_vsimem):
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 1536, 1536, 1)
+    ct = gdal.ColorTable()
+    ct.SetColorEntry(216, (0, 0, 0, 0))
+    src_ds.GetRasterBand(1).SetColorTable(ct)
+    src_ds.GetRasterBand(1).Fill(216)
+    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    src_ds.SetGeoTransform(
+        [-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232]
+    )
+    gdal.GetDriverByName("NITF").CreateCopy(
+        tmp_vsimem / "out.ntf",
+        src_ds,
+        options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=MM", "SCALE=20000000", "ZONE=2"],
+    )
+
+    assert gdal.VSIStatL(tmp_vsimem / "out.ntf") is None

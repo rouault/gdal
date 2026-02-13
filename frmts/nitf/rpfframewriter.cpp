@@ -1877,7 +1877,7 @@ CADRGGetPalettedDataset(GDALDataset *poSrcDS, GDALColorTable *poCT,
     auto poMemDrv = GetGDALDriverManager()->GetDriverByName("MEM");
     std::unique_ptr<GDALDataset> poPalettedDS(
         poMemDrv->Create("", poSrcDS->GetRasterXSize(),
-                         poSrcDS->GetRasterYSize(), 1, GDT_Byte, nullptr));
+                         poSrcDS->GetRasterYSize(), 1, GDT_UInt8, nullptr));
     if (poPalettedDS)
     {
         poPalettedDS->SetSpatialRef(poSrcDS->GetSpatialRef());
@@ -2039,7 +2039,7 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
     }
 
     const auto poCT = poSrcDS->GetRasterBand(1)->GetColorTable();
-    if (poCT && poCT->GetColorEntryCount() > CADRG_MAX_COLOR_ENTRY_COUNT + 1)
+    if (poCT && poCT->GetColorEntryCount() > CADRG_MAX_COLOR_ENTRY_COUNT)
     {
         for (int i = CADRG_MAX_COLOR_ENTRY_COUNT;
              i < poCT->GetColorEntryCount(); ++i)
@@ -2074,10 +2074,98 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
         }
     }
 
+    class NITFDummyDataset final : public GDALDataset
+    {
+      public:
+        NITFDummyDataset() = default;
+    };
+
     const bool bInputIsShapedAndNameForCADRG =
         poSrcDS->GetRasterXSize() == CADRG_FRAME_PIXEL_COUNT &&
         poSrcDS->GetRasterYSize() == CADRG_FRAME_PIXEL_COUNT &&
         bLooksLikeCADRGFilename;
+
+    // Check if it is a whole blank frame, and do not generate it.
+    if (bInputIsShapedAndNameForCADRG)
+    {
+        bool bIsBlank = false;
+
+        if (poSrcDS->GetRasterCount() == 4)
+        {
+            std::vector<GByte> abyData;
+            if (poSrcDS->GetRasterBand(4)->ReadRaster(abyData) != CE_None)
+                return false;
+
+            bIsBlank = GDALBufferHasOnlyNoData(
+                abyData.data(), 0, poSrcDS->GetRasterXSize(),
+                poSrcDS->GetRasterYSize(),
+                /* stride = */ poSrcDS->GetRasterXSize(),
+                /* nComponents = */ 1,
+                /* nBitsPerSample = */ 8, GSF_UNSIGNED_INT);
+        }
+        else if (poSrcDS->GetRasterCount() == 3)
+        {
+            std::vector<GByte> abyData;
+            try
+            {
+                abyData.resize(poSrcDS->GetRasterCount() *
+                               poSrcDS->GetRasterXSize() *
+                               poSrcDS->GetRasterYSize());
+            }
+            catch (const std::exception &)
+            {
+                CPLError(CE_Failure, CPLE_OutOfMemory,
+                         "Out of memory when allocating temporary buffer");
+                return false;
+            }
+            if (poSrcDS->RasterIO(
+                    GF_Read, 0, 0, poSrcDS->GetRasterXSize(),
+                    poSrcDS->GetRasterYSize(), abyData.data(),
+                    poSrcDS->GetRasterXSize(), poSrcDS->GetRasterYSize(),
+                    GDT_UInt8, poSrcDS->GetRasterCount(), nullptr,
+                    poSrcDS->GetRasterCount(),
+                    poSrcDS->GetRasterXSize() * poSrcDS->GetRasterCount(), 1,
+                    nullptr) != CE_None)
+            {
+                return false;
+            }
+
+            // Both (0,0,0) or (255,255,255) are considered blank
+            bIsBlank = GDALBufferHasOnlyNoData(
+                           abyData.data(), 0, poSrcDS->GetRasterXSize(),
+                           poSrcDS->GetRasterYSize(),
+                           /* stride = */ poSrcDS->GetRasterXSize(),
+                           /* nComponents = */ poSrcDS->GetRasterCount(),
+                           /* nBitsPerSample = */ 8, GSF_UNSIGNED_INT) ||
+                       GDALBufferHasOnlyNoData(
+                           abyData.data(), 255, poSrcDS->GetRasterXSize(),
+                           poSrcDS->GetRasterYSize(),
+                           /* stride = */ poSrcDS->GetRasterXSize(),
+                           /* nComponents = */ poSrcDS->GetRasterCount(),
+                           /* nBitsPerSample = */ 8, GSF_UNSIGNED_INT);
+        }
+        else if (poCT &&
+                 poCT->GetColorEntryCount() > CADRG_MAX_COLOR_ENTRY_COUNT)
+        {
+            std::vector<GByte> abyData;
+            if (poSrcDS->GetRasterBand(1)->ReadRaster(abyData) != CE_None)
+                return false;
+
+            bIsBlank = GDALBufferHasOnlyNoData(
+                abyData.data(), TRANSPARENT_COLOR_TABLE_ENTRY,
+                poSrcDS->GetRasterXSize(), poSrcDS->GetRasterYSize(),
+                /* stride = */ poSrcDS->GetRasterXSize(),
+                /* nComponents = */ 1,
+                /* nBitsPerSample = */ 8, GSF_UNSIGNED_INT);
+        }
+
+        if (bIsBlank)
+        {
+            CPLDebug("CADRG", "Skipping generation of %s as it is blank",
+                     pszFilename);
+            return std::make_unique<NITFDummyDataset>();
+        }
+    }
 
     if (poSrcDS->GetRasterCount() == 1)
     {
@@ -2300,6 +2388,8 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                 CPLFormFilenameSafe(pszFilename, "RPF", nullptr);
             VSIMkdir(osRPFDir.c_str(), 0755);
 
+            bool bMissingFramesFound = false;
+
             for (const auto &frameDef : frameDefinitions)
             {
                 double dfXMin = 0, dfYMin = 0, dfXMax = 0, dfYMax = 0;
@@ -2428,26 +2518,29 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                                             std::max(1, nTotalFrameCount),
                                     pfnProgress, pProgressData),
                                 GDALDestroyScaledProgress);
-                        if (!poClippedDS ||
-                            !NITFDataset::CreateCopy(
+                        std::unique_ptr<GDALDataset> poDS_CADRG;
+                        if (poClippedDS)
+                        {
+                            poDS_CADRG = NITFDataset::CreateCopy(
                                 osFilename.c_str(), poClippedDS.get(), bStrict,
                                 aosOptions.List(), GDALScaledProgress,
-                                pScaledData.get(), nRecLevel + 1))
+                                pScaledData.get(), nRecLevel + 1);
+                        }
+                        if (!poDS_CADRG)
                         {
                             return false;
                         }
+                        if (dynamic_cast<NITFDummyDataset *>(poDS_CADRG.get()))
+                        {
+                            bMissingFramesFound = true;
+                        }
+                        poDS_CADRG.reset();
                         VSIUnlink((osFilename + ".aux.xml").c_str());
 
                         ++nCurFrameCounter;
                     }
                 }
             }
-
-            class NITFDummyDataset final : public GDALDataset
-            {
-              public:
-                NITFDummyDataset() = default;
-            };
 
             const char *pszClassification =
                 CSLFetchNameValueDef(papszOptions, "FSCLAS", "U");
@@ -2463,7 +2556,8 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                     CSLFetchNameValueDef(papszOptions, "ONAME",
                                          ""),  // producer name
                     CSLFetchNameValueDef(papszOptions, "SECURITY_COUNTRY_CODE",
-                                         "")))
+                                         ""),
+                    /* bDoNotCreateIfNoFrame =*/bMissingFramesFound))
             {
                 return nullptr;
             }
