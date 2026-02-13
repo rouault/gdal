@@ -2002,6 +2002,9 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
             RPFCADRGIsKnownDataSeriesCode(osExtUpperCase.substr(0, 2).c_str());
     }
 
+    const bool bColorTablePerFrame = CPLTestBool(
+        CSLFetchNameValueDef(papszOptions, "COLOR_TABLE_PER_FRAME", "NO"));
+
     if (!(poSrcDS->GetRasterXSize() == CADRG_FRAME_PIXEL_COUNT &&
           poSrcDS->GetRasterYSize() == CADRG_FRAME_PIXEL_COUNT))
     {
@@ -2071,6 +2074,11 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
         }
     }
 
+    const bool bInputIsShapedAndNameForCADRG =
+        poSrcDS->GetRasterXSize() == CADRG_FRAME_PIXEL_COUNT &&
+        poSrcDS->GetRasterYSize() == CADRG_FRAME_PIXEL_COUNT &&
+        bLooksLikeCADRGFilename;
+
     if (poSrcDS->GetRasterCount() == 1)
     {
         if (!poCT)
@@ -2093,23 +2101,28 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                poSrcDS->GetRasterBand(4)->GetColorInterpretation() ==
                    GCI_AlphaBand)))
     {
-        dfLastPct = 0.1;
-        std::unique_ptr<void, decltype(&GDALDestroyScaledProgress)> pScaledData(
-            GDALCreateScaledProgress(0, dfLastPct, pfnProgress, pProgressData),
-            GDALDestroyScaledProgress);
-        if (GDALComputeMedianCutPCT(
-                GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(1)),
-                GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(2)),
-                GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(3)), nullptr,
-                nullptr, nullptr, nullptr, CADRG_MAX_COLOR_ENTRY_COUNT,
-                nColorQuantizationBits, static_cast<GUIntBig *>(nullptr),
-                GDALColorTable::ToHandle(&oCT), GDALScaledProgress,
-                pScaledData.get()) != CE_None)
+        if (!bColorTablePerFrame || bInputIsShapedAndNameForCADRG)
         {
-            return false;
+            dfLastPct = 0.1;
+            std::unique_ptr<void, decltype(&GDALDestroyScaledProgress)>
+                pScaledData(GDALCreateScaledProgress(0, dfLastPct, pfnProgress,
+                                                     pProgressData),
+                            GDALDestroyScaledProgress);
+            if (GDALComputeMedianCutPCT(
+                    GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(1)),
+                    GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(2)),
+                    GDALRasterBand::ToHandle(poSrcDS->GetRasterBand(3)),
+                    nullptr, nullptr, nullptr, nullptr,
+                    CADRG_MAX_COLOR_ENTRY_COUNT, nColorQuantizationBits,
+                    static_cast<GUIntBig *>(nullptr),
+                    GDALColorTable::ToHandle(&oCT), GDALScaledProgress,
+                    pScaledData.get()) != CE_None)
+            {
+                return false;
+            }
+            GDALColorEntry sEntry = {0, 0, 0, 0};
+            oCT.SetColorEntry(TRANSPARENT_COLOR_TABLE_ENTRY, &sEntry);
         }
-        GDALColorEntry sEntry = {0, 0, 0, 0};
-        oCT.SetColorEntry(TRANSPARENT_COLOR_TABLE_ENTRY, &sEntry);
     }
     else
     {
@@ -2119,9 +2132,7 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
         return false;
     }
 
-    if (poSrcDS->GetRasterXSize() == CADRG_FRAME_PIXEL_COUNT &&
-        poSrcDS->GetRasterYSize() == CADRG_FRAME_PIXEL_COUNT &&
-        bLooksLikeCADRGFilename)
+    if (bInputIsShapedAndNameForCADRG)
     {
         if (!poCT)
         {
@@ -2248,7 +2259,13 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                 CPLDebug("CADRG", "Creating file %s", osFilename.c_str());
             }
 
-            if (poCT)
+            if (bColorTablePerFrame)
+            {
+                return NITFDataset::CreateCopy(
+                    osFilename.c_str(), poSrcDS, bStrict, papszOptions,
+                    pfnProgress, pProgressData, nRecLevel + 1);
+            }
+            else if (poCT)
             {
                 return NITFDataset::CreateCopy(
                     osFilename.c_str(), poSrcDS, bStrict, papszOptions,
@@ -2388,7 +2405,7 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                                             &sEntry);
                                 }
                             }
-                            else
+                            else if (!bColorTablePerFrame)
                             {
                                 poClippedDS = CADRGGetPalettedDataset(
                                     poClippedDS.get(), &oCT,

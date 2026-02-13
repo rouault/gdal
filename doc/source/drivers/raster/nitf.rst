@@ -362,6 +362,16 @@ The following options are only valid for PRODUCT_TYPE=CADRG.
       computation. The higher the better quality and slower computation time.
       Only used when PRODUCT_TYPE=CADRG.
 
+-  .. co:: COLOR_TABLE_PER_FRAME
+      :choices: YES, NO
+      :default: NO
+      :since: 3.13
+
+      Whether the color table should be optimized on the whole input dataset,
+      or per output frame. The default is NO, that is optimized on the whole
+      input dataset, to reduce the risk of color seams across frames.
+      Only used when PRODUCT_TYPE=CADRG.
+
 -  .. co:: SCALE
       :choices: <integer>
       :since: 3.13

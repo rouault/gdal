@@ -4601,7 +4601,7 @@ NITFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
                         int nRecLevel)
 
 {
-    if (nRecLevel == 2)
+    if (nRecLevel == 3)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "NITFDataset::CreateCopy(): programming error: too deep "
@@ -7623,6 +7623,10 @@ void NITFDriver::InitCreationOptionList()
         "Number of bits per R,G,B color component used during color palette "
         "computation. The higher the better quality and slower computation "
         "time. Only used when PRODUCT_TYPE=CADRG'/>"
+        "   <Option name='COLOR_TABLE_PER_FRAME' type='boolean' default='NO' "
+        "description='Whether the color table should be optimized on the whole "
+        "input dataset, or per output frame. "
+        "Only used when PRODUCT_TYPE=CADRG'/>"
         "   <Option name='DPI' type='float' description='"
         "Dot-Per-Inch value that may need to be specified together with SCALE. "
         "Only used when PRODUCT_TYPE=CADRG' min='1' max='7200'/>"
