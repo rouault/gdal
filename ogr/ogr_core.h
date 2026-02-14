@@ -151,6 +151,12 @@ extern "C++"
                    MaxX >= other.MaxX && MaxY >= other.MaxY;
         }
 
+        /** Return whether the current object contains the point */
+        bool Contains(double dfX, double dfY) const
+        {
+            return dfX >= MinX && dfX <= MaxX && dfY >= MinY && dfY <= MaxY;
+        }
+
         /** Return whether the current rectangle is equal to the other rectangle
          */
         bool operator==(const OGREnvelope &other) const

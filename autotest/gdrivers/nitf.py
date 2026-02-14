@@ -7616,7 +7616,9 @@ def test_nitf_create_cadrg_error_cases(tmp_vsimem, tmp_path):
         )
 
     src_ds = gdal.GetDriverByName("MEM").Create("", 1, 1, 3)
-    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    srs = osr.SpatialReference(epsg=4326)
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    src_ds.SetSpatialRef(srs)
     src_ds.SetGeoTransform([0, 1, 0, 10, 0, -1])
     with pytest.raises(
         Exception, match="Invalid value for DPI"
@@ -7639,6 +7641,7 @@ def test_nitf_create_cadrg_error_cases(tmp_vsimem, tmp_path):
     src_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
     src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
     src_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+    src_ds.GetRasterBand(1).Fill(255)
 
     with pytest.raises(Exception, match="SCALE must be defined"):
         gdal.Translate(
@@ -7723,7 +7726,9 @@ def test_nitf_create_cadrg_blank_frame_rgb_0(tmp_vsimem):
     src_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
     src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
     src_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
-    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    srs = osr.SpatialReference(epsg=4326)
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    src_ds.SetSpatialRef(srs)
     src_ds.SetGeoTransform(
         [-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232]
     )
@@ -7749,7 +7754,9 @@ def test_nitf_create_cadrg_blank_frame_rgb_255(tmp_vsimem):
     src_ds.GetRasterBand(1).Fill(255)
     src_ds.GetRasterBand(2).Fill(255)
     src_ds.GetRasterBand(3).Fill(255)
-    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    srs = osr.SpatialReference(epsg=4326)
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    src_ds.SetSpatialRef(srs)
     src_ds.SetGeoTransform(
         [-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232]
     )
@@ -7773,13 +7780,15 @@ def test_nitf_create_cadrg_blank_frame_rgba(tmp_vsimem):
     src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
     src_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
     src_ds.GetRasterBand(4).SetColorInterpretation(gdal.GCI_AlphaBand)
-    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    srs = osr.SpatialReference(epsg=4326)
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    src_ds.SetSpatialRef(srs)
     src_ds.SetGeoTransform([2, 1, 0, 49, 0, -1])
     gdal.GetDriverByName("NITF").CreateCopy(
         tmp_vsimem, src_ds, options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=GN"]
     )
 
-    assert gdal.ReadDirRecursive(tmp_vsimem) == ["RPF/", "RPF/ZONE1/"]
+    assert gdal.ReadDirRecursive(tmp_vsimem) == ["RPF/", "RPF/ZONE3/"]
 
 
 ###############################################################################
@@ -7793,7 +7802,9 @@ def test_nitf_create_cadrg_blank_frame_color_table(tmp_vsimem):
     ct.SetColorEntry(216, (0, 0, 0, 0))
     src_ds.GetRasterBand(1).SetColorTable(ct)
     src_ds.GetRasterBand(1).Fill(216)
-    src_ds.SetSpatialRef(osr.SpatialReference(epsg=4326))
+    srs = osr.SpatialReference(epsg=4326)
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    src_ds.SetSpatialRef(srs)
     src_ds.SetGeoTransform(
         [-18.0, 0.03515625, 0.0, 41.53846153846154, 0.0, -0.027043269230769232]
     )
@@ -7804,3 +7815,37 @@ def test_nitf_create_cadrg_blank_frame_color_table(tmp_vsimem):
     )
 
     assert gdal.VSIStatL(tmp_vsimem / "out.ntf") is None
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_reprojection_skip_non_intersecting_tiles(tmp_vsimem):
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 2, 15, 1)
+    ct = gdal.ColorTable()
+    ct.SetColorEntry(0, (255, 0, 0, 255))
+    src_ds.GetRasterBand(1).SetColorTable(ct)
+    srs = osr.SpatialReference(epsg=32661)
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    src_ds.SetSpatialRef(srs)
+    src_ds.SetGeoTransform([1900000, 100000, 0, 2100000, 0, -100000])
+    assert src_ds.GetExtentWGS84LongLat() == pytest.approx(
+        (-180.0, 180.0, 77.40685853074461, 90.0)
+    )
+    gdal.GetDriverByName("NITF").CreateCopy(
+        tmp_vsimem,
+        src_ds,
+        options=["PRODUCT_TYPE=CADRG", "SERIES_CODE=MM", "SCALE=2000000"],
+    )
+
+    assert gdal.ReadDirRecursive(tmp_vsimem) == [
+        "RPF/",
+        "RPF/A.TOC",
+        "RPF/ZONE8/",
+        "RPF/ZONE8/00008010.MM8",
+        "RPF/ZONE8/00009010.MM8",
+        "RPF/ZONE8/0000S010.MM8",
+        "RPF/ZONE8/0000T010.MM8",
+    ]

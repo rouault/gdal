@@ -24,6 +24,7 @@
 #include "gdal_rasterband.h"
 #include "gdal_thread_pool.h"
 #include "gdal_utils.h"
+#include "ogr_spatialref.h"
 #include "offsetpatcher.h"
 #include "nitfdataset.h"
 #include "nitflib.h"
@@ -57,6 +58,8 @@ constexpr int TRANSPARENT_CODEBOOK_CODE = CODEBOOK_MAX_SIZE - 1;
 constexpr int TRANSPARENT_COLOR_TABLE_ENTRY = CADRG_MAX_COLOR_ENTRY_COUNT;
 
 constexpr double CADRG_PITCH_IN_CM = 0.0150;  // 150 micrometers
+
+constexpr int DEFAULT_DENSIFY_PTS = 21;
 
 /************************************************************************/
 /*                        RPFCADRGIsValidZone()                         */
@@ -614,6 +617,7 @@ RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
         if (nZoneIn)
             break;
     }
+
     return res;
 }
 
@@ -1918,7 +1922,8 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
         return false;
     }
 
-    if (!poSrcDS->GetSpatialRef())
+    const auto poSrcSRS = poSrcDS->GetSpatialRef();
+    if (!poSrcSRS)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "CADRG only supports datasets with a CRS");
@@ -2255,8 +2260,10 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
         const char *pszVersionNumber =
             CSLFetchNameValueDef(papszOptions, "VERSION_NUMBER", "01");
 
-        OGREnvelope sExtent;
-        if (poSrcDS->GetExtentWGS84LongLat(&sExtent) != CE_None)
+        OGREnvelope sExtentNativeCRS;
+        OGREnvelope sExtentWGS84;
+        if (poSrcDS->GetExtent(&sExtentNativeCRS) != CE_None ||
+            poSrcDS->GetExtentWGS84LongLat(&sExtentWGS84) != CE_None)
         {
             CPLError(CE_Failure, CPLE_AppDefined, "Cannot get dataset extent");
             return false;
@@ -2270,8 +2277,8 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
         const int nZoneHint =
             RPFCADRGIsValidZone(nZoneHintCandidate) ? nZoneHintCandidate : 0;
         auto frameDefinitions = RPFGetCADRGFramesForEnvelope(
-            nZoneHint, nReciprocalScale, sExtent.MinX, sExtent.MinY,
-            sExtent.MaxX, sExtent.MaxY);
+            nZoneHint, nReciprocalScale, sExtentWGS84.MinX, sExtentWGS84.MinY,
+            sExtentWGS84.MaxX, sExtentWGS84.MaxY);
 
         if (nZoneHint)
         {
@@ -2448,7 +2455,7 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                 aosOptions.SetNameValue("ZONE",
                                         CPLSPrintf("%d", frameDef.nZone));
 
-                const int nFrameCountThisZone =
+                int nFrameCountThisZone =
                     (frameDef.nFrameMaxY - frameDef.nFrameMinY + 1) *
                     (frameDef.nFrameMaxX - frameDef.nFrameMinX + 1);
                 // Limit to 4 as it doesn't scale beyond
@@ -2472,6 +2479,18 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                 bool bErrorLocal = false;
                 int nCurFrameThisZone = 0;
                 std::string osErrorMsg;
+                nFrameCountThisZone = 0;
+
+                std::unique_ptr<OGRCoordinateTransformation> poReprojCTToSrcSRS;
+                OGRSpatialReference oSRS;
+                oSRS.importFromEPSG(4326);
+                oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+                if (!poSrcSRS->IsSame(&oSRS))
+                {
+                    poReprojCTToSrcSRS.reset(
+                        OGRCreateCoordinateTransformation(&oSRS, poSrcSRS));
+                }
+
                 for (int iY = frameDef.nFrameMinY;
                      !bErrorLocal && iY <= frameDef.nFrameMaxY; ++iY)
                 {
@@ -2490,6 +2509,50 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                         osFilename += pszSeriesCode;
                         osFilename += RPFCADRGZoneNumToChar(frameDef.nZone);
 
+                        double dfFrameMinX = 0;
+                        double dfFrameMinY = 0;
+                        double dfFrameMaxX = 0;
+                        double dfFrameMaxY = 0;
+                        RPFGetCADRGFrameExtent(
+                            frameDef.nZone, frameDef.nReciprocalScale, iX, iY,
+                            dfFrameMinX, dfFrameMinY, dfFrameMaxX, dfFrameMaxY);
+
+                        bool bFrameFullyInSrcDS;
+                        if (poReprojCTToSrcSRS)
+                        {
+                            OGREnvelope sFrameExtentInSrcSRS;
+                            poReprojCTToSrcSRS->TransformBounds(
+                                dfFrameMinX, dfFrameMinY, dfFrameMaxX,
+                                dfFrameMaxY, &sFrameExtentInSrcSRS.MinX,
+                                &sFrameExtentInSrcSRS.MinY,
+                                &sFrameExtentInSrcSRS.MaxX,
+                                &sFrameExtentInSrcSRS.MaxY,
+                                DEFAULT_DENSIFY_PTS);
+
+                            if (!sFrameExtentInSrcSRS.Intersects(
+                                    sExtentNativeCRS))
+                            {
+                                CPLDebug(
+                                    "CADRG",
+                                    "Skipping creation of file %s as it does "
+                                    "not intersect source raster extent",
+                                    osFilename.c_str());
+                                continue;
+                            }
+                            bFrameFullyInSrcDS =
+                                sExtentNativeCRS.Contains(sFrameExtentInSrcSRS);
+                        }
+                        else
+                        {
+                            bFrameFullyInSrcDS =
+                                dfFrameMinX >= sExtentWGS84.MinX &&
+                                dfFrameMinY >= sExtentWGS84.MinY &&
+                                dfFrameMaxX <= sExtentWGS84.MaxX &&
+                                dfFrameMaxY <= sExtentWGS84.MaxY;
+                        }
+
+                        ++nFrameCountThisZone;
+
                         const auto task =
                             [osFilename, dfFrameMinX, dfFrameMinY, dfFrameMaxX,
                              dfFrameMaxY, bFrameFullyInSrcDS, poCT, nRecLevel,
@@ -2507,14 +2570,6 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                             CPLDebug("CADRG", "Creating file %s",
                                      osFilename.c_str());
 
-                            double dfFrameMinX = 0;
-                            double dfFrameMinY = 0;
-                            double dfFrameMaxX = 0;
-                            double dfFrameMaxY = 0;
-                            RPFGetCADRGFrameExtent(
-                                frameDef.nZone, frameDef.nReciprocalScale, iX,
-                                iY, dfFrameMinX, dfFrameMinY, dfFrameMaxX,
-                                dfFrameMaxY);
                             CPLDebugOnly("CADRG", "Frame extent: %f %f %f %f",
                                          dfFrameMinX, dfFrameMinY, dfFrameMaxX,
                                          dfFrameMaxY);
@@ -2531,10 +2586,7 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                             {
                                 if (poCT)
                                 {
-                                    if (!(dfFrameMinX >= sExtent.MinX &&
-                                          dfFrameMinY >= sExtent.MinY &&
-                                          dfFrameMaxX <= sExtent.MaxX &&
-                                          dfFrameMaxY <= sExtent.MaxY))
+                                    if (!bFrameFullyInSrcDS)
                                     {
                                         // If the CADRG frame is not strictly inside
                                         // the zone extent, add a transparent color
@@ -2657,7 +2709,8 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
             const char chIndexClassification =
                 pszClassification && pszClassification[0] ? pszClassification[0]
                                                           : 'U';
-            if (!RPFTOCCreate(
+            if (nCurFrameCounter > 0 &&
+                !RPFTOCCreate(
                     osRPFDir,
                     CPLFormFilenameSafe(osRPFDir.c_str(), "A.TOC", nullptr),
                     chIndexClassification, nReciprocalScale,
