@@ -184,17 +184,43 @@ static void Create_RPFTOC_BoundaryRectangleTable(
         RPFGetCADRGFrameExtent(nZone, nScale, extent.MaxX, extent.MaxY,
                                dfUnused, dfUnused, dfXMax, dfYMax);
 
-        poBuffer->AppendFloat64(dfYMax);  // NORTHWEST_LATITUDE
-        poBuffer->AppendFloat64(dfXMin);  // NORTHWEST_LONGITUDE
+        double dfULX = dfXMin;
+        double dfULY = dfYMax;
+        double dfLLX = dfXMin;
+        double dfLLY = dfYMin;
+        double dfURX = dfXMax;
+        double dfURY = dfYMax;
+        double dfLRX = dfXMax;
+        double dfLRY = dfYMin;
 
-        poBuffer->AppendFloat64(dfYMin);  // SOUTHWEST_LATITUDE
-        poBuffer->AppendFloat64(dfXMin);  // SOUTHWEST_LONGITUDE
+        if (nZone == MAX_ZONE_NORTHERN_HEMISPHERE || nZone == MAX_ZONE)
+        {
+            OGRSpatialReference oPolarSRS;
+            oPolarSRS.importFromWkt(nZone == MAX_ZONE_NORTHERN_HEMISPHERE
+                                        ? pszNorthPolarProjection
+                                        : pszSouthPolarProjection);
+            OGRSpatialReference oSRS_WGS84;
+            oSRS_WGS84.SetWellKnownGeogCS("WGS84");
+            oSRS_WGS84.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+            auto poCT = std::unique_ptr<OGRCoordinateTransformation>(
+                OGRCreateCoordinateTransformation(&oPolarSRS, &oSRS_WGS84));
+            poCT->Transform(1, &dfULX, &dfULY);
+            poCT->Transform(1, &dfLLX, &dfLLY);
+            poCT->Transform(1, &dfURX, &dfURY);
+            poCT->Transform(1, &dfLRX, &dfLRY);
+        }
 
-        poBuffer->AppendFloat64(dfYMax);  // NORTHEAST_LATITUDE
-        poBuffer->AppendFloat64(dfXMax);  // NORTHEAST_LONGITUDE
+        poBuffer->AppendFloat64(dfULY);  // NORTHWEST_LATITUDE
+        poBuffer->AppendFloat64(dfULX);  // NORTHWEST_LONGITUDE
 
-        poBuffer->AppendFloat64(dfYMin);  // SOUTHEAST_LATITUDE
-        poBuffer->AppendFloat64(dfXMax);  // SOUTHEAST_LONGITUDE
+        poBuffer->AppendFloat64(dfLLY);  // SOUTHWEST_LATITUDE
+        poBuffer->AppendFloat64(dfLLX);  // SOUTHWEST_LONGITUDE
+
+        poBuffer->AppendFloat64(dfURY);  // NORTHEAST_LATITUDE
+        poBuffer->AppendFloat64(dfURX);  // NORTHEAST_LONGITUDE
+
+        poBuffer->AppendFloat64(dfLRY);  // SOUTHEAST_LATITUDE
+        poBuffer->AppendFloat64(dfLRX);  // SOUTHEAST_LONGITUDE
 
         double latResolution = 0;
         double lonResolution = 0;
@@ -626,8 +652,8 @@ static bool RPFTOCCollectFrames(
             return false;
         }
 
-        OGREnvelope sExtent;
-        if (poDS->GetExtentWGS84LongLat(&sExtent) != CE_None)
+        OGREnvelope sExtentWGS84;
+        if (poDS->GetExtentWGS84LongLat(&sExtentWGS84) != CE_None)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "Cannot get dataset extent for %s",
@@ -635,9 +661,8 @@ static bool RPFTOCCollectFrames(
             return false;
         }
 
-        const auto frameDefinitions = RPFGetCADRGFramesForEnvelope(
-            nZone, nThisScale, sExtent.MinX, sExtent.MinY, sExtent.MaxX,
-            sExtent.MaxY);
+        const auto frameDefinitions =
+            RPFGetCADRGFramesForEnvelope(nZone, nThisScale, poDS.get());
         if (frameDefinitions.empty())
         {
             CPLError(CE_Failure, CPLE_AppDefined,
@@ -672,8 +697,8 @@ static bool RPFTOCCollectFrames(
         desc.nScale = nThisScale;
         desc.nFrameX = frameDefinitions[0].nFrameMinX;
         desc.nFrameY = frameDefinitions[0].nFrameMinY;
-        desc.dfMinX = sExtent.MinX;
-        desc.dfMinY = sExtent.MinY;
+        desc.dfMinX = sExtentWGS84.MinX;
+        desc.dfMinY = sExtentWGS84.MinY;
         desc.osRelativeFilename = psEntry->pszName;
         const char *pszClassification = poDS->GetMetadataItem("FCLASS");
         if (pszClassification)

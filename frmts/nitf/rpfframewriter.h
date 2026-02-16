@@ -31,6 +31,33 @@ constexpr int CADRG_FRAME_PIXEL_COUNT = 1536;
 constexpr int Kilo = 1000;
 constexpr int Million = Kilo * Kilo;
 
+constexpr int MIN_ZONE = 1;
+constexpr int MAX_ZONE_NORTHERN_HEMISPHERE = 9;
+constexpr int MIN_ZONE_SOUTHERN_HEMISPHERE = 1 + MAX_ZONE_NORTHERN_HEMISPHERE;
+constexpr int MAX_ZONE = 18;
+
+constexpr const char *pszNorthPolarProjection =
+    "PROJCS[\"ARC_System_Zone_09\",GEOGCS[\"GCS_Sphere\","
+    "DATUM[\"D_Sphere\",SPHEROID[\"Sphere\",6378137.0,0.0]],"
+    "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]],"
+    "PROJECTION[\"Azimuthal_Equidistant\"],"
+    "PARAMETER[\"latitude_of_center\",90],"
+    "PARAMETER[\"longitude_of_center\",0],"
+    "PARAMETER[\"false_easting\",0],"
+    "PARAMETER[\"false_northing\",0],"
+    "UNIT[\"metre\",1]]";
+
+constexpr const char *pszSouthPolarProjection =
+    "PROJCS[\"ARC_System_Zone_18\",GEOGCS[\"GCS_Sphere\","
+    "DATUM[\"D_Sphere\",SPHEROID[\"Sphere\",6378137.0,0.0]],"
+    "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]],"
+    "PROJECTION[\"Azimuthal_Equidistant\"],"
+    "PARAMETER[\"latitude_of_center\",-90],"
+    "PARAMETER[\"longitude_of_center\",0],"
+    "PARAMETER[\"false_easting\",0],"
+    "PARAMETER[\"false_northing\",0],"
+    "UNIT[\"metre\",1]]";
+
 /** Opaque class containing CADRG related information */
 class CADRGInformation
 {
@@ -91,9 +118,9 @@ void RPFGetCADRGResolutionAndInterval(int nZone, int nReciprocalScale,
                                       double &latResolution,
                                       double &lonResolution,
                                       double &latInterval, double &lonInterval);
-std::vector<RPFFrameDef>
-RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
-                             double dfYMin, double dfXMax, double dfYMax);
+std::vector<RPFFrameDef> RPFGetCADRGFramesForEnvelope(int nZoneIn,
+                                                      int nReciprocalScale,
+                                                      GDALDataset *poSrcDS);
 
 bool RPFGetCADRGFrameExtent(int nZone, int nReciprocalScale, int nFrameX,
                             int nFrameY, double &dfXMin, double &dfYMin,

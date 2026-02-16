@@ -1093,31 +1093,6 @@ NITFDataset *NITFDataset::OpenInternal(GDALOpenInfo *poOpenInfo,
         (pszITITLE[strlen(pszITITLE) - 1] == '9' ||
          pszITITLE[strlen(pszITITLE) - 1] == 'J'))
     {
-        /* To get a perfect rectangle in Azimuthal Equidistant projection, we
-         * must use */
-        /* the sphere and not WGS84 ellipsoid. That's a bit strange... */
-        const char *pszNorthPolarProjection =
-            "PROJCS[\"ARC_System_Zone_09\",GEOGCS[\"GCS_Sphere\","
-            "DATUM[\"D_Sphere\",SPHEROID[\"Sphere\",6378137.0,0.0]],"
-            "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]],"
-            "PROJECTION[\"Azimuthal_Equidistant\"],"
-            "PARAMETER[\"latitude_of_center\",90],"
-            "PARAMETER[\"longitude_of_center\",0],"
-            "PARAMETER[\"false_easting\",0],"
-            "PARAMETER[\"false_northing\",0],"
-            "UNIT[\"metre\",1]]";
-
-        const char *pszSouthPolarProjection =
-            "PROJCS[\"ARC_System_Zone_18\",GEOGCS[\"GCS_Sphere\","
-            "DATUM[\"D_Sphere\",SPHEROID[\"Sphere\",6378137.0,0.0]],"
-            "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]],"
-            "PROJECTION[\"Azimuthal_Equidistant\"],"
-            "PARAMETER[\"latitude_of_center\",-90],"
-            "PARAMETER[\"longitude_of_center\",0],"
-            "PARAMETER[\"false_easting\",0],"
-            "PARAMETER[\"false_northing\",0],"
-            "UNIT[\"metre\",1]]";
-
         OGRSpatialReference oSRS_AEQD, oSRS_WGS84;
 
         const char *pszPolarProjection = (psImage->dfULY > 0)
@@ -4918,16 +4893,11 @@ NITFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
     /* -------------------------------------------------------------------- */
     /*      Do we have lat/long georeferencing information?                 */
     /* -------------------------------------------------------------------- */
-    const char *pszWKT = poSrcDS->GetProjectionRef();
-    if (pszWKT == nullptr || pszWKT[0] == '\0')
-        pszWKT = poSrcDS->GetGCPProjection();
-
     GDALGeoTransform gt;
     bool bWriteGeoTransform = false;
     bool bWriteGCPs = false;
     int nZone = 0;
-    OGRSpatialReference oSRS;
-    OGRSpatialReference oSRS_WGS84;
+
     int nGCIFFlags = GCIF_PAM_DEFAULT;
     double dfIGEOLOULX = 0;
     double dfIGEOLOULY = 0;
@@ -4939,27 +4909,45 @@ NITFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
     double dfIGEOLOLLY = 0;
     bool bManualWriteOfIGEOLO = false;
 
-    if (pszWKT != nullptr && pszWKT[0] != '\0')
+    const OGRSpatialReference *poSrcSRS = poSrcDS->GetSpatialRef();
+    if (!poSrcSRS)
+        poSrcSRS = poSrcDS->GetGCPSpatialRef();
+    if (poSrcSRS)
     {
-        oSRS.importFromWkt(pszWKT);
+        OGRSpatialReference oSRS_WGS84;
+        oSRS_WGS84.SetWellKnownGeogCS("WGS84");
+        oSRS_WGS84.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
-        if (bIsCADRG && !oSRS.IsGeographic())
+        const bool bIsCADRGPolarAzimuthalEquidistant =
+            bIsCADRG && poSrcSRS->IsProjected() &&
+            EQUAL(poSrcSRS->GetAttrValue("PROJECTION"),
+                  SRS_PT_AZIMUTHAL_EQUIDISTANT) &&
+            poSrcSRS->GetSemiMajor() == SRS_WGS84_SEMIMAJOR &&
+            poSrcSRS->GetInvFlattening() == 0.0 &&
+            poSrcSRS->GetPrimeMeridian() == 0.0 &&
+            poSrcSRS->GetProjParm(SRS_PP_LONGITUDE_OF_CENTER) == 0.0 &&
+            std::fabs(poSrcSRS->GetProjParm(SRS_PP_LATITUDE_OF_CENTER)) == 90.0;
+        if (bIsCADRG && !poSrcSRS->IsGeographic() &&
+            !bIsCADRGPolarAzimuthalEquidistant)
         {
             CPLError(CE_Failure, CPLE_NotSupported,
-                     "CADRG only support geographic CRS");
+                     "CADRG only support geographic CRS or polar azimuthal "
+                     "equidistant");
             return nullptr;
         }
 
-        /* NITF is only WGS84 */
-        oSRS_WGS84.SetWellKnownGeogCS("WGS84");
-        if (oSRS.IsSameGeogCS(&oSRS_WGS84) == FALSE)
+        if (!bIsCADRGPolarAzimuthalEquidistant)
         {
-            CPLError(
-                (bStrict) ? CE_Failure : CE_Warning, CPLE_NotSupported,
-                "NITF only supports WGS84 geographic and UTM projections.\n");
-            if (bStrict)
+            /* NITF is only WGS84 */
+            if (!poSrcSRS->IsSameGeogCS(&oSRS_WGS84))
             {
-                return nullptr;
+                CPLError((bStrict) ? CE_Failure : CE_Warning, CPLE_NotSupported,
+                         "NITF only supports WGS84 geographic and UTM "
+                         "projections.\n");
+                if (bStrict)
+                {
+                    return nullptr;
+                }
             }
         }
 
@@ -4974,7 +4962,8 @@ NITFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
         const bool bSDE_TRE = pszSDE_TRE && CPLTestBool(pszSDE_TRE);
         if (bSDE_TRE)
         {
-            if (oSRS.IsGeographic() && oSRS.GetPrimeMeridian() == 0.0 &&
+            if (poSrcSRS->IsGeographic() &&
+                poSrcSRS->GetPrimeMeridian() == 0.0 &&
                 poSrcDS->GetGeoTransform(gt) == CE_None && gt.xrot == 0.0 &&
                 gt.yrot == 0.0 && gt.yscale < 0.0)
             {
@@ -5115,7 +5104,8 @@ NITFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
             nGCIFFlags &= ~GCIF_PROJECTION;
             nGCIFFlags &= ~GCIF_GEOTRANSFORM;
         }
-        else if (oSRS.IsGeographic() && oSRS.GetPrimeMeridian() == 0.0)
+        else if (poSrcSRS->IsGeographic() &&
+                 poSrcSRS->GetPrimeMeridian() == 0.0)
         {
             if (pszICORDS == nullptr)
             {
@@ -5139,10 +5129,10 @@ NITFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
             }
         }
 
-        else if (oSRS.GetUTMZone(&bNorth) > 0)
+        else if (poSrcSRS->GetUTMZone(&bNorth) > 0)
         {
             const char *pszComputedICORDS = bNorth ? "N" : "S";
-            nZone = oSRS.GetUTMZone(nullptr);
+            nZone = poSrcSRS->GetUTMZone(nullptr);
             if (pszICORDS == nullptr)
             {
                 aosOptions.SetNameValue("ICORDS", pszComputedICORDS);
@@ -5173,11 +5163,8 @@ NITFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
                 dfIGEOLOLLX = dfIGEOLOULX + gt.xrot * (nYSize - 1);
                 dfIGEOLOLLY = dfIGEOLOULY + gt.yscale * (nYSize - 1);
 
-                oSRS_WGS84.SetWellKnownGeogCS("WGS84");
-                oSRS_WGS84.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-
                 auto poCT = std::unique_ptr<OGRCoordinateTransformation>(
-                    OGRCreateCoordinateTransformation(&oSRS, &oSRS_WGS84));
+                    OGRCreateCoordinateTransformation(poSrcSRS, &oSRS_WGS84));
                 if (poCT && poCT->Transform(1, &dfIGEOLOULX, &dfIGEOLOULY) &&
                     poCT->Transform(1, &dfIGEOLOURX, &dfIGEOLOURY) &&
                     poCT->Transform(1, &dfIGEOLOLRX, &dfIGEOLOLRY) &&
@@ -5205,6 +5192,41 @@ NITFDataset::CreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
                 {
                     return nullptr;
                 }
+            }
+        }
+        else if (bIsCADRGPolarAzimuthalEquidistant)
+        {
+            OGREnvelope sExtent;
+            poSrcDS->GetExtent(&sExtent);
+
+            aosOptions.SetNameValue("ICORDS", "G");
+            dfIGEOLOULX = sExtent.MinX;
+            dfIGEOLOULY = sExtent.MaxY;
+            dfIGEOLOURX = sExtent.MaxX;
+            dfIGEOLOURY = sExtent.MaxY;
+            dfIGEOLOLLX = sExtent.MinX;
+            dfIGEOLOLLY = sExtent.MinY;
+            dfIGEOLOLRX = sExtent.MaxX;
+            dfIGEOLOLRY = sExtent.MinY;
+            auto poCT = std::unique_ptr<OGRCoordinateTransformation>(
+                OGRCreateCoordinateTransformation(poSrcSRS, &oSRS_WGS84));
+            if (poCT && poCT->Transform(1, &dfIGEOLOULX, &dfIGEOLOULY) &&
+                poCT->Transform(1, &dfIGEOLOURX, &dfIGEOLOURY) &&
+                poCT->Transform(1, &dfIGEOLOLRX, &dfIGEOLOLRY) &&
+                poCT->Transform(1, &dfIGEOLOLLX, &dfIGEOLOLLY))
+            {
+                nZone = 0;
+                bWriteGeoTransform = false;
+                bManualWriteOfIGEOLO = true;
+                nGCIFFlags &= ~GCIF_PROJECTION;
+                nGCIFFlags &= ~GCIF_GEOTRANSFORM;
+            }
+            else
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Cannot reproject azimuthal equidistant coordinates "
+                         "to geographic ones");
+                return nullptr;
             }
         }
         else
@@ -7631,7 +7653,8 @@ void NITFDriver::InitCreationOptionList()
         "Dot-Per-Inch value that may need to be specified together with SCALE. "
         "Only used when PRODUCT_TYPE=CADRG' min='1' max='7200'/>"
         "   <Option name='ZONE' type='string' description='"
-        "ARC Zone to which rstrict generation of CADRG frames (1 to 8, A to H)."
+        "ARC Zone to which restrict generation of CADRG frames (1 to 9, A to "
+        "H, J)."
         "Only used when PRODUCT_TYPE=CADRG'/>"
         "   <Option name='SERIES_CODE' type='string-select' description='"
         "Two-letter code specifying the map/chart type. Only used when "

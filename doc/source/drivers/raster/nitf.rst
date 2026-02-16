@@ -388,6 +388,15 @@ The following options are only valid for PRODUCT_TYPE=CADRG.
       together with SCALE. Valid values are in the range from 1 to 7200.
       Only used when PRODUCT_TYPE=CADRG.
 
+-  .. co:: ZONE
+      :choices: <string>
+      :since: 3.13
+
+      ARC Zone to which restrict generation of CADRG frames (1 to 9, A to H, J).
+      If not specified, the driver automatically determines which zones the
+      extent of the source dataset intersects.
+      Only used when PRODUCT_TYPE=CADRG.
+
 -  .. co:: SERIES_CODE
       :choices: GN,JN,ON,TP,LF,JG,JA,JR,TF,AT,TC,TL,HA,CO,OA,CG,CM,MM
       :default: MM

@@ -46,11 +46,6 @@
 // MIL-A-89007, ADRG:           http://everyspec.com/MIL-SPECS/MIL-SPECS-MIL-A/MIL-A-89007_51725/
 // MIL-STD-188/199, VQ NITF:    http://everyspec.com/MIL-STD/MIL-STD-0100-0299/MIL_STD_188_199_1730/
 
-constexpr int MIN_ZONE = 1;
-constexpr int MAX_ZONE_NORTHERN_HEMISPHERE = 9;
-constexpr int MIN_ZONE_SOUTHERN_HEMISPHERE = 1 + MAX_ZONE_NORTHERN_HEMISPHERE;
-constexpr int MAX_ZONE = 18;
-
 constexpr int SUBSAMPLING = 4;
 constexpr int BLOCK_SIZE = 256;
 constexpr int CODEBOOK_MAX_SIZE = 4096;
@@ -345,15 +340,41 @@ static int GetARCZoneFromLat(double dfLat)
 }
 
 /************************************************************************/
-/*                           GetLatInterval()                           */
+/*                          GetPolarConstant()                          */
 /************************************************************************/
 
-/** Return the size of a pixel in degree, along the latitude axis,
+static double GetPolarConstant(int nReciprocalScale)
+{
+    // Cf MIL-A-89007 (ADRG specification), appendix 70, table III
+    const double N = REF_SCALE / nReciprocalScale;
+
+    // Cf MIL-C-89038 (CADRG specification), para 60.4
+    const double B_s = ARC_B * N;
+    const double latCst_ADRG =
+        std::ceil(B_s / ADRG_BLOCK_SIZE) * ADRG_BLOCK_SIZE;
+    return std::round(latCst_ADRG * 20.0 / 360.0 / RATIO_PITCH_CADRG_OVER_ADRG /
+                      ADRG_BLOCK_SIZE) *
+           ADRG_BLOCK_SIZE * 360 / 20;
+}
+
+/************************************************************************/
+/*                         GetLatOrYInterval()                          */
+/************************************************************************/
+
+/** Return the size of a pixel (in degree for non-polar zones, in meters for
+ * polar zones), along the latitude/Y axis,
  * at specified scale and zone */
-static double GetLatInterval(int nZone, int nReciprocalScale)
+static double GetLatOrYInterval(int nZone, int nReciprocalScale)
 {
     CPLAssert(RPFCADRGIsValidZone(nZone));
     const int nZoneIdx = (nZone - 1) % MAX_ZONE_NORTHERN_HEMISPHERE;
+
+    if (nZoneIdx + 1 == MAX_ZONE_NORTHERN_HEMISPHERE)
+    {
+        const double polarCst = GetPolarConstant(nReciprocalScale);
+        return SRS_WGS84_SEMIMAJOR * 2 * M_PI / polarCst;
+    }
+
     const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
 
     // Cf MIL-A-89007 (ADRG specification), appendix 70, table III
@@ -372,15 +393,23 @@ static double GetLatInterval(int nZone, int nReciprocalScale)
 }
 
 /************************************************************************/
-/*                           GetLonInterval()                           */
+/*                         GetLonOrXInterval()                          */
 /************************************************************************/
 
-/** Return the size of a pixel in degree, along the longitude axis,
+/** Return the size of a pixel (in degree for non-polar zones, in meters for
+ * polar zones), along the longitude/X axis,
  * at specified scale and zone */
-static double GetLonInterval(int nZone, int nReciprocalScale)
+static double GetLonOrXInterval(int nZone, int nReciprocalScale)
 {
     CPLAssert(RPFCADRGIsValidZone(nZone));
     const int nZoneIdx = (nZone - MIN_ZONE) % MAX_ZONE_NORTHERN_HEMISPHERE;
+
+    if (nZoneIdx + 1 == MAX_ZONE_NORTHERN_HEMISPHERE)
+    {
+        const double polarCst = GetPolarConstant(nReciprocalScale);
+        return SRS_WGS84_SEMIMAJOR * 2 * M_PI / polarCst;
+    }
+
     const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
 
     // Cf MIL-A-89007 (ADRG specification), appendix 70, table III
@@ -445,11 +474,19 @@ void RPFGetCADRGResolutionAndInterval(int nZone, int nReciprocalScale,
 static std::pair<double, double> GetMinMaxLatWithOverlap(int nZone,
                                                          int nReciprocalScale)
 {
+    if (nZone == MAX_ZONE_NORTHERN_HEMISPHERE)
+    {
+        return std::pair(80.0, 90.0);
+    }
+    else if (nZone == MAX_ZONE)
+    {
+        return std::pair(-90.0, -80.0);
+    }
     CPLAssert(RPFCADRGIsValidZone(nZone));
     const int nZoneIdx = (nZone - MIN_ZONE) % MAX_ZONE_NORTHERN_HEMISPHERE;
     const auto &sZoneDef = asARCZoneDefinitions[nZoneIdx];
 
-    const double latInterval = GetLatInterval(nZone, nReciprocalScale);
+    const double latInterval = GetLatOrYInterval(nZone, nReciprocalScale);
     const double deltaLatFrame = latInterval * CADRG_FRAME_PIXEL_COUNT;
 
     const double dfMinLat =
@@ -462,6 +499,22 @@ static std::pair<double, double> GetMinMaxLatWithOverlap(int nZone,
 }
 
 /************************************************************************/
+/*                         GetPolarFrameCount()                         */
+/************************************************************************/
+
+static int GetPolarFrameCount(int nReciprocalScale)
+{
+    const double numberSubFrames = std::round(
+        GetPolarConstant(nReciprocalScale) * 20.0 / 360.0 / BLOCK_SIZE);
+    constexpr int SUBFRAMES_PER_FRAME = CADRG_FRAME_PIXEL_COUNT / BLOCK_SIZE;
+    int numberFrames =
+        static_cast<int>(std::round(numberSubFrames / SUBFRAMES_PER_FRAME));
+    if ((numberFrames % 2) == 0)
+        ++numberFrames;
+    return numberFrames;
+}
+
+/************************************************************************/
 /*                        GetFrameCountAlongX()                         */
 /************************************************************************/
 
@@ -471,13 +524,15 @@ constexpr double dfMaxLonZone = 180.0;
 
 static int GetFrameCountAlongX(int nZone, int nReciprocalScale)
 {
-    const double lonInterval = GetLonInterval(nZone, nReciprocalScale);
+    if (nZone == MAX_ZONE_NORTHERN_HEMISPHERE || nZone == MAX_ZONE)
+        return GetPolarFrameCount(nReciprocalScale);
+    const double lonInterval = GetLonOrXInterval(nZone, nReciprocalScale);
     const double eastWestPixelCst = 360.0 / lonInterval;
     CPLDebugOnly("CADRG", "eastWestPixelCst=%f, count=%f", eastWestPixelCst,
                  eastWestPixelCst / CADRG_FRAME_PIXEL_COUNT);
-    const int nSubframesCount = static_cast<int>(
+    const int nFrameCount = static_cast<int>(
         std::ceil(eastWestPixelCst / CADRG_FRAME_PIXEL_COUNT - EPSILON_1Em3));
-    return nSubframesCount;
+    return nFrameCount;
 }
 
 /************************************************************************/
@@ -486,7 +541,9 @@ static int GetFrameCountAlongX(int nZone, int nReciprocalScale)
 
 static int GetFrameCountAlongY(int nZone, int nReciprocalScale)
 {
-    const double latInterval = GetLatInterval(nZone, nReciprocalScale);
+    if (nZone == MAX_ZONE_NORTHERN_HEMISPHERE || nZone == MAX_ZONE)
+        return GetPolarFrameCount(nReciprocalScale);
+    const double latInterval = GetLatOrYInterval(nZone, nReciprocalScale);
     const double deltaLatFrame = latInterval * CADRG_FRAME_PIXEL_COUNT;
     const auto [dfMinLatZone, dfMaxLatZone] =
         GetMinMaxLatWithOverlap(nZone, nReciprocalScale);
@@ -499,41 +556,58 @@ static int GetFrameCountAlongY(int nZone, int nReciprocalScale)
 /*                    RPFGetCADRGFramesForEnvelope()                    */
 /************************************************************************/
 
-/** Given a bounding box of an area of interest expressed in long, lat WGS84,
- * and given a reciprocal scale (e.g. 1,000,000), returns the min/max frame
- * coordinate indices in all zones that intersect that area of interest
- * (when nZoneIn is 0), or in the specified zone (when nZoneIn is not 0)
- */
-std::vector<RPFFrameDef>
-RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
-                             double dfYMin, double dfXMax, double dfYMax)
+enum class HemiphereType
+{
+    BOTH,
+    NORTH,
+    SOUTH,
+};
+
+static std::vector<RPFFrameDef>
+RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale,
+                             GDALDataset *poSrcDS, HemiphereType hemisphere)
 {
     CPLAssert(nZoneIn == 0 || RPFCADRGIsValidZone(nZoneIn));
-    CPLAssert(dfYMin <= dfYMax);
-    CPLAssert(dfXMin <= dfXMax);
 
-    if (dfYMin < 0 && dfYMax > 0)
+    OGREnvelope sExtentNativeCRS;
+    OGREnvelope sExtentWGS84;
+    if (poSrcDS->GetExtent(&sExtentNativeCRS) != CE_None ||
+        poSrcDS->GetExtentWGS84LongLat(&sExtentWGS84) != CE_None)
     {
-        std::vector<RPFFrameDef> res1, res2;
-        if (nZoneIn == 0 || (nZoneIn >= MIN_ZONE_SOUTHERN_HEMISPHERE))
-        {
-            res1 = RPFGetCADRGFramesForEnvelope(nZoneIn, nReciprocalScale,
-                                                dfXMin, dfYMin, dfXMax, 0);
-        }
-        if (nZoneIn == 0 ||
-            (nZoneIn >= MIN_ZONE && nZoneIn <= MAX_ZONE_NORTHERN_HEMISPHERE))
-        {
-            res2 = RPFGetCADRGFramesForEnvelope(nZoneIn, nReciprocalScale,
-                                                dfXMin, 0, dfXMax, dfYMax);
-        }
-        res1.insert(res1.end(), res2.begin(), res2.end());
-        return res1;
+        CPLError(CE_Failure, CPLE_AppDefined, "Cannot get dataset extent");
+        return {};
     }
 
-    // Same hemisphere at this point
-    CPLAssert(dfYMin * dfYMax >= 0);
+    if (hemisphere == HemiphereType::BOTH)
+    {
+        if (sExtentWGS84.MinY < 0 && sExtentWGS84.MaxY > 0)
+        {
+            std::vector<RPFFrameDef> res1, res2;
+            if (nZoneIn == 0 || (nZoneIn >= MIN_ZONE_SOUTHERN_HEMISPHERE))
+            {
+                res1 = RPFGetCADRGFramesForEnvelope(
+                    nZoneIn, nReciprocalScale, poSrcDS, HemiphereType::SOUTH);
+            }
+            if (nZoneIn == 0 || (nZoneIn >= MIN_ZONE &&
+                                 nZoneIn <= MAX_ZONE_NORTHERN_HEMISPHERE))
+            {
+                res2 = RPFGetCADRGFramesForEnvelope(
+                    nZoneIn, nReciprocalScale, poSrcDS, HemiphereType::NORTH);
+            }
+            res1.insert(res1.end(), res2.begin(), res2.end());
+            return res1;
+        }
+        else if (sExtentWGS84.MinY >= 0)
+            hemisphere = HemiphereType::NORTH;
+        else
+            hemisphere = HemiphereType::SOUTH;
+    }
 
-    if (!(dfXMin >= dfMinLonZone && dfXMin < dfMaxLonZone))
+    CPLAssert(hemisphere == HemiphereType::NORTH ||
+              hemisphere == HemiphereType::SOUTH);
+
+    if (!(sExtentWGS84.MinX >= dfMinLonZone &&
+          sExtentWGS84.MinX < dfMaxLonZone))
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Minimum longitude of extent not in [%f,%f[ range",
@@ -543,12 +617,20 @@ RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
 
     double dfLastMaxLatZone = 0;
     std::vector<RPFFrameDef> res;
-    const double dfYMinNorth = dfYMax > 0 ? dfYMin : -dfYMax;
-    const double dfYMaxNorth = dfYMax > 0 ? dfYMax : -dfYMin;
-    const int nZoneOffset = dfYMax > 0 ? 0 : MAX_ZONE_NORTHERN_HEMISPHERE;
-    // TODO zone 9
-    CPLDebugOnly("CADRG", "Source minLat=%f, maxLat=%f", dfYMin, dfYMax);
-    for (int nZoneNorth = MIN_ZONE; nZoneNorth < MAX_ZONE_NORTHERN_HEMISPHERE;
+    const double dfYMinNorth = (hemisphere == HemiphereType::NORTH)
+                                   ? std::max(0.0, sExtentWGS84.MinY)
+                                   : std::max(0.0, -sExtentWGS84.MaxY);
+    const double dfYMaxNorth = (hemisphere == HemiphereType::NORTH)
+                                   ? sExtentWGS84.MaxY
+                                   : -sExtentWGS84.MinY;
+    const int nZoneOffset =
+        (hemisphere == HemiphereType::NORTH) ? 0 : MAX_ZONE_NORTHERN_HEMISPHERE;
+    CPLDebugOnly("CADRG", "Source minLat=%f, maxLat=%f", sExtentWGS84.MinY,
+                 sExtentWGS84.MaxY);
+
+    for (int nZoneNorth = MIN_ZONE;
+         nZoneNorth < MAX_ZONE_NORTHERN_HEMISPHERE &&
+         nZoneIn != MAX_ZONE_NORTHERN_HEMISPHERE && nZoneIn != MAX_ZONE;
          ++nZoneNorth)
     {
         const int nZone = nZoneIn ? nZoneIn : nZoneNorth + nZoneOffset;
@@ -561,8 +643,12 @@ RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
             CPLDebugOnly("CADRG",
                          "Zone %d: minLat_nominal=%d, maxLat_nominal=%d, "
                          "minLat_overlap=%f, maxLat_overlap=%f",
-                         nZone, dfYMax > 0 ? sZoneDef.minLat : sZoneDef.maxLat,
-                         dfYMax > 0 ? sZoneDef.maxLat : -sZoneDef.minLat,
+                         nZone,
+                         (hemisphere == HemiphereType::NORTH) ? sZoneDef.minLat
+                                                              : sZoneDef.maxLat,
+                         (hemisphere == HemiphereType::NORTH)
+                             ? sZoneDef.maxLat
+                             : -sZoneDef.minLat,
                          dfMinLatZone, dfMaxLatZone);
             const double dfMaxLatZoneNorth =
                 std::max(std::fabs(dfMinLatZone), std::fabs(dfMaxLatZone));
@@ -578,24 +664,29 @@ RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
                 continue;
             }
             dfLastMaxLatZone = dfMaxLatZoneNorth;
-
-            const double latInterval = GetLatInterval(nZone, nReciprocalScale);
+            const double latInterval =
+                GetLatOrYInterval(nZone, nReciprocalScale);
             const double deltaLatFrame = latInterval * CADRG_FRAME_PIXEL_COUNT;
             const double dfFrameMinY =
-                (std::max(dfYMin, dfMinLatZone) - dfMinLatZone) / deltaLatFrame;
+                (std::max(sExtentWGS84.MinY, dfMinLatZone) - dfMinLatZone) /
+                deltaLatFrame;
             const double dfFrameMaxY =
-                (std::min(dfYMax, dfMaxLatZone) - dfMinLatZone) / deltaLatFrame;
+                (std::min(sExtentWGS84.MaxY, dfMaxLatZone) - dfMinLatZone) /
+                deltaLatFrame;
             CPLDebugOnly("CADRG", "dfFrameMinY = %f, dfFrameMaxY=%f",
                          dfFrameMinY, dfFrameMaxY);
             const int nFrameMinY = static_cast<int>(dfFrameMinY + EPSILON_1Em3);
             const int nFrameMaxY = static_cast<int>(dfFrameMaxY - EPSILON_1Em3);
 
-            const double lonInterval = GetLonInterval(nZone, nReciprocalScale);
+            const double lonInterval =
+                GetLonOrXInterval(nZone, nReciprocalScale);
             const double deltaLonFrame = lonInterval * CADRG_FRAME_PIXEL_COUNT;
             const double dfFrameMinX =
-                (std::max(dfXMin, dfMinLonZone) - dfMinLonZone) / deltaLonFrame;
+                (std::max(sExtentWGS84.MinX, dfMinLonZone) - dfMinLonZone) /
+                deltaLonFrame;
             const double dfFrameMaxX =
-                (std::min(dfXMax, dfMaxLonZone) - dfMinLonZone) / deltaLonFrame;
+                (std::min(sExtentWGS84.MaxX, dfMaxLonZone) - dfMinLonZone) /
+                deltaLonFrame;
             CPLDebugOnly("CADRG", "dfFrameMinX = %f, dfFrameMaxX=%f",
                          dfFrameMinX, dfFrameMaxX);
             const int nFrameMinX = static_cast<int>(dfFrameMinX + EPSILON_1Em3);
@@ -618,7 +709,98 @@ RPFGetCADRGFramesForEnvelope(int nZoneIn, int nReciprocalScale, double dfXMin,
             break;
     }
 
+    // Polar zone
+    constexpr double MIN_POLAR_LAT_MANUAL = 70;
+    constexpr double MIN_POLAR_LAT_AUTO = 80;
+    if ((nZoneIn == 0 && dfYMaxNorth > MIN_POLAR_LAT_AUTO) ||
+        (nZoneIn == MAX_ZONE_NORTHERN_HEMISPHERE + nZoneOffset &&
+         dfYMaxNorth > MIN_POLAR_LAT_MANUAL))
+    {
+        const int nZone = MAX_ZONE_NORTHERN_HEMISPHERE + nZoneOffset;
+        OGRSpatialReference oPolarSRS;
+        oPolarSRS.importFromWkt(hemisphere == HemiphereType::NORTH
+                                    ? pszNorthPolarProjection
+                                    : pszSouthPolarProjection);
+        const auto poSrcSRS = poSrcDS->GetSpatialRef();
+        auto poCT = std::unique_ptr<OGRCoordinateTransformation>(
+            OGRCreateCoordinateTransformation(poSrcSRS, &oPolarSRS));
+        double dfXMin = 0;
+        double dfYMin = 0;
+        double dfXMax = 0;
+        double dfYMax = 0;
+
+        if (poSrcSRS->IsGeographic())
+        {
+            if (hemisphere == HemiphereType::NORTH)
+                sExtentNativeCRS.MinY =
+                    std::max(MIN_POLAR_LAT_MANUAL, sExtentNativeCRS.MinY);
+            else
+                sExtentNativeCRS.MaxY =
+                    std::min(-MIN_POLAR_LAT_MANUAL, sExtentNativeCRS.MaxY);
+        }
+
+        if (poCT->TransformBounds(sExtentNativeCRS.MinX, sExtentNativeCRS.MinY,
+                                  sExtentNativeCRS.MaxX, sExtentNativeCRS.MaxY,
+                                  &dfXMin, &dfYMin, &dfXMax, &dfYMax,
+                                  DEFAULT_DENSIFY_PTS))
+        {
+            const int numberFrames = GetPolarFrameCount(nReciprocalScale);
+
+            // Cf MIL-C-89038 (CADRG specification), para 30.5
+            const double R = numberFrames / 2.0 * CADRG_FRAME_PIXEL_COUNT;
+
+            RPFFrameDef sDef;
+            sDef.nZone = nZone;
+            sDef.nReciprocalScale = nReciprocalScale;
+            sDef.dfResX = GetLonOrXInterval(nZone, nReciprocalScale);
+            // will lead to same value as dfResX
+            sDef.dfResY = GetLatOrYInterval(nZone, nReciprocalScale);
+            sDef.nFrameMinX =
+                std::clamp(static_cast<int>((dfXMin / sDef.dfResX + R) /
+                                                CADRG_FRAME_PIXEL_COUNT +
+                                            EPSILON_1Em3),
+                           0, numberFrames - 1);
+            sDef.nFrameMinY =
+                std::clamp(static_cast<int>((dfYMin / sDef.dfResY + R) /
+                                                CADRG_FRAME_PIXEL_COUNT +
+                                            EPSILON_1Em3),
+                           0, numberFrames - 1);
+            sDef.nFrameMaxX =
+                std::clamp(static_cast<int>((dfXMax / sDef.dfResX + R) /
+                                                CADRG_FRAME_PIXEL_COUNT -
+                                            EPSILON_1Em3),
+                           0, numberFrames - 1);
+            sDef.nFrameMaxY =
+                std::clamp(static_cast<int>((dfYMax / sDef.dfResY + R) /
+                                                CADRG_FRAME_PIXEL_COUNT -
+                                            EPSILON_1Em3),
+                           0, numberFrames - 1);
+            CPLDebug("CADRG", "Zone %d: frame (x,y)=(%d,%d) to (%d,%d)",
+                     sDef.nZone, sDef.nFrameMinX, sDef.nFrameMinY,
+                     sDef.nFrameMaxX, sDef.nFrameMaxY);
+            res.push_back(sDef);
+        }
+        else if (nZoneIn == 0)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Cannot reproject source dataset extent to polar "
+                     "Azimuthal Equidistant");
+        }
+    }
+
     return res;
+}
+
+/** Given a dataset and a reciprocal scale (e.g. 1,000,000), returns the min/max
+ * frame coordinate indices in all zones that intersect that area of interest
+ * (when nZoneIn is 0), or in the specified zone (when nZoneIn is not 0)
+ */
+std::vector<RPFFrameDef> RPFGetCADRGFramesForEnvelope(int nZoneIn,
+                                                      int nReciprocalScale,
+                                                      GDALDataset *poSrcDS)
+{
+    return RPFGetCADRGFramesForEnvelope(nZoneIn, nReciprocalScale, poSrcDS,
+                                        HemiphereType::BOTH);
 }
 
 /************************************************************************/
@@ -682,16 +864,31 @@ bool RPFGetCADRGFrameExtent(int nZone, int nReciprocalScale, int nFrameX,
                             double &dfXMax, double &dfYMax)
 {
     CPLAssert(RPFCADRGIsValidZone(nZone));
-    const double dfLatInterval = GetLatInterval(nZone, nReciprocalScale);
-    const auto [dfMinLatZone, dfMaxLatZone] =
-        GetMinMaxLatWithOverlap(nZone, nReciprocalScale);
-    const double dfLonInterval = GetLonInterval(nZone, nReciprocalScale);
+    const double dfXRes = GetLonOrXInterval(nZone, nReciprocalScale);
+    const double dfYRes = GetLatOrYInterval(nZone, nReciprocalScale);
 
-    dfXMin = dfMinLonZone + nFrameX * dfLonInterval * CADRG_FRAME_PIXEL_COUNT;
-    dfXMax = dfXMin + dfLonInterval * CADRG_FRAME_PIXEL_COUNT;
+    double dfXMinLocal, dfYMinLocal;
 
-    dfYMin = dfMinLatZone + nFrameY * dfLatInterval * CADRG_FRAME_PIXEL_COUNT;
-    dfYMax = dfYMin + dfLatInterval * CADRG_FRAME_PIXEL_COUNT;
+    if (nZone == MAX_ZONE_NORTHERN_HEMISPHERE || nZone == MAX_ZONE)
+    {
+        const int numberFrames = GetPolarFrameCount(nReciprocalScale);
+        const double dfXYOrigin =
+            -numberFrames / 2.0 * dfXRes * CADRG_FRAME_PIXEL_COUNT;
+        dfXMinLocal = dfXYOrigin + nFrameX * dfXRes * CADRG_FRAME_PIXEL_COUNT;
+        dfYMinLocal = dfXYOrigin + nFrameY * dfYRes * CADRG_FRAME_PIXEL_COUNT;
+    }
+    else
+    {
+        const auto [dfMinLatZone, ignored] =
+            GetMinMaxLatWithOverlap(nZone, nReciprocalScale);
+        dfXMinLocal = dfMinLonZone + nFrameX * dfXRes * CADRG_FRAME_PIXEL_COUNT;
+        dfYMinLocal = dfMinLatZone + nFrameY * dfYRes * CADRG_FRAME_PIXEL_COUNT;
+    }
+
+    dfXMin = dfXMinLocal;
+    dfYMin = dfYMinLocal;
+    dfXMax = dfXMinLocal + dfXRes * CADRG_FRAME_PIXEL_COUNT;
+    dfYMax = dfYMinLocal + dfYRes * CADRG_FRAME_PIXEL_COUNT;
 
     return true;
 }
@@ -772,7 +969,7 @@ int RPFGetCADRGClosestReciprocalScale(GDALDataset *poSrcDS,
     {
         // This is actually zone independent
         const double dfLatInterval =
-            GetLatInterval(/* nZone = */ 1, nReciprocalScale);
+            GetLatOrYInterval(/* nZone = */ 1, nReciprocalScale);
         if (nCandidateReciprocalScale == 0 &&
             dfLatInterval / dfYResAtNominalCADRGDPI > MAX_PROXIMITY_RATIO)
         {
@@ -825,9 +1022,41 @@ Create_CADRG_CoverageSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     CPLAssert(poBuffer);
     poBuffer->DeclareOffsetAtCurrentPosition("COVERAGE_SECTION_LOCATION");
 
-    GDALGeoTransform gt;
-    if (poSrcDS->GetGeoTransform(gt) != CE_None)
+    OGREnvelope sExtent;
+    const auto poSrcSRS = poSrcDS->GetSpatialRef();
+    if (!poSrcSRS || poSrcDS->GetExtent(&sExtent) != CE_None)
+    {
+        CPLAssert(false);  // already checked in calling sites
         return false;
+    }
+
+    double dfULX = sExtent.MinX;
+    double dfULY = sExtent.MaxY;
+    double dfLLX = sExtent.MinX;
+    double dfLLY = sExtent.MinY;
+    double dfURX = sExtent.MaxX;
+    double dfURY = sExtent.MaxY;
+    double dfLRX = sExtent.MaxX;
+    double dfLRY = sExtent.MinY;
+
+    OGRSpatialReference oSRS_WGS84;
+    oSRS_WGS84.SetWellKnownGeogCS("WGS84");
+    oSRS_WGS84.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    if (!poSrcSRS->IsSame(&oSRS_WGS84))
+    {
+        auto poCT = std::unique_ptr<OGRCoordinateTransformation>(
+            OGRCreateCoordinateTransformation(poSrcSRS, &oSRS_WGS84));
+        if (!(poCT && poCT->Transform(1, &dfULX, &dfULY) &&
+              poCT->Transform(1, &dfLLX, &dfLLY) &&
+              poCT->Transform(1, &dfURX, &dfURY) &&
+              poCT->Transform(1, &dfLRX, &dfLRY)))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Create_CADRG_CoverageSection(): cannot compute corner "
+                     "lat/lon");
+            return false;
+        }
+    }
 
     const auto RoundIfCloseToInt = [](double dfX)
     {
@@ -852,38 +1081,46 @@ Create_CADRG_CoverageSection(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     };
 
     // Upper left corner lat, lon
-    poBuffer->AppendFloat64(RoundIfCloseToInt(gt[3]));
-    poBuffer->AppendFloat64(RoundIfCloseToInt(NormalizeToMinusPlus180(gt[0])));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(dfULY));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(NormalizeToMinusPlus180(dfULX)));
     // Lower left corner lat, lon
-    poBuffer->AppendFloat64(
-        RoundIfCloseToInt(gt[3] + gt[5] * poSrcDS->GetRasterYSize()));
-    poBuffer->AppendFloat64(RoundIfCloseToInt(NormalizeToMinusPlus180(gt[0])));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(dfLLY));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(NormalizeToMinusPlus180(dfLLX)));
     // Upper right corner lat, lon
-    poBuffer->AppendFloat64(RoundIfCloseToInt(gt[3]));
-    poBuffer->AppendFloat64(RoundIfCloseToInt(
-        NormalizeToMinusPlus180(gt[0] + gt[1] * poSrcDS->GetRasterXSize())));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(dfURY));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(NormalizeToMinusPlus180(dfURX)));
     // Lower right corner lat, lon
-    poBuffer->AppendFloat64(
-        RoundIfCloseToInt(gt[3] + gt[5] * poSrcDS->GetRasterYSize()));
-    poBuffer->AppendFloat64(RoundIfCloseToInt(
-        NormalizeToMinusPlus180(gt[0] + gt[1] * poSrcDS->GetRasterXSize())));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(dfLRY));
+    poBuffer->AppendFloat64(RoundIfCloseToInt(NormalizeToMinusPlus180(dfLRX)));
 
-    const double dfMeanLat = gt[3] + gt[5] / 2 * poSrcDS->GetRasterYSize();
+    const double dfMeanLat = (dfULY + dfLLY) / 2;
     const int nZone = GetARCZoneFromLat(dfMeanLat);
     if (nZone == 0)
         return false;
     double latResolution = 0;
     double lonResolution = 0;
-    double unused;
+    double latInterval = 0;
+    double lonInterval = 0;
     RPFGetCADRGResolutionAndInterval(nZone, nReciprocalScale, latResolution,
-                                     lonResolution, unused, unused);
+                                     lonResolution, latInterval, lonInterval);
 
     poBuffer->AppendFloat64(latResolution);
     poBuffer->AppendFloat64(lonResolution);
-    // Theoretical value: latInterval = 90.0 / latCst_CADRG;
-    poBuffer->AppendFloat64(std::fabs(gt[5]));
-    // Theoretical value: lonInterval = 360.0 / lonCst_CADRG;
-    poBuffer->AppendFloat64(gt[1]);
+    if (!poSrcSRS->IsSame(&oSRS_WGS84))
+    {
+        poBuffer->AppendFloat64(latInterval);
+        poBuffer->AppendFloat64(lonInterval);
+    }
+    else
+    {
+        GDALGeoTransform gt;
+        CPL_IGNORE_RET_VAL(poSrcDS->GetGeoTransform(gt));
+
+        // Theoretical value: latInterval = 90.0 / latCst_CADRG;
+        poBuffer->AppendFloat64(std::fabs(gt[5]));
+        // Theoretical value: lonInterval = 360.0 / lonCst_CADRG;
+        poBuffer->AppendFloat64(gt[1]);
+    }
     return true;
 }
 
@@ -1800,15 +2037,20 @@ bool RPFFrameWriteCADRG_RPFDES(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
 /************************************************************************/
 
 static std::unique_ptr<GDALDataset>
-CADRGGetWarpedVRTDataset(GDALDataset *poSrcDS, double dfXMin, double dfYMin,
-                         double dfXMax, double dfYMax, double dfResX,
-                         double dfResY)
+CADRGGetWarpedVRTDataset(GDALDataset *poSrcDS, int nZone, double dfXMin,
+                         double dfYMin, double dfXMax, double dfYMax,
+                         double dfResX, double dfResY)
 {
     CPLStringList aosWarpArgs;
     aosWarpArgs.push_back("-of");
     aosWarpArgs.push_back("VRT");
     aosWarpArgs.push_back("-t_srs");
-    aosWarpArgs.push_back("EPSG:4326");
+    if (nZone == MAX_ZONE_NORTHERN_HEMISPHERE)
+        aosWarpArgs.push_back(pszNorthPolarProjection);
+    else if (nZone == MAX_ZONE)
+        aosWarpArgs.push_back(pszSouthPolarProjection);
+    else
+        aosWarpArgs.push_back("EPSG:4326");
     aosWarpArgs.push_back("-te");
     aosWarpArgs.push_back(CPLSPrintf("%.17g", dfXMin));
     aosWarpArgs.push_back(CPLSPrintf("%.17g", dfYMin));
@@ -2276,9 +2518,8 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                                               : 0;
         const int nZoneHint =
             RPFCADRGIsValidZone(nZoneHintCandidate) ? nZoneHintCandidate : 0;
-        auto frameDefinitions = RPFGetCADRGFramesForEnvelope(
-            nZoneHint, nReciprocalScale, sExtentWGS84.MinX, sExtentWGS84.MinY,
-            sExtentWGS84.MaxX, sExtentWGS84.MaxY);
+        auto frameDefinitions =
+            RPFGetCADRGFramesForEnvelope(nZoneHint, nReciprocalScale, poSrcDS);
 
         if (nZoneHint)
         {
@@ -2294,8 +2535,10 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                 frameDef.nFrameMinY = atoi(pszFrameY);
                 frameDef.nFrameMaxX = atoi(pszFrameX);
                 frameDef.nFrameMaxY = atoi(pszFrameY);
-                frameDef.dfResX = GetLonInterval(nZoneHint, nReciprocalScale);
-                frameDef.dfResY = GetLatInterval(nZoneHint, nReciprocalScale);
+                frameDef.dfResX =
+                    GetLonOrXInterval(nZoneHint, nReciprocalScale);
+                frameDef.dfResY =
+                    GetLatOrYInterval(nZoneHint, nReciprocalScale);
 
                 frameDefinitions.clear();
                 frameDefinitions.push_back(std::move(frameDef));
@@ -2417,8 +2660,8 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
                              frameDef.nZone, dfXMin, dfYMin, dfXMax, dfYMax);
 
                 auto poWarpedDS = CADRGGetWarpedVRTDataset(
-                    poSrcDS, dfXMin, dfYMin, dfXMax, dfYMax, frameDef.dfResX,
-                    frameDef.dfResY);
+                    poSrcDS, frameDef.nZone, dfXMin, dfYMin, dfXMax, dfYMax,
+                    frameDef.dfResX, frameDef.dfResY);
                 if (!poWarpedDS)
                     return false;
 
@@ -2483,9 +2726,16 @@ CADRGCreateCopy(const char *pszFilename, GDALDataset *poSrcDS, int bStrict,
 
                 std::unique_ptr<OGRCoordinateTransformation> poReprojCTToSrcSRS;
                 OGRSpatialReference oSRS;
-                oSRS.importFromEPSG(4326);
+                if (frameDef.nZone == MAX_ZONE_NORTHERN_HEMISPHERE)
+                    oSRS.importFromWkt(pszNorthPolarProjection);
+                else if (frameDef.nZone == MAX_ZONE)
+                    oSRS.importFromWkt(pszSouthPolarProjection);
+                else
+                    oSRS.importFromEPSG(4326);
                 oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-                if (!poSrcSRS->IsSame(&oSRS))
+                if (!poSrcSRS->IsSame(&oSRS) ||
+                    frameDef.nZone == MAX_ZONE_NORTHERN_HEMISPHERE ||
+                    frameDef.nZone == MAX_ZONE)
                 {
                     poReprojCTToSrcSRS.reset(
                         OGRCreateCoordinateTransformation(&oSRS, poSrcSRS));

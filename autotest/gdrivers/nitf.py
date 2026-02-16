@@ -7848,4 +7848,41 @@ def test_nitf_create_cadrg_reprojection_skip_non_intersecting_tiles(tmp_vsimem):
         "RPF/ZONE8/00009010.MM8",
         "RPF/ZONE8/0000S010.MM8",
         "RPF/ZONE8/0000T010.MM8",
+        "RPF/ZONE9/",
+        "RPF/ZONE9/00002010.MM9",
+        "RPF/ZONE9/00007010.MM9",
+        "RPF/ZONE9/0000C010.MM9",
     ]
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_south_pole(tmp_vsimem):
+
+    gdal.GetDriverByName("NITF").CreateCopy(
+        tmp_vsimem,
+        gdal.Open("data/small_world.tif"),
+        options=["PRODUCT_TYPE=CADRG", "ZONE=J", "SCALE=10000000"],
+    )
+
+    assert gdal.ReadDirRecursive(tmp_vsimem) == [
+        "RPF/",
+        "RPF/A.TOC",
+        "RPF/ZONEJ/",
+        "RPF/ZONEJ/00000010.MMJ",
+    ]
+
+    with gdal.Open(tmp_vsimem / "RPF/ZONEJ/00000010.MMJ") as ds:
+        assert ds.GetGeoTransform() == pytest.approx(
+            (
+                -1113194.9079327357,
+                1449.4725363707496,
+                0.0,
+                1113194.9079327357,
+                0.0,
+                -1449.4725363707496,
+            )
+        )
+        assert ds.GetRasterBand(1).Checksum() in (42820, 42938)
