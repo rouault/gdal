@@ -7886,3 +7886,46 @@ def test_nitf_create_cadrg_south_pole(tmp_vsimem):
             )
         )
         assert ds.GetRasterBand(1).Checksum() in (42820, 42938)
+
+
+###############################################################################
+
+
+@pytest.mark.parametrize(
+    "resampling,expected_cs",
+    [
+        (None, 43024),
+        ("CUBIC", 43024),
+        ("BILINEAR", 43944),
+        ("LANCZOS", 42268),
+        ("NEAREST", 42033),
+    ],
+)
+@gdaltest.enable_exceptions()
+def test_nitf_create_cadrg_resampling(tmp_vsimem, resampling, expected_cs):
+
+    src_ds = gdal.Translate(
+        "",
+        "data/byte.tif",
+        format="MEM",
+        bandList=[1, 1, 1],
+        colorInterpretation=["red", "green", "blue"],
+    )
+    options = ["PRODUCT_TYPE=CADRG", "SCALE=100000"]
+    if resampling:
+        options += ["RESAMPLING=" + resampling]
+    gdal.GetDriverByName("NITF").CreateCopy(
+        tmp_vsimem,
+        src_ds,
+        options=options,
+    )
+
+    assert gdal.ReadDirRecursive(tmp_vsimem) == [
+        "RPF/",
+        "RPF/A.TOC",
+        "RPF/ZONE2/",
+        "RPF/ZONE2/00AEH010.MM2",
+    ]
+
+    with gdal.Open(tmp_vsimem / "RPF/ZONE2/00AEH010.MM2") as ds:
+        assert ds.GetRasterBand(1).Checksum() == expected_cs
