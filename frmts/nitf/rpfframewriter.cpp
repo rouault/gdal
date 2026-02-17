@@ -191,7 +191,7 @@ void Create_CADRG_RPFHDR(GDALOffsetPatcher::OffsetPatcher *offsetPatcher,
     poRPFHDR->AppendUInt16RefForSizeOfBuffer("RPFHDR");
     poRPFHDR->AppendString(
         StrPadTruncate(CPLGetFilename(osFilename.c_str()), 12));
-    poRPFHDR->AppendByte(1);  // update indicator: full replacement
+    poRPFHDR->AppendByte(0);  // update indicator: initial release
     poRPFHDR->AppendString("MIL-C-89038    ");  // GOVERNING_STANDARD_NUMBER
     poRPFHDR->AppendString("19941006");         // GOVERNING_STANDARD_DATE
     // SECURITY_CLASSIFICATION

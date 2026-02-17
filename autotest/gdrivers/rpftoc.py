@@ -153,7 +153,7 @@ def test_rpftoc_create_simple(tmp_vsimem):
     <field name="LITTLE_BIG_ENDIAN_INDICATOR" value="0" />
     <field name="HEADER_SECTION_LENGTH" value="48" />
     <field name="FILENAME" value="       A.TOC" />
-    <field name="NEW_REPLACEMENT_UPDATE_INDICATOR" value="1" />
+    <field name="NEW_REPLACEMENT_UPDATE_INDICATOR" value="0" />
     <field name="GOVERNING_STANDARD_NUMBER" value="MIL-C-89038" />
     <field name="GOVERNING_STANDARD_DATE" value="19941006" />
     <field name="SECURITY_CLASSIFICATION" value="U" />
