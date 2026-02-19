@@ -20,29 +20,6 @@ permissions:
 
 jobs:
 
-  cppcheck_2004:
-    runs-on: ubuntu-latest
-    container: ubuntu:20.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-
-      - name: Install Requirements
-        run: |
-          apt update
-          apt install -y cppcheck libsqlite3-dev ccache sqlite3 libproj-dev cmake g++ make
-
-      - name: Run cmake
-        run: |
-          mkdir build
-          cd build
-          cmake ..
-
-      - name: Run cppcheck test
-        run: |
-          cd build
-          ../scripts/cppcheck.sh
-
   cppcheck_2404:
     runs-on: ubuntu-latest
     container: ubuntu:24.04
