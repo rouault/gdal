@@ -41,6 +41,10 @@
 #include "gdalwarper.h"
 #include "ogr_geometry.h"
 
+static std::unique_ptr<VRTWarpedDataset>
+CreateWarpedVRT(GDALDataset *poSrcDS, int nPixels, int nLines,
+                const GDALGeoTransform &gt, GDALWarpOptions *psOptions);
+
 /************************************************************************/
 /*                      GDALAutoCreateWarpedVRT()                       */
 /************************************************************************/
@@ -378,55 +382,63 @@ GDALDatasetH CPL_STDCALL GDALCreateWarpedVRT(GDALDatasetH hSrcDS, int nPixels,
     VALIDATE_POINTER1(hSrcDS, "GDALCreateWarpedVRT", nullptr);
     VALIDATE_POINTER1(psOptions, "GDALCreateWarpedVRT", nullptr);
 
+    return CreateWarpedVRT(GDALDataset::FromHandle(hSrcDS), nPixels, nLines,
+                           GDALGeoTransform(padfGeoTransform), psOptions)
+        .release();
+}
+
+static std::unique_ptr<VRTWarpedDataset>
+CreateWarpedVRT(GDALDataset *poSrcDS, int nPixels, int nLines,
+                const GDALGeoTransform &gt, GDALWarpOptions *psOptions)
+{
     /* -------------------------------------------------------------------- */
     /*      Create the VRTDataset and populate it with bands.               */
     /* -------------------------------------------------------------------- */
-    VRTWarpedDataset *poDS = new VRTWarpedDataset(nPixels, nLines);
+    auto poWarpedDS = std::make_unique<VRTWarpedDataset>(nPixels, nLines);
 
     // Call this before assigning hDstDS
     GDALWarpResolveWorkingDataType(psOptions);
 
-    psOptions->hDstDS = poDS;
-    poDS->SetGeoTransform(GDALGeoTransform(padfGeoTransform));
+    psOptions->hDstDS = GDALDataset::ToHandle(poWarpedDS.get());
+    poWarpedDS->SetGeoTransform(gt);
 
     for (int i = 0; i < psOptions->nBandCount; i++)
     {
-        int nDstBand = psOptions->panDstBands[i];
-        while (poDS->GetRasterCount() < nDstBand)
+        const int nDstBand = psOptions->panDstBands[i];
+        while (poWarpedDS->GetRasterCount() < nDstBand)
         {
-            poDS->AddBand(psOptions->eWorkingDataType, nullptr);
+            poWarpedDS->AddBand(psOptions->eWorkingDataType, nullptr);
         }
 
-        VRTWarpedRasterBand *poBand =
-            static_cast<VRTWarpedRasterBand *>(poDS->GetRasterBand(nDstBand));
-        GDALRasterBand *poSrcBand = static_cast<GDALRasterBand *>(
-            GDALGetRasterBand(hSrcDS, psOptions->panSrcBands[i]));
+        VRTWarpedRasterBand *poBand = cpl::down_cast<VRTWarpedRasterBand *>(
+            poWarpedDS->GetRasterBand(nDstBand));
+        GDALRasterBand *poSrcBand =
+            poSrcDS->GetRasterBand(psOptions->panSrcBands[i]);
 
         poBand->CopyCommonInfoFrom(poSrcBand);
     }
 
-    while (poDS->GetRasterCount() < psOptions->nDstAlphaBand)
+    while (poWarpedDS->GetRasterCount() < psOptions->nDstAlphaBand)
     {
-        poDS->AddBand(psOptions->eWorkingDataType, nullptr);
+        poWarpedDS->AddBand(psOptions->eWorkingDataType, nullptr);
     }
     if (psOptions->nDstAlphaBand)
     {
-        poDS->GetRasterBand(psOptions->nDstAlphaBand)
+        poWarpedDS->GetRasterBand(psOptions->nDstAlphaBand)
             ->SetColorInterpretation(GCI_AlphaBand);
     }
 
     /* -------------------------------------------------------------------- */
     /*      Initialize the warp on the VRTWarpedDataset.                    */
     /* -------------------------------------------------------------------- */
-    const CPLErr eErr = poDS->Initialize(psOptions);
+    const CPLErr eErr = poWarpedDS->Initialize(psOptions);
     if (eErr == CE_Failure)
     {
         psOptions->hDstDS = nullptr;
-        delete poDS;
         return nullptr;
     }
 
-    return poDS;
+    return poWarpedDS;
 }
 
 /*! @cond Doxygen_Suppress */
@@ -833,27 +845,23 @@ VRTWarpedDataset *VRTWarpedDataset::CreateImplicitOverview(int iOvr) const
     GDALSetTransformerDstGeoTransform(psWOOvr->pTransformerArg,
                                       adfDstGeoTransform);
 
-    /* --------------------------------------------------------------------
-     */
-    /*      Create the VRT file. */
-    /* --------------------------------------------------------------------
-     */
-    GDALDatasetH hDstDS = GDALCreateWarpedVRT(poSrcOvrDS, nDstPixels, nDstLines,
-                                              adfDstGeoTransform, psWOOvr);
+    // Create the overview warped VRT dataset
+    auto poOvrDS =
+        CreateWarpedVRT(poSrcOvrDS, nDstPixels, nDstLines,
+                        GDALGeoTransform(adfDstGeoTransform), psWOOvr);
 
     poSrcOvrDS->ReleaseRef();
 
     GDALDestroyWarpOptions(psWOOvr);
 
-    if (hDstDS == nullptr)
+    if (!poOvrDS)
     {
         GDALDestroyTransformer(pTransformerArg);
         return nullptr;
     }
 
-    auto poOvrDS = static_cast<VRTWarpedDataset *>(hDstDS);
     poOvrDS->m_bIsOverview = true;
-    return poOvrDS;
+    return poOvrDS.release();
 }
 
 /************************************************************************/
