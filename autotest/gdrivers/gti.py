@@ -3289,6 +3289,6 @@ def test_gti_reprojected_no_out_of_sync_warning(index_filename):
     origins, amplifying the floor/ceil grid-snap that triggers the mismatch.
     Regression test for https://github.com/OSGeo/gdal/issues/13944."""
 
-    gti_ds = gdal.Open(index_filename)
+    gti_ds = gdal.OpenEx(index_filename, open_options=["WARPING_MEMORY=100MB"])
     with gdaltest.error_raised(gdal.CE_None):
         gti_ds.ReadRaster(0, 0, 500, 500)

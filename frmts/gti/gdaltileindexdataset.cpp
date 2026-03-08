@@ -362,6 +362,8 @@ class GDALTileIndexDataset final : public GDALPamDataset
     //! Whether the GTI file is a STAC collection
     bool m_bSTACCollection = false;
 
+    std::string m_osWarpMemory{};
+
     //! From a source dataset name, return its SourceDesc description structure.
     bool GetSourceDesc(const std::string &osTileName, SourceDesc &oSourceDesc,
                        std::mutex *pMutex);
@@ -2426,6 +2428,9 @@ bool GDALTileIndexDataset::Open(GDALOpenInfo *poOpenInfo)
     /* -------------------------------------------------------------------- */
     oOvManager.Initialize(this, poOpenInfo->pszFilename);
 
+    m_osWarpMemory = CSLFetchNameValueDef(poOpenInfo->papszOpenOptions,
+                                          "WARPING_MEMORY_SIZE", "");
+
     return true;
 }
 
@@ -3674,6 +3679,12 @@ bool GDALTileIndexDataset::GetSourceDesc(const std::string &osTileName,
 
             if (bAddAlphaToVRT)
                 aosOptions.AddString("-dstalpha");
+
+            if (!m_osWarpMemory.empty())
+            {
+                aosOptions.AddString("-wm");
+                aosOptions.AddString(m_osWarpMemory.c_str());
+            }
 
             psWarpOptions = GDALWarpAppOptionsNew(aosOptions.List(), nullptr);
             poWarpDS.reset(GDALDataset::FromHandle(GDALWarp(
@@ -5342,9 +5353,12 @@ void GDALRegister_GTI()
         "  <Option name='MINY' type='float'/>"
         "  <Option name='MAXX' type='float'/>"
         "  <Option name='MAXY' type='float'/>"
-        "<Option name='NUM_THREADS' type='string' description="
+        "  <Option name='NUM_THREADS' type='string' description="
         "'Number of worker threads for reading. Can be set to ALL_CPUS' "
         "default='ALL_CPUS'/>"
+        "  <Option name='WARPING_MEMORY_SIZE' type='string' description="
+        "'Set the amount of memory that the warp API is allowed to use for "
+        "caching' default='64MB'/>"
         "</OpenOptionList>");
 
 #ifdef GDAL_ENABLE_ALGORITHMS
