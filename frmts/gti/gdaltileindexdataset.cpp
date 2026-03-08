@@ -3566,7 +3566,13 @@ bool GDALTileIndexDataset::GetSourceDesc(const std::string &osTileName,
                      osTileName.c_str());
             bWarpVRT = true;
             bExportSRS = true;
-            bAddAlphaToVRT = true;
+            if (poTileDS->GetRasterBand(poTileDS->GetRasterCount())
+                        ->GetColorInterpretation() != GCI_AlphaBand &&
+                GetRasterBand(nBands)->GetColorInterpretation() ==
+                    GCI_AlphaBand)
+            {
+                bAddAlphaToVRT = true;
+            }
         }
         else if (poTileDS->GetGeoTransform(tileGT) == CE_None &&
                  tileGT[GT_NS_RES] > 0 &&
