@@ -373,6 +373,11 @@ CPLErr GDALWarpNoDataMasker(void *pMaskFuncArg, int nBandCount,
                                          *ppImageData,  // Already a GByte *.
                                          panValidityMask, pbOutAllValid);
 
+        case GDT_Int8:
+            return GDALWarpNoDataMaskerT(
+                padfNoData, nPixels, reinterpret_cast<int8_t *>(*ppImageData),
+                panValidityMask, pbOutAllValid);
+
         case GDT_Int16:
             return GDALWarpNoDataMaskerT(
                 padfNoData, nPixels, reinterpret_cast<GInt16 *>(*ppImageData),
