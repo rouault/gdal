@@ -21,7 +21,7 @@ When opening a GeoRaster, its name should be specified in the form:
 Where:
 
 | user   = Oracle server user name, when a proxy user is used, it is in the format of proxyuser[username].
-| pwd    = user password, double quote the password when the password has '@' or ',', or the password is case-sensitive.
+| pwd    = user password, double quote the password when the password has '@' or ',', or the password is case-sensitive. 
 | db     = Oracle Net connect identifier. This can be the TNS alias defined in the tnsnames.ora, or a quoted string of Oracle Net connect descriptor. The location of the tnsnames.ora is configured by TNS_ADMIN environment variable.
 | schema = name of a schema
 | table  = name of a GeoRaster table (table that contains GeoRaster
@@ -38,7 +38,7 @@ Examples:
 | geor:scott,tiger,demodb,table,column,"id = 1"
 | geor:gisuser[scott]/welcome,demodb,table,column,"id = 1"
 | geor:/@demodb,table,column,"id = 1"
-| geor:scott/\"Welcome@Tiger\"@"(description=(retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.ca-toronto-1.oraclecloud.com))(connect_data=(service_name=g0eab5a4f6c8694_low.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)(MY_WALLET_DIRECTORY=/path/to/my/wallet)))",table,column,id=1
+| geor:scott/\\"Welcome@Tiger\\"@"(description=(retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.ca-toronto-1.oraclecloud.com))(connect_data=(service_name=g0eab5a4f6c8694_low.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)(MY_WALLET_DIRECTORY=/path/to/my/wallet)))",table,column,id=1
 | "georaster:scott/tiger@demodb,table,column,gain>10"
 | "georaster:scott/tiger@demodb,table,column,city='Brasilia'"
 | georaster:scott,tiger,,rdt_10$,10
