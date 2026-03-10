@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 
 #include "cpl_atomic_ops.h"
 #include "cpl_config.h"
@@ -1317,11 +1318,41 @@ const char *CPLCleanTrailingSlash(const char *pszPath)
  */
 
 char **CPLCorrespondingPaths(const char *pszOldFilename,
-                             const char *pszNewFilename, char **papszFileList)
+                             const char *pszNewFilename,
+                             CSLConstList papszFileList)
 
 {
     if (CSLCount(papszFileList) == 0)
         return nullptr;
+
+    VSIStatBufL sStatBuf;
+    if (VSIStatL(pszOldFilename, &sStatBuf) == 0 && VSI_ISDIR(sStatBuf.st_mode))
+    {
+        CPLStringList aosNewList;
+        std::string_view svOldFilename(pszOldFilename);
+        for (int i = 0; papszFileList[i] != nullptr; i++)
+        {
+            if (cpl::starts_with(std::string_view(papszFileList[i]),
+                                 svOldFilename) &&
+                (papszFileList[i][svOldFilename.size()] == '/' ||
+                 papszFileList[i][svOldFilename.size()] == '\\'))
+            {
+                // If the old file list contains entries like oldpath/filename,
+                // generate newpath/filename
+                aosNewList.push_back(CPLFormFilenameSafe(
+                    pszNewFilename, papszFileList[i] + svOldFilename.size() + 1,
+                    nullptr));
+            }
+            else
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Unable to copy/rename fileset due to unexpected "
+                         "source filename.");
+                return nullptr;
+            }
+        }
+        return aosNewList.StealList();
+    }
 
     /* -------------------------------------------------------------------- */
     /*      There is a special case for a one item list which exactly       */
