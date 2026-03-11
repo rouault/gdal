@@ -104,6 +104,10 @@ This subcommand is also available as a potential step of :ref:`gdal_raster_pipel
 
     .. note:: This option is not available when the command is part of a pipeline.
 
+Standard Options
+----------------
+
+.. include:: gdal_options/oo.rst
 
 Examples
 --------

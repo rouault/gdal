@@ -539,3 +539,23 @@ def test_gdalalg_raster_edit_gcp_output_fromat_does_not_support(tmp_vsimem):
 
     with pytest.raises(Exception, match="Setting GCPs failed"):
         gdal.Run("raster", "edit", dataset=ds, gcp=[[1.5, 2.5, 3.5, 4.5]])
+
+
+@pytest.mark.require_driver("COG")
+def test_gdalalg_raster_edit_cog(tmp_vsimem):
+
+    gdal.alg.raster.convert(
+        input="../gcore/data/byte.tif",
+        output=tmp_vsimem / "out.tif",
+        output_format="COG",
+    )
+    with pytest.raises(
+        Exception, match=r"has C\(loud\) O\(ptimized\) G\(eoTIFF\) layout"
+    ):
+        gdal.alg.raster.edit(dataset=tmp_vsimem / "out.tif", crs="EPSG:32611")
+    with gdal.quiet_errors():
+        gdal.alg.raster.edit(
+            dataset=tmp_vsimem / "out.tif",
+            crs="EPSG:32611",
+            open_option={"IGNORE_COG_LAYOUT_BREAK": "YES"},
+        )
