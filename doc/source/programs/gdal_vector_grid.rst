@@ -37,7 +37,7 @@ Options common to all algorithms
 Standard options
 ++++++++++++++++
 
-.. include:: gdal_options/of_vector.rst
+.. include:: gdal_options/of_raster_create.rst
 
 .. include:: gdal_options/co_vector.rst
 
