@@ -1737,3 +1737,102 @@ bool CPLHasUnbalancedPathTraversal(const char *pszFilename)
 
     return false;
 }
+
+/************************************************************************/
+/*                       CPLLexicallyNormalize()                        */
+/************************************************************************/
+
+/**
+ * Return a path where "/./" or "/../" sequences are removed.
+ *
+ * No filesystem access is done.
+ *
+ * @param svPath Input path
+ * @param sep1 Path separator (typically slash or backslash)
+ * @param sep2 Secondary path separator (typically slash or backslash), or NUL
+ * @return compacted path
+ *
+ * @since GDAL 3.13
+ */
+std::string CPLLexicallyNormalize(std::string_view svPath, char sep1, char sep2)
+{
+    struct Token
+    {
+        size_t iStart = 0;  // index of start of token with svPath
+        size_t nLen = 0;    // length of token (excluding ending separator)
+        char chSep = 0;     // separator at end of token, or 0 if there is none
+    };
+
+    std::vector<Token> tokens;
+
+    const auto CompactTokens = [&tokens, &svPath]()
+    {
+        Token &t = tokens.back();
+        if (t.nLen == 1 && svPath[t.iStart] == '.')
+        {
+            tokens.pop_back();
+        }
+        else if (t.nLen == 2 && svPath[t.iStart] == '.' &&
+                 svPath[t.iStart + 1] == '.')
+        {
+            if (tokens.size() >= 2)
+                tokens.resize(tokens.size() - 2);
+        }
+    };
+
+    bool lastCharIsSep = false;
+    for (size_t i = 0; i < svPath.size(); ++i)
+    {
+        const char c = svPath[i];
+        if (c == sep1 || c == sep2)
+        {
+            if (!lastCharIsSep)
+            {
+                if (tokens.empty())
+                {
+                    Token t;
+                    t.chSep = c;
+                    tokens.push_back(t);
+                }
+                else
+                {
+                    Token &t = tokens.back();
+                    t.chSep = c;
+                    CompactTokens();
+                }
+                lastCharIsSep = true;
+            }
+        }
+        else
+        {
+            if (tokens.empty() || lastCharIsSep)
+            {
+                Token t;
+                t.iStart = i;
+                t.nLen = 1;
+                tokens.push_back(t);
+            }
+            else
+            {
+                Token &t = tokens.back();
+                ++t.nLen;
+            }
+            lastCharIsSep = false;
+        }
+    }
+    if (!tokens.empty())
+    {
+        CompactTokens();
+    }
+
+    std::string s;
+    s.reserve(svPath.size());
+    for (const auto &t : tokens)
+    {
+        if (t.nLen)
+            s.append(svPath.substr(t.iStart, t.nLen));
+        if (t.chSep)
+            s.push_back(t.chSep);
+    }
+    return s;
+}

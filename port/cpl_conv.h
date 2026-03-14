@@ -238,6 +238,12 @@ extern "C++"
         CPL_WARN_UNUSED_RESULT;
     std::string CPL_DLL CPLLaunderForFilenameSafe(
         const char *pszName, const char *pszOutputPath) CPL_WARN_UNUSED_RESULT;
+
+#if defined(GDAL_COMPILATION) || __cplusplus >= 201703L
+    std::string CPL_DLL CPLLexicallyNormalize(std::string_view svPath,
+                                              char sep1, char sep2 = 0)
+        CPL_WARN_UNUSED_RESULT;
+#endif
 }
 
 #endif  // defined(__cplusplus) && !defined(CPL_SUPRESS_CPLUSPLUS)
