@@ -23,7 +23,7 @@ import gdaltest
 import pytest
 import test_py_scripts  # noqa  # pylint: disable=E0401
 
-from osgeo import gdal, osr  # noqa
+from osgeo import gdal, osr
 from osgeo_utils.gdalcompare import compare_db
 
 pytestmark = [
@@ -833,3 +833,23 @@ def test_gdal2tiles_py_jpeg_1band_input(
             got_stats_14,
             got_stats_13,
         )
+
+
+@pytest.mark.require_driver("PNG")
+def test_gdal2tiles_py_non_square_pixels(script_path, tmp_path):
+
+    with gdal.GetDriverByName("GTiff").Create(tmp_path / "in.tif", 737, 1623) as src_ds:
+        src_ds.SetGeoTransform(
+            [-1019571, 0.223137232744343, 0, 4639229, 0, -0.204886113997991]
+        )
+        src_ds.SetSpatialRef(osr.SpatialReference(epsg=3857))
+
+    out_dir = str(tmp_path / "out")
+
+    test_py_scripts.run_py_script_as_external_script(
+        script_path,
+        "gdal2tiles",
+        "-q -z 18-19 --tiledriver=PNG " + str(tmp_path / "in.tif") + " " + out_dir,
+    )
+
+    assert os.path.exists(tmp_path / "out" / "18")

@@ -2406,7 +2406,7 @@ class GDAL2Tiles:
         )
         self.omaxy = self.out_gt[3]
         self.ominy = (
-            self.out_gt[3] - self.warped_input_dataset.RasterYSize * self.out_gt[1]
+            self.out_gt[3] + self.warped_input_dataset.RasterYSize * self.out_gt[5]
         )
         # Note: maybe round(x, 14) to avoid the gdal_translate behavior, when 0 becomes -1e-15
 
