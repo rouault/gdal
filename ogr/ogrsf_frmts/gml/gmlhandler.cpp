@@ -1669,8 +1669,8 @@ OGRErr GMLHandler::endElementGeometry()
             m_oMapElementToSubstitute.find(psThisNodeChild->psChild->pszValue);
         if (oIter != m_oMapElementToSubstitute.end())
         {
-            const auto psElementToSubstitude = oIter->second;
-            if (nodeHasChild(psElementToSubstitude, psThisNode))
+            const auto psElementToSubstitute = oIter->second;
+            if (nodeHasChild(psElementToSubstitute, psThisNode))
             {
                 CPLDebug("GML", "href #%s referencing one of its subnodes",
                          psThisNodeChild->psChild->pszValue);
