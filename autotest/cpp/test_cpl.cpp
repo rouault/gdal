@@ -1119,11 +1119,30 @@ TEST_F(test_cpl, CPLGetDirname)
         "2Fgdal%2Fmaster%2Fautotest%2Fogr%2Fdata");
 }
 
-TEST_F(test_cpl, VSIGetDiskFreeSpace)
+TEST_F(test_cpl, CPLLexicallyNormalize)
 {
-    ASSERT_TRUE(VSIGetDiskFreeSpace("/vsimem/") > 0);
-    ASSERT_TRUE(VSIGetDiskFreeSpace(".") == -1 ||
-                VSIGetDiskFreeSpace(".") >= 0);
+    EXPECT_STREQ(CPLLexicallyNormalize("", '/').c_str(), "");
+    EXPECT_STREQ(CPLLexicallyNormalize("x", '/').c_str(), "x");
+    EXPECT_STREQ(CPLLexicallyNormalize("xy", '/').c_str(), "xy");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/", '/').c_str(), "x/");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/.", '/').c_str(), "x/");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/./", '/').c_str(), "x/");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/y", '/').c_str(), "x/y");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/yz", '/').c_str(), "x/yz");
+    EXPECT_STREQ(CPLLexicallyNormalize("xy/z", '/').c_str(), "xy/z");
+    EXPECT_STREQ(CPLLexicallyNormalize("x//y", '/').c_str(), "x/y");
+    EXPECT_STREQ(CPLLexicallyNormalize("/", '/').c_str(), "/");
+    EXPECT_STREQ(CPLLexicallyNormalize("/x", '/').c_str(), "/x");
+    EXPECT_STREQ(CPLLexicallyNormalize("../x", '/').c_str(), "../x");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/../y", '/').c_str(), "y");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/..", '/').c_str(), "");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/../", '/').c_str(), "");
+    EXPECT_STREQ(CPLLexicallyNormalize("xy/../z", '/').c_str(), "z");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/../yz", '/').c_str(), "yz");
+    EXPECT_STREQ(CPLLexicallyNormalize("x/../../yz", '/').c_str(), "../yz");
+    EXPECT_STREQ(CPLLexicallyNormalize("a/x/y/../../t", '/').c_str(), "a/t");
+    EXPECT_STREQ(CPLLexicallyNormalize("a\\x\\y\\..\\..\\t", '/', '\\').c_str(),
+                 "a\\t");
 }
 
 TEST_F(test_cpl, CPLsscanf)
