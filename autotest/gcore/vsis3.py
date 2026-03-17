@@ -7147,3 +7147,41 @@ region = us-east-1
 
     finally:
         os.unlink(script_path)
+
+
+###############################################################################
+# Test invalid filenames
+
+
+@gdaltest.enable_exceptions()
+def test_vsis3_invalid_filenames():
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.VSIFile("/vsis3/../traversal", "rb")
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.VSIStatL("/vsis3/../traversal")
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.Mkdir("/vsis3/../traversal", 0)
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.Rmdir("/vsis3/../traversal")
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.Unlink("/vsis3/../traversal")
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.GetFileMetadata("/vsis3/../traversal", "HEADERS")
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.SetFileMetadata("/vsis3/../traversal", {"foo": "bar"}, "HEADERS")
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.Rename("/vsis3/../traversal", "/vsis3/valid")
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.Rename("/vsis3/valid", "/vsis3/../traversal")
+
+    with pytest.raises(Exception, match="Invalid filename"):
+        gdal.OpenDir("/vsis3/../traversal")

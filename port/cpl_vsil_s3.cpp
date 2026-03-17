@@ -1915,6 +1915,12 @@ VSIVirtualHandleUniquePtr VSICurlFilesystemHandlerBaseWritable::Open(
 
     CPLString osFilename(pszFilename);
     NormalizeFilenameIfNeeded(osFilename);
+    if (!STARTS_WITH_CI(osFilename.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'",
+                 pszFilename);
+        return nullptr;
+    }
 
     if (strchr(pszAccess, '+'))
     {
@@ -2445,6 +2451,12 @@ char **VSIS3FSHandler::GetFileMetadata(const char *pszFilename,
 
     CPLString osFilename(pszFilename);
     NormalizeFilenameIfNeeded(osFilename);
+    if (!STARTS_WITH_CI(osFilename.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'",
+                 pszFilename);
+        return nullptr;
+    }
 
     if (pszDomain == nullptr || !EQUAL(pszDomain, "TAGS"))
     {
@@ -2567,6 +2579,12 @@ bool VSIS3FSHandler::SetFileMetadata(const char *pszFilename,
 
     CPLString osFilename(pszFilename);
     NormalizeFilenameIfNeeded(osFilename);
+    if (!STARTS_WITH_CI(osFilename.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'",
+                 pszFilename);
+        return false;
+    }
 
     if (pszDomain == nullptr ||
         !(EQUAL(pszDomain, "HEADERS") || EQUAL(pszDomain, "TAGS")))
@@ -2754,6 +2772,13 @@ int IVSIS3LikeFSHandler::MkdirInternal(const char *pszDirname, long /*nMode*/,
 
     CPLString osDirname(pszDirname);
     NormalizeFilenameIfNeeded(osDirname);
+    if (!STARTS_WITH_CI(osDirname.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'",
+                 pszDirname);
+        return -1;
+    }
+
     if (!osDirname.empty() && osDirname.back() != '/')
         osDirname += "/";
 
@@ -2828,6 +2853,13 @@ int IVSIS3LikeFSHandler::Rmdir(const char *pszDirname)
 
     CPLString osDirname(pszDirname);
     NormalizeFilenameIfNeeded(osDirname);
+    if (!STARTS_WITH_CI(osDirname.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'",
+                 pszDirname);
+        return -1;
+    }
+
     if (!osDirname.empty() && osDirname.back() != '/')
         osDirname += "/";
 
@@ -2887,6 +2919,12 @@ int IVSIS3LikeFSHandler::Stat(const char *pszFilename, VSIStatBufL *pStatBuf,
 
     CPLString osFilename(pszFilename);
     NormalizeFilenameIfNeeded(osFilename);
+    if (!STARTS_WITH_CI(osFilename.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'",
+                 pszFilename);
+        return -1;
+    }
 
     if ((nFlags & VSI_STAT_CACHE_ONLY) != 0)
         return VSICurlFilesystemHandlerBase::Stat(osFilename, pStatBuf, nFlags);
@@ -3036,6 +3074,12 @@ int IVSIS3LikeFSHandler::Unlink(const char *pszFilename)
 
     CPLString osFilename(pszFilename);
     NormalizeFilenameIfNeeded(osFilename);
+    if (!STARTS_WITH_CI(osFilename.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'",
+                 pszFilename);
+        return -1;
+    }
 
     std::string osNameWithoutPrefix = osFilename.c_str() + GetFSPrefix().size();
     if (osNameWithoutPrefix.find('/') == std::string::npos)
@@ -3080,10 +3124,19 @@ int IVSIS3LikeFSHandler::Rename(const char *oldpath, const char *newpath,
 
     CPLString osOldPath(oldpath);
     NormalizeFilenameIfNeeded(osOldPath);
+    if (!STARTS_WITH_CI(osOldPath.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'", oldpath);
+        return -1;
+    }
 
     CPLString osNewPath(newpath);
     NormalizeFilenameIfNeeded(osNewPath);
-
+    if (!STARTS_WITH_CI(osNewPath.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'", newpath);
+        return -1;
+    }
     NetworkStatisticsFileSystem oContextFS(GetFSPrefix().c_str());
     NetworkStatisticsAction oContextAction("Rename");
 
@@ -3450,6 +3503,11 @@ VSIDIR *IVSIS3LikeFSHandler::OpenDir(const char *pszPath, int nRecurseDepth,
 
     CPLString osPath(pszPath);
     NormalizeFilenameIfNeeded(osPath);
+    if (!STARTS_WITH_CI(osPath.c_str(), GetFSPrefix().c_str()))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid filename '%s'", pszPath);
+        return nullptr;
+    }
 
     NetworkStatisticsFileSystem oContextFS(GetFSPrefix().c_str());
     NetworkStatisticsAction oContextAction("OpenDir");
