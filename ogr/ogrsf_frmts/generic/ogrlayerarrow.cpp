@@ -3135,20 +3135,21 @@ static void CompactValidityBuffer(
     const struct ArrowSchema *, struct ArrowArray *array, size_t iStart,
     const std::vector<bool> &abyValidityFromFilters, size_t nNewLength)
 {
+    if (array->null_count <= 0)
+    {
+        return;
+    }
+
     // Invalidate null_count as the same validity buffer may be used when
     // scrolling batches, and this creates confusion if we try to set it
     // to different values among the batches
-    if (array->null_count <= 0)
-    {
-        array->null_count = -1;
-        return;
-    }
     array->null_count = -1;
 
     CPLAssert(static_cast<size_t>(array->length) >=
               iStart + abyValidityFromFilters.size());
     uint8_t *pabyValidity =
         static_cast<uint8_t *>(const_cast<void *>(array->buffers[0]));
+    CPLAssert(pabyValidity);
     const size_t nLength = abyValidityFromFilters.size();
     const size_t nOffset = static_cast<size_t>(array->offset);
     size_t j = iStart + nOffset;
