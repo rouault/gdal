@@ -80,7 +80,8 @@ VRTSimpleSource::VRTSimpleSource() = default;
 
 VRTSimpleSource::VRTSimpleSource(const VRTSimpleSource *poSrcSource,
                                  double dfXDstRatio, double dfYDstRatio)
-    : m_poMapSharedSources(poSrcSource->m_poMapSharedSources),
+    : VRTSource(*poSrcSource),
+      m_poMapSharedSources(poSrcSource->m_poMapSharedSources),
       m_poRasterBand(poSrcSource->m_poRasterBand),
       m_poMaskBandMainBand(poSrcSource->m_poMaskBandMainBand),
       m_aosOpenOptionsOri(poSrcSource->m_aosOpenOptionsOri),

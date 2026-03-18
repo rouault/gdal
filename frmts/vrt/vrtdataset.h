@@ -216,6 +216,9 @@ class CPL_DLL VRTSource
     }
 
   protected:
+    VRTSource() = default;
+    VRTSource(const VRTSource &) = default;
+
     std::string m_osName{};
 };
 
@@ -970,6 +973,12 @@ class CPL_DLL VRTSourcedRasterBand CPL_NON_FINAL : public VRTRasterBand
                          int nBlockYSizeIn);
     ~VRTSourcedRasterBand() override;
 
+    void CopyForCloneWithoutSources(const VRTSourcedRasterBand *poSrcBand);
+
+    std::unique_ptr<VRTSourcedRasterBand>
+    CloneWithoutSources(GDALDataset *poNewDS, int nNewXSize,
+                        int nNewYSize) const;
+
     CPLErr IRasterIO(GDALRWFlag, int, int, int, int, void *, int, int,
                      GDALDataType, GSpacing nPixelSpace, GSpacing nLineSpace,
                      GDALRasterIOExtraArg *psExtraArg) override;
@@ -1217,6 +1226,12 @@ class CPL_DLL VRTDerivedRasterBand CPL_NON_FINAL : public VRTSourcedRasterBand
                          int nXSize, int nYSize, int nBlockXSizeIn = 0,
                          int nBlockYSizeIn = 0);
     ~VRTDerivedRasterBand() override;
+
+    void CopyForCloneWithoutSources(const VRTDerivedRasterBand *poSrcBand);
+
+    std::unique_ptr<VRTSourcedRasterBand>
+    CloneWithoutSources(GDALDataset *poNewDS, int nNewXSize,
+                        int nNewYSize) const;
 
     CPLErr IRasterIO(GDALRWFlag, int, int, int, int, void *, int, int,
                      GDALDataType, GSpacing nPixelSpace, GSpacing nLineSpace,

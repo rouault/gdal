@@ -118,7 +118,34 @@ VRTSourcedRasterBand::~VRTSourcedRasterBand()
 }
 
 /************************************************************************/
-/*                  CanIRasterIOBeForwardedToEachSource()               */
+/*                     CopyForCloneWithoutSources()                     */
+/************************************************************************/
+
+void VRTSourcedRasterBand::CopyForCloneWithoutSources(
+    const VRTSourcedRasterBand *poSrcBand)
+{
+    CopyCommonInfoFrom(const_cast<VRTSourcedRasterBand *>(poSrcBand));
+    m_bNoDataValueSet = poSrcBand->m_bNoDataValueSet;
+    m_dfNoDataValue = poSrcBand->m_dfNoDataValue;
+    m_bHideNoDataValue = poSrcBand->m_bHideNoDataValue;
+}
+
+/************************************************************************/
+/*                        CloneWithoutSources()                         */
+/************************************************************************/
+
+std::unique_ptr<VRTSourcedRasterBand>
+VRTSourcedRasterBand::CloneWithoutSources(GDALDataset *poNewDS, int nNewXSize,
+                                          int nNewYSize) const
+{
+    auto poClone = std::make_unique<VRTSourcedRasterBand>(
+        poNewDS, GetBand(), GetRasterDataType(), nNewXSize, nNewYSize);
+    poClone->CopyForCloneWithoutSources(this);
+    return poClone;
+}
+
+/************************************************************************/
+/*                CanIRasterIOBeForwardedToEachSource()                 */
 /************************************************************************/
 
 bool VRTSourcedRasterBand::CanIRasterIOBeForwardedToEachSource(
