@@ -187,12 +187,23 @@ int DDFSubfieldDefn::SetFormat(const char *pszFormat)
  * @param fp The standard IO file handle to write to.  i.e. stderr
  */
 
-void DDFSubfieldDefn::Dump(FILE *fp) const
+void DDFSubfieldDefn::Dump(FILE *fp, int nNestingLevel) const
 
 {
-    fprintf(fp, "    DDFSubfieldDefn:\n");
-    fprintf(fp, "        Label = `%s'\n", osName.c_str());
-    fprintf(fp, "        FormatString = `%s'\n", osFormatString.c_str());
+    std::string osIndent;
+    for (int i = 0; i < nNestingLevel; ++i)
+        osIndent += "  ";
+
+#define Print(...)                                                             \
+    do                                                                         \
+    {                                                                          \
+        fprintf(fp, "%s", osIndent.c_str());                                   \
+        fprintf(fp, __VA_ARGS__);                                              \
+    } while (0)
+
+    Print("DDFSubfieldDefn:\n");
+    Print("    Label = `%s'\n", osName.c_str());
+    Print("    FormatString = `%s'\n", osFormatString.c_str());
 }
 
 /************************************************************************/

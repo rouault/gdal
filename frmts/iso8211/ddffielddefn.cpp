@@ -6,6 +6,7 @@
  *
  ******************************************************************************
  * Copyright (c) 1999, Frank Warmerdam
+ * Copyright (c) 2026, Even Rouault
  *
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
@@ -13,6 +14,7 @@
 #include "cpl_port.h"
 #include "iso8211.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstddef>
 #include <cstdio>
@@ -123,22 +125,14 @@ int DDFFieldDefn::Create(const char *pszTagIn, const char *pszFieldName,
 
     if (!_formatControls.empty() && _data_struct_code != dsc_elementary)
     {
-        BuildSubfields();
+        if (!BuildSubfields())
+            return false;
 
-        if (!ApplyFormats())
-            return FALSE;
+        if (apoFieldParts.empty() && !ApplyFormats())
+            return false;
     }
 
     return TRUE;
-}
-
-/************************************************************************/
-/*                         SetFormatControls()                          */
-/************************************************************************/
-
-void DDFFieldDefn::SetFormatControls(const char *pszVal)
-{
-    _formatControls = pszVal ? pszVal : "";
 }
 
 /************************************************************************/
@@ -192,12 +186,12 @@ int DDFFieldDefn::GenerateDDREntry(DDFModule *poModuleIn, char **ppachData,
     (*ppachData)[3] = '0';
     (*ppachData)[4] = ';';
     (*ppachData)[5] = '&';
-    if (iFDOffset > 6)
-        (*ppachData)[6] = ' ';
-    if (iFDOffset > 7)
-        (*ppachData)[7] = ' ';
-    if (iFDOffset > 8)
-        (*ppachData)[8] = ' ';
+    if (iFDOffset > 6 && _escapeSequence.size() >= 1)
+        (*ppachData)[6] = _escapeSequence[0];
+    if (iFDOffset > 7 && _escapeSequence.size() >= 2)
+        (*ppachData)[7] = _escapeSequence[1];
+    if (iFDOffset > 8 && _escapeSequence.size() >= 3)
+        (*ppachData)[8] = _escapeSequence[2];
     snprintf(*ppachData + iFDOffset, *pnLength + 1 - iFDOffset, "%s",
              _fieldName.c_str());
     snprintf(*ppachData + strlen(*ppachData),
@@ -302,6 +296,8 @@ int DDFFieldDefn::Initialize(DDFModule *poModuleIn, const char *pszTagIn,
             _data_type_code = dtc_char_string;
     }
 
+    _escapeSequence.assign(pachFieldArea + 6, iFDOffset - 6);
+
     /* -------------------------------------------------------------------- */
     /*      Capture the field name, description (sub field names), and      */
     /*      format statements.                                              */
@@ -327,13 +323,23 @@ int DDFFieldDefn::Initialize(DDFModule *poModuleIn, const char *pszTagIn,
     /* -------------------------------------------------------------------- */
     if (_data_struct_code != dsc_elementary)
     {
-        BuildSubfields();
+        if (!BuildSubfields())
+            return false;
 
-        if (!ApplyFormats())
-            return FALSE;
+        if (apoFieldParts.empty() && !ApplyFormats())
+            return false;
     }
 
     return TRUE;
+}
+
+/************************************************************************/
+/*                         SetEscapeSequence()                          */
+/************************************************************************/
+
+void DDFFieldDefn::SetEscapeSequence(const std::string &val)
+{
+    _escapeSequence = val;
 }
 
 /************************************************************************/
@@ -349,17 +355,28 @@ int DDFFieldDefn::Initialize(DDFModule *poModuleIn, const char *pszTagIn,
  * @param fp The standard IO file handle to write to.  i.e. stderr
  */
 
-void DDFFieldDefn::Dump(FILE *fp) const
+void DDFFieldDefn::Dump(FILE *fp, int nNestingLevel) const
 
 {
+    std::string osIndent;
+    for (int i = 0; i < nNestingLevel; ++i)
+        osIndent += "  ";
+
+#define Print(...)                                                             \
+    do                                                                         \
+    {                                                                          \
+        fprintf(fp, "%s", osIndent.c_str());                                   \
+        fprintf(fp, __VA_ARGS__);                                              \
+    } while (0)
+
     const char *pszValue = "";
     CPL_IGNORE_RET_VAL(pszValue);  // Make CSA happy
 
-    fprintf(fp, "  DDFFieldDefn:\n");
-    fprintf(fp, "      Tag = `%s'\n", osTag.c_str());
-    fprintf(fp, "      _fieldName = `%s'\n", _fieldName.c_str());
-    fprintf(fp, "      _arrayDescr = `%s'\n", _arrayDescr.c_str());
-    fprintf(fp, "      _formatControls = `%s'\n", _formatControls.c_str());
+    Print("DDFFieldDefn:\n");
+    Print("    Tag = `%s'\n", osTag.c_str());
+    Print("    _fieldName = `%s'\n", _fieldName.c_str());
+    Print("    _arrayDescr = `%s'\n", _arrayDescr.c_str());
+    Print("    _formatControls = `%s'\n", _formatControls.c_str());
 
     switch (_data_struct_code)
     {
@@ -380,7 +397,7 @@ void DDFFieldDefn::Dump(FILE *fp) const
             break;
     }
 
-    fprintf(fp, "      _data_struct_code = %s\n", pszValue);
+    Print("    _data_struct_code = %s\n", pszValue);
 
     switch (_data_type_code)
     {
@@ -413,10 +430,13 @@ void DDFFieldDefn::Dump(FILE *fp) const
             break;
     }
 
-    fprintf(fp, "      _data_type_code = %s\n", pszValue);
+    Print("    _data_type_code = %s\n", pszValue);
+
+    for (const auto &poField : apoFieldParts)
+        poField->Dump(fp, nNestingLevel + 1);
 
     for (const auto &poSubfield : apoSubfields)
-        poSubfield->Dump(fp);
+        poSubfield->Dump(fp, nNestingLevel + 1);
 }
 
 /************************************************************************/
@@ -425,10 +445,274 @@ void DDFFieldDefn::Dump(FILE *fp) const
 /*      Based on the _arrayDescr build a set of subfields.              */
 /************************************************************************/
 
-void DDFFieldDefn::BuildSubfields()
+bool DDFFieldDefn::BuildSubfields()
 
 {
     const char *pszSublist = _arrayDescr.c_str();
+
+    if (_data_struct_code == dsc_concatenated)
+    {
+        // Split on two consecutive backslashes.
+        std::vector<std::string> aosPartDescr;
+        std::string osCur;
+        for (size_t i = 0; i < _arrayDescr.size(); ++i)
+        {
+            const char c = _arrayDescr[i];
+            if (c == '\\' && _arrayDescr[i + 1] == '\\')
+            {
+                aosPartDescr.push_back(std::move(osCur));
+                osCur = std::string();
+                ++i;
+            }
+            else
+            {
+                osCur += c;
+            }
+        }
+        aosPartDescr.push_back(std::move(osCur));
+        if (aosPartDescr.size() > 1 && !_formatControls.empty() &&
+            _formatControls.front() == '(' && _formatControls.back() == ')')
+        {
+            const char *pszFormatCur = _formatControls.c_str() + 1;
+            for (size_t i = 0; i < aosPartDescr.size(); ++i)
+            {
+                const std::string &osPartDescr = aosPartDescr[i];
+                // Check there are no repeated subfields but in the last part
+                if (i < aosPartDescr.size() - 1 &&
+                    osPartDescr.find('*') != std::string::npos)
+                {
+                    CPLError(CE_Failure, CPLE_NotSupported,
+                             "Tag %s: repeated fields found in a part that is "
+                             "not the last one: %s",
+                             osTag.c_str(), pszSublist);
+                    return false;
+                }
+
+                const int nSubfieldsInPart = static_cast<int>(
+                    std::count(osPartDescr.begin(), osPartDescr.end(), '!') +
+                    1);
+                int nSubFieldCounter = 0;
+                const char *pszFormatStart = pszFormatCur;
+                bool justAfterFieldFormat = true;
+                int nParenthesisLevel = 0;
+                while (i < aosPartDescr.size() - 1 && *pszFormatCur != '\0')
+                {
+                    if (justAfterFieldFormat && *pszFormatCur >= '1' &&
+                        *pszFormatCur <= '9')
+                    {
+                        char *pszNext = nullptr;
+                        const int nRepeat = static_cast<int>(
+                            strtol(pszFormatCur, &pszNext, 10));
+                        if (!(*pszNext) || nRepeat <= 0 || nRepeat > 1000)
+                        {
+                            CPLError(CE_Failure, CPLE_AppDefined,
+                                     "Tag %s: invalid formatControls: %s",
+                                     osTag.c_str(), _formatControls.c_str());
+                            return false;
+                        }
+                        if (*pszNext == '(')
+                        {
+                            pszFormatCur = pszNext + 1;
+                            int nGroupSubFieldCount = 0;
+                            while (*pszFormatCur)
+                            {
+                                if (*pszFormatCur == '(')
+                                {
+                                    // Implementation limitation. Perhaps OK per the standard
+                                    CPLError(CE_Failure, CPLE_AppDefined,
+                                             "Tag %s: unsupported "
+                                             "formatControls: %s",
+                                             osTag.c_str(),
+                                             _formatControls.c_str());
+                                    return false;
+                                }
+                                else if (*pszFormatCur >= '1' &&
+                                         *pszFormatCur <= '9')
+                                {
+                                    nGroupSubFieldCount += static_cast<int>(
+                                        strtol(pszFormatCur, &pszNext, 10));
+                                    if (!(*pszNext))
+                                    {
+                                        CPLError(CE_Failure, CPLE_AppDefined,
+                                                 "Tag %s: invalid "
+                                                 "formatControls: %s",
+                                                 osTag.c_str(),
+                                                 _formatControls.c_str());
+                                        return false;
+                                    }
+                                    pszFormatCur = pszNext;
+                                }
+                                else if (*pszFormatCur == ',')
+                                {
+                                    nGroupSubFieldCount++;
+                                    ++pszFormatCur;
+                                }
+                                else if (*pszFormatCur == ')')
+                                {
+                                    nGroupSubFieldCount++;
+                                    break;
+                                }
+                                else
+                                {
+                                    ++pszFormatCur;
+                                }
+                            }
+                            if (!*pszFormatCur)
+                            {
+                                CPLError(CE_Failure, CPLE_AppDefined,
+                                         "Tag %s: invalid formatControls: %s",
+                                         osTag.c_str(),
+                                         _formatControls.c_str());
+                                return false;
+                            }
+                            ++pszFormatCur;
+                            nSubFieldCounter += nGroupSubFieldCount * nRepeat;
+                            if (*pszFormatCur == ')')
+                                break;
+                            if (*pszFormatCur != ',')
+                            {
+                                CPLError(CE_Failure, CPLE_AppDefined,
+                                         "Tag %s: invalid formatControls: %s",
+                                         osTag.c_str(),
+                                         _formatControls.c_str());
+                                return false;
+                            }
+                            ++pszFormatCur;
+                        }
+                        else
+                        {
+                            nSubFieldCounter += nRepeat;
+                            pszFormatCur = pszNext;
+                            while (*pszFormatCur && *pszFormatCur != ',' &&
+                                   *pszFormatCur != ')')
+                            {
+                                ++pszFormatCur;
+                            }
+                            if (*pszFormatCur == ')')
+                                break;
+                            if (*pszFormatCur != ',')
+                            {
+                                CPLError(CE_Failure, CPLE_AppDefined,
+                                         "Tag %s: invalid formatControls: %s",
+                                         osTag.c_str(),
+                                         _formatControls.c_str());
+                                return false;
+                            }
+                            ++pszFormatCur;
+                        }
+                        justAfterFieldFormat = true;
+                    }
+                    else if (*pszFormatCur == ',')
+                    {
+                        ++nSubFieldCounter;
+                        ++pszFormatCur;
+                        justAfterFieldFormat = true;
+                    }
+                    else if (*pszFormatCur == '(')
+                    {
+                        ++nParenthesisLevel;
+                        ++pszFormatCur;
+                        justAfterFieldFormat = false;
+                    }
+                    else if (*pszFormatCur == ')')
+                    {
+                        if (--nParenthesisLevel < 0)
+                        {
+                            ++nSubFieldCounter;
+                            break;
+                        }
+                        ++pszFormatCur;
+                        justAfterFieldFormat = false;
+                    }
+                    else
+                    {
+                        ++pszFormatCur;
+                        justAfterFieldFormat = false;
+                    }
+
+                    if (nSubFieldCounter > nSubfieldsInPart)
+                    {
+                        CPLError(CE_Failure, CPLE_AppDefined,
+                                 "Tag %s: mismatch between arrayDescr:%s and "
+                                 "formatControls: %s",
+                                 osTag.c_str(), _arrayDescr.c_str(),
+                                 _formatControls.c_str());
+                        return false;
+                    }
+                    else if (nSubFieldCounter == nSubfieldsInPart)
+                    {
+                        break;
+                    }
+                }
+                if (i < aosPartDescr.size() - 1)
+                {
+                    if (*pszFormatCur == 0 || pszFormatCur[-1] != ',' ||
+                        nParenthesisLevel > 0)
+                    {
+                        CPLError(CE_Failure, CPLE_AppDefined,
+                                 "Tag %s: invalid formatControls: %s",
+                                 osTag.c_str(), _formatControls.c_str());
+                        return false;
+                    }
+                    if (nSubFieldCounter != nSubfieldsInPart)
+                    {
+                        CPLError(CE_Failure, CPLE_AppDefined,
+                                 "Tag %s: mismatch between arrayDescr:%s and "
+                                 "formatControls: %s",
+                                 osTag.c_str(), _arrayDescr.c_str(),
+                                 _formatControls.c_str());
+                        return false;
+                    }
+                }
+
+                std::string osPartFormatControls;
+                if (i < aosPartDescr.size() - 1)
+                {
+                    osPartFormatControls = '(';
+                    osPartFormatControls.append(
+                        pszFormatStart, pszFormatCur - pszFormatStart - 1);
+                    osPartFormatControls += ')';
+                }
+                else
+                {
+                    if (*pszFormatStart == '(' && _formatControls.size() > 2 &&
+                        _formatControls[_formatControls.size() - 2] == ')')
+                    {
+                        // S101 2.0
+                        osPartFormatControls.append(pszFormatStart,
+                                                    strlen(pszFormatStart) - 1);
+                    }
+                    else
+                    {
+                        // Earlier versions
+                        osPartFormatControls = '(';
+                        osPartFormatControls += pszFormatStart;
+                    }
+                }
+
+                auto poPartFieldDefn = std::make_unique<DDFFieldDefn>();
+                poPartFieldDefn->poModule = poModule;
+                // poPartFieldDefn->osTag: not set on purpose
+                // poPartFieldDefn->_fieldName: not set on purpose
+                poPartFieldDefn->_arrayDescr = osPartDescr;
+                poPartFieldDefn->_formatControls =
+                    std::move(osPartFormatControls);
+                poPartFieldDefn->_data_struct_code =
+                    dsc_vector;  // not necessarily exact, but good enough
+                poPartFieldDefn->_data_type_code = _data_type_code;
+                poPartFieldDefn->bRepeatingSubfields =
+                    !osPartDescr.empty() && osPartDescr.front() == '*';
+
+                if (!poPartFieldDefn->BuildSubfields() ||
+                    !poPartFieldDefn->ApplyFormats())
+                    return false;
+
+                apoFieldParts.push_back(std::move(poPartFieldDefn));
+            }
+
+            return true;
+        }
+    }
 
     /* -------------------------------------------------------------------- */
     /*      It is valid to define a field with _arrayDesc                   */
@@ -472,6 +756,8 @@ void DDFFieldDefn::BuildSubfields()
         poSFDefn->SetName(pszSubfieldName);
         AddSubfield(std::move(poSFDefn), true);
     }
+
+    return true;
 }
 
 /************************************************************************/
@@ -768,11 +1054,31 @@ DDFFieldDefn::FindSubfieldDefn(const char *pszMnemonic) const
 char *DDFFieldDefn::GetDefaultValue(int *pnSize) const
 
 {
+    if (!apoFieldParts.empty())
+    {
+        std::string osData;
+        for (auto &poPartFieldDefn : apoFieldParts)
+        {
+            if (poPartFieldDefn->IsRepeating())  // only last part
+                break;
+            int nPartSize = 0;
+            char *pszVal = poPartFieldDefn->GetDefaultValue(&nPartSize);
+            if (!pszVal)
+                return nullptr;
+            osData.append(pszVal, nPartSize);
+            CPLFree(pszVal);
+        }
+        if (pnSize)
+            *pnSize = static_cast<int>(osData.size());
+        char *pabyRet = static_cast<char *>(CPLMalloc(osData.size() + 1));
+        memcpy(pabyRet, osData.data(), osData.size());
+        return pabyRet;
+    }
+
     /* -------------------------------------------------------------------- */
     /*      Loop once collecting the sum of the subfield lengths.           */
     /* -------------------------------------------------------------------- */
     int nTotalSize = 0;
-
     for (auto &poSubfield : apoSubfields)
     {
         int nSubfieldSize = 0;

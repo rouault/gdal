@@ -192,6 +192,11 @@ int main(int nArgc, char *papszArgv[])
                 exit(1);
             }
 
+            const char *pszEscapeSequence =
+                CPLGetXMLValue(psIter, "escapeSequence", nullptr);
+            if (pszEscapeSequence)
+                poFDefn->SetEscapeSequence(pszEscapeSequence);
+
             if (!pszArrayDescr && !pszFormatControls)
             {
                 CPLXMLNode *psSubIter = psIter->psChild;
@@ -305,25 +310,46 @@ int main(int nArgc, char *papszArgv[])
                                 oMapSubfield[pszSubfieldName]++;
                                 if (strcmp(pszSubfieldType, "float") == 0)
                                 {
-                                    poRec->SetFloatSubfield(
-                                        pszFieldName, nFieldOcc,
-                                        pszSubfieldName, nOcc,
-                                        CPLAtof(pszSubfieldValue));
+                                    if (!poRec->SetFloatSubfield(
+                                            pszFieldName, nFieldOcc,
+                                            pszSubfieldName, nOcc,
+                                            CPLAtof(pszSubfieldValue)))
+                                    {
+                                        CPLError(
+                                            CE_Failure, CPLE_AppDefined,
+                                            "SetFloatSubfield(%s, %s) failed",
+                                            pszFieldName, pszSubfieldName);
+                                        exit(1);
+                                    }
                                 }
                                 else if (strcmp(pszSubfieldType, "integer") ==
                                          0)
                                 {
-                                    poRec->SetIntSubfield(
-                                        pszFieldName, nFieldOcc,
-                                        pszSubfieldName, nOcc,
-                                        atoi(pszSubfieldValue));
+                                    if (!poRec->SetIntSubfield(
+                                            pszFieldName, nFieldOcc,
+                                            pszSubfieldName, nOcc,
+                                            atoi(pszSubfieldValue)))
+                                    {
+                                        CPLError(
+                                            CE_Failure, CPLE_AppDefined,
+                                            "SetIntSubfield(%s, %s) failed",
+                                            pszFieldName, pszSubfieldName);
+                                        exit(1);
+                                    }
                                 }
                                 else if (strcmp(pszSubfieldType, "string") == 0)
                                 {
-                                    poRec->SetStringSubfield(
-                                        pszFieldName, nFieldOcc,
-                                        pszSubfieldName, nOcc,
-                                        pszSubfieldValue);
+                                    if (!poRec->SetStringSubfield(
+                                            pszFieldName, nFieldOcc,
+                                            pszSubfieldName, nOcc,
+                                            pszSubfieldValue))
+                                    {
+                                        CPLError(
+                                            CE_Failure, CPLE_AppDefined,
+                                            "SetStringSubfield(%s, %s) failed",
+                                            pszFieldName, pszSubfieldName);
+                                        exit(1);
+                                    }
                                 }
                                 else if (strcmp(pszSubfieldType, "binary") ==
                                              0 &&
@@ -350,10 +376,17 @@ int main(int nArgc, char *papszArgv[])
                                             nLow = c - '0';
                                         pabyData[i] = (nHigh << 4) + nLow;
                                     }
-                                    poRec->SetStringSubfield(
-                                        pszFieldName, nFieldOcc,
-                                        pszSubfieldName, nOcc, pabyData,
-                                        nDataLen);
+                                    if (!poRec->SetStringSubfield(
+                                            pszFieldName, nFieldOcc,
+                                            pszSubfieldName, nOcc, pabyData,
+                                            nDataLen))
+                                    {
+                                        CPLError(
+                                            CE_Failure, CPLE_AppDefined,
+                                            "SetStringSubfield(%s, %s) failed",
+                                            pszFieldName, pszSubfieldName);
+                                        exit(1);
+                                    }
                                     CPLFree(pabyData);
                                 }
                             }

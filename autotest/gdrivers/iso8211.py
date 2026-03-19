@@ -90,3 +90,16 @@ def test_iso8211_float(tmp_path):
     <DDFSubfield name="FLBE" type="float">2.500000</DDFSubfield>
     <DDFSubfield name="DBLE" type="float">3.500000</DDFSubfield>
     <DDFSubfield name="DBBE" type="float">4.500000</DDFSubfield>""" in ret
+
+
+def test_iso8211_concatenated(tmp_path):
+
+    dump_path = _get_dump_path()
+    create_from_xml_path = _get_create_from_xml_path()
+
+    in_file = "data/iso8211/concatenated_data_struct.xml"
+    out_file = tmp_path / "out.000"
+    gdaltest.runexternal(f"{create_from_xml_path} {in_file} {out_file}")
+
+    ret = gdaltest.runexternal(f"{dump_path} -xml_all_details {out_file}")
+    assert ret == open(in_file, "rb").read().decode("utf-8")

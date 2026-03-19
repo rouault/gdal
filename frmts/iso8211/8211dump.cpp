@@ -16,6 +16,112 @@
 #include "cpl_vsi.h"
 #include "cpl_string.h"
 
+static void DumpFieldAsXML(const DDFField *poField,
+                           bool bEmitDDFFieldTag = true)
+{
+    const DDFFieldDefn *poDefn = poField->GetFieldDefn();
+    const char *pszFieldName = poDefn->GetName();
+    if (bEmitDDFFieldTag)
+        printf("  <DDFField name=\"%s\"", pszFieldName);
+
+    if (!poField->GetParts().empty())
+    {
+        if (bEmitDDFFieldTag)
+            printf(">\n");
+        for (const auto &poPart : poField->GetParts())
+        {
+            DumpFieldAsXML(poPart.get(), false);
+        }
+    }
+    else
+    {
+        const int nRepeatCount = poField->GetRepeatCount();
+        if (bEmitDDFFieldTag && nRepeatCount > 1)
+            printf(" repeatCount=\"%d\"", nRepeatCount);
+        int iOffset = 0, nLoopCount;
+        const char *pachData = poField->GetData();
+        int nDataSize = poField->GetDataSize();
+        if (bEmitDDFFieldTag && nRepeatCount == 1 &&
+            poDefn->GetSubfieldCount() == 0)
+        {
+            printf(" value=\"0x");
+            for (int i = 0; i < nDataSize - 1; i++)
+                printf("%02X", pachData[i]);
+            printf("\">\n");
+        }
+        else if (bEmitDDFFieldTag)
+            printf(">\n");
+        for (nLoopCount = 0; nLoopCount < nRepeatCount; nLoopCount++)
+        {
+            for (const auto &poSubFieldDefn : poDefn->GetSubfields())
+            {
+                int nBytesConsumed;
+                const char *pszSubFieldName = poSubFieldDefn->GetName();
+                printf("    <DDFSubfield name=\"%s\" ", pszSubFieldName);
+                DDFDataType eType = poSubFieldDefn->GetType();
+                const char *pachSubdata = pachData + iOffset;
+                int nMaxBytes = nDataSize - iOffset;
+                if (eType == DDFFloat)
+                    printf("type=\"float\">%f",
+                           poSubFieldDefn->ExtractFloatData(
+                               pachSubdata, nMaxBytes, nullptr));
+                else if (eType == DDFInt)
+                    printf("type=\"integer\">%d",
+                           poSubFieldDefn->ExtractIntData(pachSubdata,
+                                                          nMaxBytes, nullptr));
+                else if (eType == DDFBinaryString)
+                {
+                    int nBytes, i;
+                    GByte *pabyBString =
+                        (GByte *)poSubFieldDefn->ExtractStringData(
+                            pachSubdata, nMaxBytes, &nBytes);
+
+                    printf("type=\"binary\">0x");
+                    for (i = 0; i < nBytes; i++)
+                        printf("%02X", pabyBString[i]);
+                }
+                else
+                {
+                    GByte *pabyString =
+                        (GByte *)poSubFieldDefn->ExtractStringData(
+                            pachSubdata, nMaxBytes, nullptr);
+                    int bBinary = FALSE;
+                    int i;
+                    for (i = 0; pabyString[i] != '\0'; i++)
+                    {
+                        if (pabyString[i] < 32 || pabyString[i] > 127)
+                        {
+                            bBinary = TRUE;
+                            break;
+                        }
+                    }
+                    if (bBinary)
+                    {
+                        printf("type=\"binary\">0x");
+                        for (i = 0; pabyString[i] != '\0'; i++)
+                            printf("%02X", pabyString[i]);
+                    }
+                    else
+                    {
+                        char *pszEscaped = CPLEscapeString(
+                            (const char *)pabyString, -1, CPLES_XML);
+                        printf("type=\"string\">%s", pszEscaped);
+                        CPLFree(pszEscaped);
+                    }
+                }
+                printf("</DDFSubfield>\n");
+
+                poSubFieldDefn->GetDataLength(pachSubdata, nMaxBytes,
+                                              &nBytesConsumed);
+
+                iOffset += nBytesConsumed;
+            }
+        }
+    }
+    if (bEmitDDFFieldTag)
+        printf("  </DDFField>\n");
+}
+
 int main(int nArgc, char **papszArgv)
 
 {
@@ -177,7 +283,23 @@ int main(int nArgc, char **papszArgv)
                 printf(" formatControls=\"%s\"",
                        poFieldDefn->GetFormatControls());
             }
+            if (bAllDetails)
+            {
+                char *pszEscaped = CPLEscapeString(
+                    poFieldDefn->GetEscapeSequence().c_str(), -1, CPLES_XML);
+                printf(" escapeSequence=\"%s\"", pszEscaped);
+                CPLFree(pszEscaped);
+            }
             printf(">\n");
+            for (const auto &poPart : poFieldDefn->GetParts())
+            {
+                for (const auto &poSubFieldDefn : poPart->GetSubfields())
+                {
+                    printf("  <DDFSubfieldDefn name=\"%s\" format=\"%s\"/>\n",
+                           poSubFieldDefn->GetName(),
+                           poSubFieldDefn->GetFormat());
+                }
+            }
             for (const auto &poSubFieldDefn : poFieldDefn->GetSubfields())
             {
                 printf("  <DDFSubfieldDefn name=\"%s\" format=\"%s\"/>\n",
@@ -206,92 +328,7 @@ int main(int nArgc, char **papszArgv)
             for (int iField = 0; iField < nFieldCount; iField++)
             {
                 const DDFField *poField = poRecord->GetField(iField);
-                const DDFFieldDefn *poDefn = poField->GetFieldDefn();
-                const char *pszFieldName = poDefn->GetName();
-                printf("  <DDFField name=\"%s\"", pszFieldName);
-                if (poField->GetRepeatCount() > 1)
-                    printf(" repeatCount=\"%d\"", poField->GetRepeatCount());
-                int iOffset = 0, nLoopCount;
-                int nRepeatCount = poField->GetRepeatCount();
-                const char *pachData = poField->GetData();
-                int nDataSize = poField->GetDataSize();
-                if (nRepeatCount == 1 && poDefn->GetSubfieldCount() == 0)
-                {
-                    printf(" value=\"0x");
-                    for (int i = 0; i < nDataSize - 1; i++)
-                        printf("%02X", pachData[i]);
-                    printf("\">\n");
-                }
-                else
-                    printf(">\n");
-                for (nLoopCount = 0; nLoopCount < nRepeatCount; nLoopCount++)
-                {
-                    for (const auto &poSubFieldDefn : poDefn->GetSubfields())
-                    {
-                        int nBytesConsumed;
-                        const char *pszSubFieldName = poSubFieldDefn->GetName();
-                        printf("    <DDFSubfield name=\"%s\" ",
-                               pszSubFieldName);
-                        DDFDataType eType = poSubFieldDefn->GetType();
-                        const char *pachSubdata = pachData + iOffset;
-                        int nMaxBytes = nDataSize - iOffset;
-                        if (eType == DDFFloat)
-                            printf("type=\"float\">%f",
-                                   poSubFieldDefn->ExtractFloatData(
-                                       pachSubdata, nMaxBytes, nullptr));
-                        else if (eType == DDFInt)
-                            printf("type=\"integer\">%d",
-                                   poSubFieldDefn->ExtractIntData(
-                                       pachSubdata, nMaxBytes, nullptr));
-                        else if (eType == DDFBinaryString)
-                        {
-                            int nBytes, i;
-                            GByte *pabyBString =
-                                (GByte *)poSubFieldDefn->ExtractStringData(
-                                    pachSubdata, nMaxBytes, &nBytes);
-
-                            printf("type=\"binary\">0x");
-                            for (i = 0; i < nBytes; i++)
-                                printf("%02X", pabyBString[i]);
-                        }
-                        else
-                        {
-                            GByte *pabyString =
-                                (GByte *)poSubFieldDefn->ExtractStringData(
-                                    pachSubdata, nMaxBytes, nullptr);
-                            int bBinary = FALSE;
-                            int i;
-                            for (i = 0; pabyString[i] != '\0'; i++)
-                            {
-                                if (pabyString[i] < 32 || pabyString[i] > 127)
-                                {
-                                    bBinary = TRUE;
-                                    break;
-                                }
-                            }
-                            if (bBinary)
-                            {
-                                printf("type=\"binary\">0x");
-                                for (i = 0; pabyString[i] != '\0'; i++)
-                                    printf("%02X", pabyString[i]);
-                            }
-                            else
-                            {
-                                char *pszEscaped = CPLEscapeString(
-                                    (const char *)pabyString, -1, CPLES_XML);
-                                printf("type=\"string\">%s", pszEscaped);
-                                CPLFree(pszEscaped);
-                            }
-                        }
-                        printf("</DDFSubfield>\n");
-
-                        poSubFieldDefn->GetDataLength(pachSubdata, nMaxBytes,
-                                                      &nBytesConsumed);
-
-                        iOffset += nBytesConsumed;
-                    }
-                }
-                printf("  </DDFField>\n");
+                DumpFieldAsXML(poField);
             }
             printf("</DDFRecord>\n");
         }

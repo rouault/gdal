@@ -98,8 +98,11 @@ static void ViewRecordField(const DDFField *poField)
     const DDFFieldDefn *poFieldDefn = poField->GetFieldDefn();
 
     // Report general information about the field.
-    printf("    Field %s: %s\n", poFieldDefn->GetName(),
-           poFieldDefn->GetDescription());
+    if (poFieldDefn->GetName()[0])
+    {
+        printf("    Field %s: %s\n", poFieldDefn->GetName(),
+               poFieldDefn->GetDescription());
+    }
 
     // Get pointer to this fields raw data.  We will move through
     // it consuming data as we report subfield values.
@@ -107,12 +110,18 @@ static void ViewRecordField(const DDFField *poField)
     const char *pachFieldData = poField->GetData();
     int nBytesRemaining = poField->GetDataSize();
 
+    for (const auto &poPart : poField->GetParts())
+    {
+        ViewRecordField(poPart.get());
+    }
+
     /* -------------------------------------------------------- */
     /*      Loop over the repeat count for this fields          */
     /*      subfields.  The repeat count will almost            */
     /*      always be one.                                      */
     /* -------------------------------------------------------- */
-    for (int iRepeat = 0; iRepeat < poField->GetRepeatCount(); iRepeat++)
+    const int nRepeatCount = poField->GetRepeatCount();
+    for (int iRepeat = 0; iRepeat < nRepeatCount; iRepeat++)
     {
 
         /* -------------------------------------------------------- */

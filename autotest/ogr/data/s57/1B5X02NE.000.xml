@@ -1,9 +1,9 @@
 <DDFModule _interchangeLevel="3" _leaderIden="L" _inlineCodeExtensionIndicator="E" _versionNumber="1" _appIndicator=" " _extendedCharSet=" ! " _fieldControlLength="9" _sizeFieldLength="3" _sizeFieldPos="4" _sizeFieldTag="4">
-<DDFFieldDefn tag="0000" fieldName="" dataStructCode="elementary" dataTypeCode="char_string" arrayDescr="0001DSIDDSIDDSSI0001DSPM0001VRIDVRIDATTVVRIDVRPCVRIDVRPTVRIDSGCCVRIDSG2DVRIDSG3D0001FRIDFRIDFOIDFRIDATTFFRIDNATFFRIDFFPCFRIDFFPTFRIDFSPCFRIDFSPT" formatControls="">
+<DDFFieldDefn tag="0000" fieldName="" dataStructCode="elementary" dataTypeCode="char_string" arrayDescr="0001DSIDDSIDDSSI0001DSPM0001VRIDVRIDATTVVRIDVRPCVRIDVRPTVRIDSGCCVRIDSG2DVRIDSG3D0001FRIDFRIDFOIDFRIDATTFFRIDNATFFRIDFFPCFRIDFFPTFRIDFSPCFRIDFSPT" formatControls="" escapeSequence="   ">
 </DDFFieldDefn>
-<DDFFieldDefn tag="0001" fieldName="ISO/IEC 8211 Record Identifier" dataStructCode="elementary" dataTypeCode="bit_string" arrayDescr="" formatControls="(b12)">
+<DDFFieldDefn tag="0001" fieldName="ISO/IEC 8211 Record Identifier" dataStructCode="elementary" dataTypeCode="bit_string" arrayDescr="" formatControls="(b12)" escapeSequence="   ">
 </DDFFieldDefn>
-<DDFFieldDefn tag="DSID" fieldName="Data set identification field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="RCNM!RCID!EXPP!INTU!DSNM!EDTN!UPDN!UADT!ISDT!STED!PRSP!PSDN!PRED!PROF!AGEN!COMT" formatControls="(b11,b14,2b11,3A,2A(8),R(4),b11,2A,b11,b12,A)">
+<DDFFieldDefn tag="DSID" fieldName="Data set identification field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="RCNM!RCID!EXPP!INTU!DSNM!EDTN!UPDN!UADT!ISDT!STED!PRSP!PSDN!PRED!PROF!AGEN!COMT" formatControls="(b11,b14,2b11,3A,2A(8),R(4),b11,2A,b11,b12,A)" escapeSequence="   ">
   <DDFSubfieldDefn name="RCNM" format="b11"/>
   <DDFSubfieldDefn name="RCID" format="b14"/>
   <DDFSubfieldDefn name="EXPP" format="b11"/>
@@ -21,7 +21,7 @@
   <DDFSubfieldDefn name="AGEN" format="b12"/>
   <DDFSubfieldDefn name="COMT" format="A"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="DSSI" fieldName="Data set structure information field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="DSTR!AALL!NALL!NOMR!NOCR!NOGR!NOLR!NOIN!NOCN!NOED!NOFA" formatControls="(3b11,8b14)">
+<DDFFieldDefn tag="DSSI" fieldName="Data set structure information field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="DSTR!AALL!NALL!NOMR!NOCR!NOGR!NOLR!NOIN!NOCN!NOED!NOFA" formatControls="(3b11,8b14)" escapeSequence="   ">
   <DDFSubfieldDefn name="DSTR" format="b11"/>
   <DDFSubfieldDefn name="AALL" format="b11"/>
   <DDFSubfieldDefn name="NALL" format="b11"/>
@@ -34,7 +34,7 @@
   <DDFSubfieldDefn name="NOED" format="b14"/>
   <DDFSubfieldDefn name="NOFA" format="b14"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="DSPM" fieldName="Data set parameter field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="RCNM!RCID!HDAT!VDAT!SDAT!CSCL!DUNI!HUNI!PUNI!COUN!COMF!SOMF!COMT" formatControls="(b11,b14,3b11,b14,4b11,2b14,A)">
+<DDFFieldDefn tag="DSPM" fieldName="Data set parameter field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="RCNM!RCID!HDAT!VDAT!SDAT!CSCL!DUNI!HUNI!PUNI!COUN!COMF!SOMF!COMT" formatControls="(b11,b14,3b11,b14,4b11,2b14,A)" escapeSequence="   ">
   <DDFSubfieldDefn name="RCNM" format="b11"/>
   <DDFSubfieldDefn name="RCID" format="b14"/>
   <DDFSubfieldDefn name="HDAT" format="b11"/>
@@ -49,43 +49,43 @@
   <DDFSubfieldDefn name="SOMF" format="b14"/>
   <DDFSubfieldDefn name="COMT" format="A"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="VRID" fieldName="Vector record identifier field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="RCNM!RCID!RVER!RUIN" formatControls="(b11,b14,b12,b11)">
+<DDFFieldDefn tag="VRID" fieldName="Vector record identifier field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="RCNM!RCID!RVER!RUIN" formatControls="(b11,b14,b12,b11)" escapeSequence="   ">
   <DDFSubfieldDefn name="RCNM" format="b11"/>
   <DDFSubfieldDefn name="RCID" format="b14"/>
   <DDFSubfieldDefn name="RVER" format="b12"/>
   <DDFSubfieldDefn name="RUIN" format="b11"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="ATTV" fieldName="Vector record attribute field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*ATTL!ATVL" formatControls="(b12,A)">
+<DDFFieldDefn tag="ATTV" fieldName="Vector record attribute field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*ATTL!ATVL" formatControls="(b12,A)" escapeSequence="   ">
   <DDFSubfieldDefn name="ATTL" format="b12"/>
   <DDFSubfieldDefn name="ATVL" format="A"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="VRPC" fieldName="Vector record pointer control field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="*VPUI!VPIX!NVPT" formatControls="(b11,2b12)">
+<DDFFieldDefn tag="VRPC" fieldName="Vector record pointer control field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="*VPUI!VPIX!NVPT" formatControls="(b11,2b12)" escapeSequence="   ">
   <DDFSubfieldDefn name="VPUI" format="b11"/>
   <DDFSubfieldDefn name="VPIX" format="b12"/>
   <DDFSubfieldDefn name="NVPT" format="b12"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="VRPT" fieldName="Vector record pointer field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*NAME!ORNT!USAG!TOPI!MASK" formatControls="(B(40),4b11)">
+<DDFFieldDefn tag="VRPT" fieldName="Vector record pointer field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*NAME!ORNT!USAG!TOPI!MASK" formatControls="(B(40),4b11)" escapeSequence="   ">
   <DDFSubfieldDefn name="NAME" format="B(40)"/>
   <DDFSubfieldDefn name="ORNT" format="b11"/>
   <DDFSubfieldDefn name="USAG" format="b11"/>
   <DDFSubfieldDefn name="TOPI" format="b11"/>
   <DDFSubfieldDefn name="MASK" format="b11"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="SGCC" fieldName="Coordinate control field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="CCUI!CCIX!CCNC" formatControls="(b11,2b12)">
+<DDFFieldDefn tag="SGCC" fieldName="Coordinate control field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="CCUI!CCIX!CCNC" formatControls="(b11,2b12)" escapeSequence="   ">
   <DDFSubfieldDefn name="CCUI" format="b11"/>
   <DDFSubfieldDefn name="CCIX" format="b12"/>
   <DDFSubfieldDefn name="CCNC" format="b12"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="SG2D" fieldName="2-D Coordinate field" dataStructCode="array" dataTypeCode="bit_string" arrayDescr="*YCOO!XCOO" formatControls="(2b24)">
+<DDFFieldDefn tag="SG2D" fieldName="2-D Coordinate field" dataStructCode="array" dataTypeCode="bit_string" arrayDescr="*YCOO!XCOO" formatControls="(2b24)" escapeSequence="   ">
   <DDFSubfieldDefn name="YCOO" format="b24"/>
   <DDFSubfieldDefn name="XCOO" format="b24"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="SG3D" fieldName="3-D Coordinate (sounding array) field" dataStructCode="array" dataTypeCode="bit_string" arrayDescr="*YCOO!XCOO!VE3D" formatControls="(3b24)">
+<DDFFieldDefn tag="SG3D" fieldName="3-D Coordinate (sounding array) field" dataStructCode="array" dataTypeCode="bit_string" arrayDescr="*YCOO!XCOO!VE3D" formatControls="(3b24)" escapeSequence="   ">
   <DDFSubfieldDefn name="YCOO" format="b24"/>
   <DDFSubfieldDefn name="XCOO" format="b24"/>
   <DDFSubfieldDefn name="VE3D" format="b24"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="FRID" fieldName="Feature record identifier field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="RCNM!RCID!PRIM!GRUP!OBJL!RVER!RUIN" formatControls="(b11,b14,2b11,2b12,b11)">
+<DDFFieldDefn tag="FRID" fieldName="Feature record identifier field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="RCNM!RCID!PRIM!GRUP!OBJL!RVER!RUIN" formatControls="(b11,b14,2b11,2b12,b11)" escapeSequence="   ">
   <DDFSubfieldDefn name="RCNM" format="b11"/>
   <DDFSubfieldDefn name="RCID" format="b14"/>
   <DDFSubfieldDefn name="PRIM" format="b11"/>
@@ -94,35 +94,35 @@
   <DDFSubfieldDefn name="RVER" format="b12"/>
   <DDFSubfieldDefn name="RUIN" format="b11"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="FOID" fieldName="Feature object identifier field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="AGEN!FIDN!FIDS" formatControls="(b12,b14,b12)">
+<DDFFieldDefn tag="FOID" fieldName="Feature object identifier field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="AGEN!FIDN!FIDS" formatControls="(b12,b14,b12)" escapeSequence="   ">
   <DDFSubfieldDefn name="AGEN" format="b12"/>
   <DDFSubfieldDefn name="FIDN" format="b14"/>
   <DDFSubfieldDefn name="FIDS" format="b12"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="ATTF" fieldName="Feature record attribute field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*ATTL!ATVL" formatControls="(b12,A)">
+<DDFFieldDefn tag="ATTF" fieldName="Feature record attribute field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*ATTL!ATVL" formatControls="(b12,A)" escapeSequence="-A ">
   <DDFSubfieldDefn name="ATTL" format="b12"/>
   <DDFSubfieldDefn name="ATVL" format="A"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="NATF" fieldName="Feature record national attribute field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*ATTL!ATVL" formatControls="(b12,A)">
+<DDFFieldDefn tag="NATF" fieldName="Feature record national attribute field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*ATTL!ATVL" formatControls="(b12,A)" escapeSequence="-A ">
   <DDFSubfieldDefn name="ATTL" format="b12"/>
   <DDFSubfieldDefn name="ATVL" format="A"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="FFPC" fieldName="Feature record to feature object pointer control field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="FFUI!FFIX!NFPT" formatControls="(b11,2b12)">
+<DDFFieldDefn tag="FFPC" fieldName="Feature record to feature object pointer control field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="FFUI!FFIX!NFPT" formatControls="(b11,2b12)" escapeSequence="   ">
   <DDFSubfieldDefn name="FFUI" format="b11"/>
   <DDFSubfieldDefn name="FFIX" format="b12"/>
   <DDFSubfieldDefn name="NFPT" format="b12"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="FFPT" fieldName="Feature record to feature object pointer field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*LNAM!RIND!COMT" formatControls="(B(64),b11,A)">
+<DDFFieldDefn tag="FFPT" fieldName="Feature record to feature object pointer field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*LNAM!RIND!COMT" formatControls="(B(64),b11,A)" escapeSequence="   ">
   <DDFSubfieldDefn name="LNAM" format="B(64)"/>
   <DDFSubfieldDefn name="RIND" format="b11"/>
   <DDFSubfieldDefn name="COMT" format="A"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="FSPC" fieldName="Feature record to spatial record pointer control field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="FSUI!FSIX!NSPT" formatControls="(b11,2b12)">
+<DDFFieldDefn tag="FSPC" fieldName="Feature record to spatial record pointer control field" dataStructCode="vector" dataTypeCode="mixed_data_type" arrayDescr="FSUI!FSIX!NSPT" formatControls="(b11,2b12)" escapeSequence="   ">
   <DDFSubfieldDefn name="FSUI" format="b11"/>
   <DDFSubfieldDefn name="FSIX" format="b12"/>
   <DDFSubfieldDefn name="NSPT" format="b12"/>
 </DDFFieldDefn>
-<DDFFieldDefn tag="FSPT" fieldName="Feature record to spatial record pointer field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*NAME!ORNT!USAG!MASK" formatControls="(B(40),3b11)">
+<DDFFieldDefn tag="FSPT" fieldName="Feature record to spatial record pointer field" dataStructCode="array" dataTypeCode="mixed_data_type" arrayDescr="*NAME!ORNT!USAG!MASK" formatControls="(B(40),3b11)" escapeSequence="   ">
   <DDFSubfieldDefn name="NAME" format="B(40)"/>
   <DDFSubfieldDefn name="ORNT" format="b11"/>
   <DDFSubfieldDefn name="USAG" format="b11"/>

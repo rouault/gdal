@@ -439,28 +439,39 @@ int DDFModule::Create(const char *pszFilename)
  * @param fp The standard IO file handle to write to.  i.e. stderr.
  */
 
-void DDFModule::Dump(FILE *fp) const
+void DDFModule::Dump(FILE *fp, int nNestingLevel) const
 
 {
-    fprintf(fp, "DDFModule:\n");
-    fprintf(fp, "    _recLength = %d\n", _recLength);
-    fprintf(fp, "    _interchangeLevel = %c\n", _interchangeLevel);
-    fprintf(fp, "    _leaderIden = %c\n", _leaderIden);
-    fprintf(fp, "    _inlineCodeExtensionIndicator = %c\n",
-            _inlineCodeExtensionIndicator);
-    fprintf(fp, "    _versionNumber = %c\n", _versionNumber);
-    fprintf(fp, "    _appIndicator = %c\n", _appIndicator);
-    fprintf(fp, "    _extendedCharSet = `%c%c%c'\n", _extendedCharSet[0],
-            _extendedCharSet[1], _extendedCharSet[2]);
-    fprintf(fp, "    _fieldControlLength = %d\n", _fieldControlLength);
-    fprintf(fp, "    _fieldAreaStart = %d\n", _fieldAreaStart);
-    fprintf(fp, "    _sizeFieldLength = %d\n", _sizeFieldLength);
-    fprintf(fp, "    _sizeFieldPos = %d\n", _sizeFieldPos);
-    fprintf(fp, "    _sizeFieldTag = %d\n", _sizeFieldTag);
+    std::string osIndent;
+    for (int i = 0; i < nNestingLevel; ++i)
+        osIndent += "  ";
+
+#define Print(...)                                                             \
+    do                                                                         \
+    {                                                                          \
+        fprintf(fp, "%s", osIndent.c_str());                                   \
+        fprintf(fp, __VA_ARGS__);                                              \
+    } while (0)
+
+    Print("DDFModule:\n");
+    Print("    _recLength = %d\n", _recLength);
+    Print("    _interchangeLevel = %c\n", _interchangeLevel);
+    Print("    _leaderIden = %c\n", _leaderIden);
+    Print("    _inlineCodeExtensionIndicator = %c\n",
+          _inlineCodeExtensionIndicator);
+    Print("    _versionNumber = %c\n", _versionNumber);
+    Print("    _appIndicator = %c\n", _appIndicator);
+    Print("    _extendedCharSet = `%c%c%c'\n", _extendedCharSet[0],
+          _extendedCharSet[1], _extendedCharSet[2]);
+    Print("    _fieldControlLength = %d\n", _fieldControlLength);
+    Print("    _fieldAreaStart = %d\n", _fieldAreaStart);
+    Print("    _sizeFieldLength = %d\n", _sizeFieldLength);
+    Print("    _sizeFieldPos = %d\n", _sizeFieldPos);
+    Print("    _sizeFieldTag = %d\n", _sizeFieldTag);
 
     for (const auto &poFieldDefn : apoFieldDefns)
     {
-        poFieldDefn->Dump(fp);
+        poFieldDefn->Dump(fp, nNestingLevel + 1);
     }
 }
 
