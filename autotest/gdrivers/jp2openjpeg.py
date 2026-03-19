@@ -3948,3 +3948,31 @@ def test_jp2openjpeg_write_check_golden_file(tmp_path, src_filename, creation_op
         )
     assert os.stat(src_filename).st_size == os.stat(out_filename).st_size
     assert open(src_filename, "rb").read() == open(out_filename, "rb").read()
+
+
+###############################################################################
+
+
+def test_jp2openjpeg_write_grey_undefined_undefined_alpha(tmp_path):
+
+    drv = gdal.GetDriverByName("JP2OpenJPEG")
+    src = gdal.GetDriverByName("MEM").Create("", 1, 1, 4)
+    drv.CreateCopy(tmp_path / "out.jp2", src, options=["ALPHA=YES"])
+
+    ret = gdal.GetJPEG2000StructureAsString(str(tmp_path / "out.jp2"), ["ALL=YES"])
+    assert (
+        """<Field name="N" type="uint16">4</Field>
+        <Field name="Cn0" type="uint16">0</Field>
+        <Field name="Typ0" type="uint16" description="Colour channel">0</Field>
+        <Field name="Asoc0" type="uint16" description="Associated with a particular colour">1</Field>
+        <Field name="Cn1" type="uint16">1</Field>
+        <Field name="Typ1" type="uint16" description="Not specified">65535</Field>
+        <Field name="Asoc1" type="uint16" description="Not associated with a particular colour">65535</Field>
+        <Field name="Cn2" type="uint16">2</Field>
+        <Field name="Typ2" type="uint16" description="Not specified">65535</Field>
+        <Field name="Asoc2" type="uint16" description="Not associated with a particular colour">65535</Field>
+        <Field name="Cn3" type="uint16">3</Field>
+        <Field name="Typ3" type="uint16" description="Opacity channel">1</Field>
+        <Field name="Asoc3" type="uint16" description="Associated to the whole image">0</Field>"""
+        in ret
+    )
