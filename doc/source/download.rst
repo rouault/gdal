@@ -18,12 +18,12 @@ Source Code
 Current Release
 ...............
 
-* **2026-02-09** `gdal-3.12.2.tar.gz`_ `3.12.2 Release Notes`_ (`3.12.2 md5`_, `3.12.2 sig`_)
+* **2026-03-20** `gdal-3.12.3.tar.gz`_ `3.12.3 Release Notes`_ (`3.12.3 md5`_, `3.12.3 sig`_)
 
-.. _`3.12.2 Release Notes`: https://github.com/OSGeo/gdal/blob/v3.12.2/NEWS.md
-.. _`gdal-3.12.2.tar.gz`: https://github.com/OSGeo/gdal/releases/download/v3.12.2/gdal-3.12.2.tar.gz
-.. _`3.12.2 md5`: https://github.com/OSGeo/gdal/releases/download/v3.12.2/gdal-3.12.2.tar.gz.md5
-.. _`3.12.2 sig`: https://github.com/OSGeo/gdal/releases/download/v3.12.2/gdal-3.12.2.tar.gz.sig
+.. _`3.12.3 Release Notes`: https://github.com/OSGeo/gdal/blob/v3.12.3/NEWS.md
+.. _`gdal-3.12.3.tar.gz`: https://github.com/OSGeo/gdal/releases/download/v3.12.3/gdal-3.12.3.tar.gz
+.. _`3.12.3 md5`: https://github.com/OSGeo/gdal/releases/download/v3.12.3/gdal-3.12.3.tar.gz.md5
+.. _`3.12.3 sig`: https://github.com/OSGeo/gdal/releases/download/v3.12.3/gdal-3.12.3.tar.gz.sig
 
 The GPG signing key is:
 
