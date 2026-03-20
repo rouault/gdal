@@ -2983,37 +2983,54 @@ GDALDataset *JP2OPJLikeDataset<CODEC, BASE>::CreateCopy(
                     static_cast<GUInt16>(i)); /* Component number */
                 if (i != nAlphaBandIndex)
                 {
-                    cdefBox.AppendUInt16(
-                        0); /* Signification: This channel is the colour image
-                               data for the associated colour */
                     if (eColorSpace == CODEC::cvtenum(JP2_CLRSPC_GRAY) &&
-                        nComponents == 2)
-                        cdefBox.AppendUInt16(
-                            1); /* Colour of the component: associated with a
-                                   particular colour */
-                    else if ((eColorSpace == CODEC::cvtenum(JP2_CLRSPC_SRGB) ||
-                              eColorSpace == CODEC::cvtenum(JP2_CLRSPC_SYCC)) &&
-                             (nComponents == 3 || nComponents == 4))
+                        i > 0)
                     {
-                        if (i == nRedBandIndex)
-                            cdefBox.AppendUInt16(1);
-                        else if (i == nGreenBandIndex)
-                            cdefBox.AppendUInt16(2);
-                        else if (i == nBlueBandIndex)
-                            cdefBox.AppendUInt16(3);
-                        else
-                        {
-                            CPLError(CE_Warning, CPLE_AppDefined,
-                                     "Could not associate band %d with a "
-                                     "red/green/blue channel",
-                                     i + 1);
-                            cdefBox.AppendUInt16(65535);
-                        }
-                    }
-                    else
+                        /* Extra channels beyond the single grey component must
+                           use unspecified type/association to avoid duplicate
+                           (type, association) pairs (ITU-T T.800) */
+                        cdefBox.AppendUInt16(
+                            65535); /* Signification: Unspecified */
                         cdefBox.AppendUInt16(
                             65535); /* Colour of the component: not associated
                                        with any particular colour */
+                    }
+                    else
+                    {
+                        cdefBox.AppendUInt16(
+                            0); /* Signification: This channel is the colour
+                                   image data for the associated colour */
+                        if (eColorSpace == CODEC::cvtenum(JP2_CLRSPC_GRAY))
+                            cdefBox.AppendUInt16(
+                                1); /* Colour of the component: associated with
+                                       a particular colour */
+                        else if ((eColorSpace ==
+                                      CODEC::cvtenum(JP2_CLRSPC_SRGB) ||
+                                  eColorSpace ==
+                                      CODEC::cvtenum(JP2_CLRSPC_SYCC)) &&
+                                 (nComponents == 3 || nComponents == 4))
+                        {
+                            if (i == nRedBandIndex)
+                                cdefBox.AppendUInt16(1);
+                            else if (i == nGreenBandIndex)
+                                cdefBox.AppendUInt16(2);
+                            else if (i == nBlueBandIndex)
+                                cdefBox.AppendUInt16(3);
+                            else
+                            {
+                                CPLError(CE_Warning, CPLE_AppDefined,
+                                         "Could not associate band %d with a "
+                                         "red/green/blue channel",
+                                         i + 1);
+                                cdefBox.AppendUInt16(65535);
+                            }
+                        }
+                        else
+                            cdefBox.AppendUInt16(
+                                65535); /* Colour of the component: not
+                                           associated with any particular colour
+                                         */
+                    }
                 }
                 else
                 {
