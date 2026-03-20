@@ -1599,7 +1599,7 @@ int DDFRecord::SetStringSubfield(const char *pszField, int iFieldIndex,
     int nInstanceSize = 0;
 
     const char *pachFieldInstData =
-        poField->GetInstanceData(iFieldIndex, &nInstanceSize);
+        poField->GetInstanceData(iSubfieldIndex, &nInstanceSize);
 
     const int nStartOffset =
         static_cast<int>(pachSubfieldData - pachFieldInstData);
@@ -1609,8 +1609,8 @@ int DDFRecord::SetStringSubfield(const char *pszField, int iFieldIndex,
     poSFDefn->FormatStringValue(osNewData.data(), nFormattedLen, nullptr,
                                 pszValue, nValueLength);
 
-    return UpdateFieldRaw(poField, iFieldIndex, nStartOffset, nExistingLength,
-                          osNewData.data(), nFormattedLen);
+    return UpdateFieldRaw(poField, iSubfieldIndex, nStartOffset,
+                          nExistingLength, osNewData.data(), nFormattedLen);
 }
 
 /************************************************************************/
@@ -1704,7 +1704,7 @@ int DDFRecord::SetIntSubfield(const char *pszField, int iFieldIndex,
     int nInstanceSize = 0;
 
     const char *pachFieldInstData =
-        poField->GetInstanceData(iFieldIndex, &nInstanceSize);
+        poField->GetInstanceData(iSubfieldIndex, &nInstanceSize);
 
     const int nStartOffset =
         static_cast<int>(pachSubfieldData - pachFieldInstData);
@@ -1714,8 +1714,8 @@ int DDFRecord::SetIntSubfield(const char *pszField, int iFieldIndex,
     poSFDefn->FormatIntValue(osNewData.data(), nFormattedLen, nullptr,
                              nNewValue);
 
-    return UpdateFieldRaw(poField, iFieldIndex, nStartOffset, nExistingLength,
-                          osNewData.data(), nFormattedLen);
+    return UpdateFieldRaw(poField, iSubfieldIndex, nStartOffset,
+                          nExistingLength, osNewData.data(), nFormattedLen);
 }
 
 /************************************************************************/
@@ -1809,7 +1809,7 @@ int DDFRecord::SetFloatSubfield(const char *pszField, int iFieldIndex,
     int nInstanceSize = 0;
 
     const char *pachFieldInstData =
-        poField->GetInstanceData(iFieldIndex, &nInstanceSize);
+        poField->GetInstanceData(iSubfieldIndex, &nInstanceSize);
 
     const int nStartOffset =
         static_cast<int>(pachSubfieldData - pachFieldInstData);
@@ -1819,6 +1819,6 @@ int DDFRecord::SetFloatSubfield(const char *pszField, int iFieldIndex,
     poSFDefn->FormatFloatValue(osNewData.data(), nFormattedLen, nullptr,
                                dfNewValue);
 
-    return UpdateFieldRaw(poField, iFieldIndex, nStartOffset, nExistingLength,
-                          osNewData.data(), nFormattedLen);
+    return UpdateFieldRaw(poField, iSubfieldIndex, nStartOffset,
+                          nExistingLength, osNewData.data(), nFormattedLen);
 }
