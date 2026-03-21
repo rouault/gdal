@@ -992,6 +992,35 @@ int DDFSubfieldDefn::FormatFloatValue(char *pachData, int nBytesAvailable,
                 pachData[i] = chFillChar;
             memcpy(pachData + nZeroFillCount, szWork, strlen(szWork));
         }
+        else if (GetBinaryFormat() == FloatReal)
+        {
+            if (nFormatWidth == 8)
+            {
+                if (osFormatString[0] == 'B')
+                {
+                    CPL_MSBPTR64(&dfNewValue);
+                }
+                else
+                {
+                    CPL_LSBPTR64(&dfNewValue);
+                }
+                memcpy(pachData, &dfNewValue, sizeof(dfNewValue));
+            }
+            else
+            {
+                CPLAssert(nFormatWidth == 4);
+                float f = static_cast<float>(dfNewValue);
+                if (osFormatString[0] == 'B')
+                {
+                    CPL_MSBPTR32(&f);
+                }
+                else
+                {
+                    CPL_LSBPTR32(&f);
+                }
+                memcpy(pachData, &f, sizeof(f));
+            }
+        }
         else
         {
             CPLAssert(false);
