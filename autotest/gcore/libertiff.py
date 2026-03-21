@@ -15,6 +15,7 @@ import array
 import glob
 import math
 import os
+import struct
 import threading
 
 import gdaltest
@@ -1013,3 +1014,35 @@ def test_libertiff_read_tiled_blockysize_larger_than_rasterysize():
 
     ds = libertiff_open("data/gtiff/tiled_blockysize_larger_than_rasterysize.tif")
     assert ds.ReadRaster() == array.array("B", [i for i in range(32)])
+
+
+###############################################################################
+# Test that a JPEG-compressed TIFF with a strile byte count far larger than
+# the file does not crash (guards against integer overflow in buffer sizing)
+
+
+@pytest.mark.require_driver("JPEG")
+@gdaltest.disable_exceptions()
+def test_libertiff_jpeg_strile_size_overflow(tmp_vsimem):
+
+    # Start from a known-good single-strip JPEG TIFF that has a JPEGTables tag
+    with open("data/gtiff/byte_JPEG.tif", "rb") as f:
+        data = bytearray(f.read())
+
+    # Patch StripByteCounts (tag 279 / 0x0117) inline value to 0xFFFFFFFF.
+    # The value is at file offset 114 (little-endian uint32).
+    assert data[106:108] == b"\x17\x01", (
+        "Test data layout changed: expected tag 279 (StripByteCounts/0x0117) "
+        "at IFD offset 106 in data/gtiff/byte_JPEG.tif"
+    )
+    struct.pack_into("<I", data, 114, 0xFFFFFFFF)
+
+    filename = str(tmp_vsimem / "jpeg_overflow.tif")
+    gdal.FileFromMemBuffer(filename, bytes(data))
+
+    ds = libertiff_open(filename)
+    # Must open successfully (header is still valid) ...
+    assert ds is not None
+    # ... but reading must fail gracefully, not crash
+    with pytest.raises(Exception):
+        ds.ReadRaster()

@@ -324,6 +324,14 @@ class ReadContext
             std::is_same_v<T, float> || std::is_same_v<T, double>);
 #endif
 
+        if LIBERTIFF_CONSTEXPR (sizeof(T) > 1)
+        {
+            if (count > std::numeric_limits<size_t>::max() / sizeof(T))
+            {
+                ok = false;
+                return;
+            }
+        }
         array.resize(count);
         const size_t countBytes = count * sizeof(T);
         if (count > 0 &&
