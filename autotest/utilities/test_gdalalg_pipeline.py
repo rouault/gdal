@@ -1109,3 +1109,35 @@ def test_gdalalg_pipeline_ossfuzz_485952614():
     # Used to segfault
     with pytest.raises(Exception):
         gdal.alg.pipeline(pipeline="read -h")
+
+
+def test_gdalalg_pipeline_help_after_contour(tmp_vsimem):
+
+    import gdaltest
+    import test_cli_utilities
+
+    gdal_path = test_cli_utilities.get_gdal_path()
+    if gdal_path is None:
+        pytest.skip("gdal binary missing")
+
+    out = gdaltest.runexternal(
+        f"{gdal_path} pipeline read ../gcore/data/byte.tif ! contour -l 10 ! info --help"
+    )
+
+    assert "Return information on a vector dataset" in out
+
+
+def test_gdalalg_pipeline_help_after_rasterize(tmp_vsimem):
+
+    import gdaltest
+    import test_cli_utilities
+
+    gdal_path = test_cli_utilities.get_gdal_path()
+    if gdal_path is None:
+        pytest.skip("gdal binary missing")
+
+    out = gdaltest.runexternal(
+        f"{gdal_path} pipeline read ../ogr/data/poly.shp ! rasterize ! info --help"
+    )
+
+    assert "Return information on a raster dataset" in out
