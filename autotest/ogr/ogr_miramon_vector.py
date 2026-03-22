@@ -1551,3 +1551,18 @@ def test_ogr_miramon_check_layer_name_with_accents(tmp_vsimem):
 
     ds = None
     lyr = None
+
+
+###############################################################################
+
+
+def test_ogr_miramon_write_launder_layer_name(tmp_path):
+
+    ds = ogr.GetDriverByName("MiramonVector").CreateVector(tmp_path)
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(32631)
+    with gdaltest.error_raised(
+        gdal.CE_Warning,
+        match="Layer name 'not/allowed' laundered as 'not_allowed' for filename compatibility",
+    ):
+        ds.CreateLayer("not/allowed", srs=srs, geom_type=ogr.wkbUnknown)
