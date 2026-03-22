@@ -82,6 +82,10 @@ bool CPLHaveRuntimeAVX();
 #endif
 #endif
 
+#ifdef HAVE_AVX2_AT_COMPILE_TIME
+bool CPLHaveRuntimeAVX2();
+#endif
+
 //! @endcond
 
 #endif  // CPL_CPU_FEATURES_H

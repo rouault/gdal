@@ -131,6 +131,10 @@ elseif (HAVE_SSSE3_AT_COMPILE_TIME)
     PROPERTY COMPILE_FLAGS ${GDAL_SSSE3_FLAG})
 endif ()
 
+if (HAVE_AVX2_AT_COMPILE_TIME)
+  target_compile_definitions(gcore PRIVATE -DHAVE_AVX2_AT_COMPILE_TIME)
+endif ()
+
 if (EMBED_RESOURCE_FILES)
     add_library(gcore_resources OBJECT embedded_resources.c)
     gdal_standard_includes(gcore_resources)

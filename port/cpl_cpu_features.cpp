@@ -196,4 +196,31 @@ bool CPLHaveRuntimeAVX()
 
 #endif  // defined(HAVE_AVX_AT_COMPILE_TIME) && !defined(CPLHaveRuntimeAVX)
 
+#ifdef HAVE_AVX2_AT_COMPILE_TIME
+
+/************************************************************************/
+/*                        CPLHaveRuntimeAVX2()                          */
+/************************************************************************/
+
+bool CPLHaveRuntimeAVX2()
+{
+    static const bool bHasAVX2 = []() -> bool
+    {
+        if (!CPLHaveRuntimeAVX())
+            return false;
+#if defined(__GNUC__) || defined(__clang__)
+        return __builtin_cpu_supports("avx2");
+#elif defined(_MSC_VER)
+        int cpuInfo[4] = {};
+        __cpuidex(cpuInfo, 7, 0);
+        return (cpuInfo[REG_EBX] & (1 << 5)) != 0;  // EBX bit 5 = AVX2
+#else
+        return false;
+#endif
+    }();
+    return bHasAVX2;
+}
+
+#endif  // HAVE_AVX2_AT_COMPILE_TIME
+
 //! @endcond
