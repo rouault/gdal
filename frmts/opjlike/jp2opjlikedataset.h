@@ -73,6 +73,7 @@ struct JP2DatasetBase
     int nGreenIndex = 1;
     int nBlueIndex = 2;
     int nAlphaIndex = -1;
+    bool bHas1BitAlpha = false;
 
     int bIs420 = FALSE;
 
@@ -94,7 +95,8 @@ struct JP2DatasetBase
     uint32_t m_nTileWidth = 0;
     uint32_t m_nTileHeight = 0;
 
-    virtual ~JP2DatasetBase();
+  protected:
+    ~JP2DatasetBase() = default;
 };
 
 /************************************************************************/
@@ -149,6 +151,11 @@ class JP2OPJLikeDataset final : public GDALJP2AbstractDataset, public BASE
                      GSpacing nLineSpace, GSpacing nBandSpace,
                      GDALRasterIOExtraArg *psExtraArg) override;
 
+    virtual CPLErr AdviseRead(int nXOff, int nYOff, int nXSize, int nYSize,
+                              int nBufXSize, int nBufYSize, GDALDataType eDT,
+                              int nBandCount, int *panBandList,
+                              CSLConstList papszOptions) override;
+
     GIntBig GetEstimatedRAMUsage() override;
 
     CPLErr IBuildOverviews(const char *pszResampling, int nOverviews,
@@ -172,6 +179,8 @@ class JP2OPJLikeDataset final : public GDALJP2AbstractDataset, public BASE
                       const int *panBandMap);
 
     static void ReadBlockInThread(void *userdata);
+
+    static vsi_l_offset JP2FindCodeStream(VSILFILE *fp, vsi_l_offset *pnLength);
 };
 
 /************************************************************************/

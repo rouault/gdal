@@ -148,4 +148,5 @@ Supported Formats: (ro:read-only, rw:read-write, +:write from scratch, u:update,
   Zarr -raster,multidimensional raster- (rw+uvs): Zarr (*.zarr)
   RCM -raster- (rovs): Radarsat Constellation Mission XML Product
   MiraMonRaster -raster- (rwvs): MiraMon Raster Images (*.rel, *.img)
+  JP2Grok -raster,vector- (rwv): JPEG-2000 driver based on Grok library (*.jp2, *.j2k)
   HTTP -raster,vector- (ro): HTTP Fetching Wrapper

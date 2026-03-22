@@ -219,6 +219,18 @@ RUN curl -LO -fsS https://github.com/apache/arrow/archive/refs/heads/main.zip \
     && cd ../../.. \
     && rm -rf arrow-main
 
+# Build Grok JPEG 2000 library
+RUN git clone --depth 1 https://github.com/GrokImageCompression/grok.git grok-git && \
+    cd grok-git && \
+    mkdir build && \
+    cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DGRK_ENABLE_LIBCURL=ON .. && \
+    make -j$(nproc) && \
+    make install && \
+    cd ../.. && \
+    rm -rf grok-git && \
+    ldconfig
+
 # Install pdfium
 RUN wget -q https://github.com/rouault/pdfium_build_gdal_3_13/releases/download/pdfium_7724_v1/install-ubuntu2404-rev7724.tar.gz \
   && tar -xzf install-ubuntu2404-rev7724.tar.gz \

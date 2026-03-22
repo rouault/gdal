@@ -3004,14 +3004,14 @@ CPL_NOINLINE void GDALCopyWordsT(const int16_t *const CPL_RESTRICT pSrcData,
 
 // ---- AVX2 helpers for int32 narrowing (runtime dispatch) ----
 
+#if defined(HAVE_AVX2_DISPATCH) || defined(HAVE_AVX2_NATIVELY)
 #if defined(HAVE_AVX2_DISPATCH) && !defined(HAVE_AVX2_DISPATCH_MSVC)
 __attribute__((target("avx2")))
 #endif
 static void GDALCopyWordsInt32ToUInt8_AVX2(const int32_t *CPL_RESTRICT pSrc,
                                            uint8_t *CPL_RESTRICT pDst,
-                                           GPtrDiff_t nWordCount) d8515f720f (rasterio)
+                                           GPtrDiff_t nWordCount)
 {
-#if defined(HAVE_AVX2_DISPATCH) || defined(HAVE_AVX2_NATIVELY)
     const __m256i ymm_zero = _mm256_setzero_si256();
     const __m256i ymm_255 = _mm256_set1_epi32(255);
     const __m256i permuteIdx = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
@@ -3048,17 +3048,17 @@ static void GDALCopyWordsInt32ToUInt8_AVX2(const int32_t *CPL_RESTRICT pSrc,
                   : pSrc[n] >= 255 ? 255
                                    : static_cast<uint8_t>(pSrc[n]);
     }
-#endif
 }
+#endif  // HAVE_AVX2_DISPATCH || HAVE_AVX2_NATIVELY
 
+#if defined(HAVE_AVX2_DISPATCH) || defined(HAVE_AVX2_NATIVELY)
 #if defined(HAVE_AVX2_DISPATCH) && !defined(HAVE_AVX2_DISPATCH_MSVC)
 __attribute__((target("avx2")))
 #endif
 static void GDALCopyWordsInt32ToUInt16_AVX2(const int32_t *CPL_RESTRICT pSrc,
                                             uint16_t *CPL_RESTRICT pDst,
-                                            GPtrDiff_t nWordCount) d8515f720f (rasterio)
+                                            GPtrDiff_t nWordCount)
 {
-#if defined(HAVE_AVX2_DISPATCH) || defined(HAVE_AVX2_NATIVELY)
     const __m256i ymm_zero = _mm256_setzero_si256();
     // _mm256_packus_epi32(v0, v1) produces per-lane interleaved result:
     //   [v0_lo4, v1_lo4, v0_hi4, v1_hi4] (in uint16 pairs per 32-bit lane)
@@ -3085,8 +3085,8 @@ static void GDALCopyWordsInt32ToUInt16_AVX2(const int32_t *CPL_RESTRICT pSrc,
                   : pSrc[n] >= 65535 ? 65535
                                      : static_cast<uint16_t>(pSrc[n]);
     }
-#endif
 }
+#endif  // HAVE_AVX2_DISPATCH || HAVE_AVX2_NATIVELY
 
 // ---- int32 -> uint8 with clamping to [0, 255] ----
 template <>
@@ -3108,6 +3108,7 @@ CPL_NOINLINE void GDALCopyWordsT(const int32_t *const CPL_RESTRICT pSrcData,
         GDALCopyWordsInt32ToUInt8_AVX2(pSrcData, pDstData, nWordCount);
         return;
 #endif
+#ifdef HAVE_SSE2
         // SSE2 path: 16 pixels per iteration
         decltype(nWordCount) n = 0;
         const __m128i xmm_255 = _mm_set1_epi32(255);
@@ -3147,6 +3148,9 @@ CPL_NOINLINE void GDALCopyWordsT(const int32_t *const CPL_RESTRICT pSrcData,
             _mm_storeu_si128(reinterpret_cast<__m128i *>(pDstData + n), bytes);
         }
         for (; n < nWordCount; n++)
+#else
+        for (decltype(nWordCount) n = 0; n < nWordCount; n++)
+#endif
         {
             pDstData[n] = pSrcData[n] <= 0 ? 0
                           : pSrcData[n] >= 255

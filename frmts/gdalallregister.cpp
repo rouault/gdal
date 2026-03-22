@@ -189,6 +189,9 @@ void CPL_STDCALL GDALAllRegister()
 #if defined(DEFERRED_IDB_DRIVER)
     DeclareDeferredOGRIDBPlugin();
 #endif
+#if defined(DEFERRED_JP2Grok_DRIVER)
+    DeclareDeferredJP2GrokPlugin();
+#endif
 #if defined(DEFERRED_JP2KAK_DRIVER)
     DeclareDeferredJP2KAKPlugin();
 #endif
@@ -492,6 +495,10 @@ void CPL_STDCALL GDALAllRegister()
 
 #ifdef FRMT_ers
     GDALRegister_ERS();
+#endif
+
+#ifdef FRMT_jp2grok
+    GDALRegister_JP2Grok();
 #endif
 
 #ifdef FRMT_jp2kak

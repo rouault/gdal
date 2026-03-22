@@ -46,6 +46,7 @@ void CPL_DLL DeclareDeferredGTAPlugin(void);
 void CPL_DLL GDALRegister_JPEG(void);
 void DeclareDeferredJPEGPlugin(void);
 void CPL_DLL GDALRegister_JP2KAK(void);
+void CPL_DLL GDALRegister_JP2Grok(void);
 void DeclareDeferredJP2KAKPlugin(void);
 void CPL_DLL GDALRegister_JPIPKAK(void);
 void DeclareDeferredJPIPKAKPlugin(void);
