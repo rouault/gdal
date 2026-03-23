@@ -61,7 +61,7 @@ find_library(GROK_LIBRARIES
 mark_as_advanced(GROK_LIBRARIES GROK_INCLUDE_DIRS)
 
 # If headers are found, determine Grok version
-if(GROK_INCLUDE_DIR)
+if(GROK_INCLUDE_DIRS)
     if(DEFINED GROK_VERSION_STRING)
         string(REGEX MATCH "([0-9]+).([0-9]+).([0-9]+)" GRK_VERSION ${GROK_VERSION_STRING})
         if(GRK_VERSION)

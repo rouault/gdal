@@ -1198,7 +1198,6 @@ struct JP2GRKDatasetBase : public JP2DatasetBase
 
     /**
      * @brief Destroys the JP2GRKDatasetBase object
-     * 
      */
     virtual ~JP2GRKDatasetBase();
 
