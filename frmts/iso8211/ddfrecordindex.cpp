@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Project:  S-57 Translator
+ * Project:  ISO 8211 Access
  * Purpose:  Implements DDFRecordIndex class.  This class is used to cache
  *           ISO8211 records for spatial objects so they can be efficiently
  *           assembled later as features.
@@ -13,7 +13,7 @@
  ****************************************************************************/
 
 #include "cpl_conv.h"
-#include "s57.h"
+#include "ddfrecordindex.h"
 
 #include <algorithm>
 

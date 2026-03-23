@@ -20,6 +20,7 @@
 #include <vector>
 #include "ogr_feature.h"
 #include "iso8211.h"
+#include "ddfrecordindex.h"
 
 class S57Reader;
 
@@ -196,52 +197,6 @@ class S57ClassContentExplorer
 
     char GetClassCode() const;
     char **GetPrimitives();
-};
-
-/************************************************************************/
-/*                            DDFRecordIndex                            */
-/*                                                                      */
-/*      Maintain an index of DDF records based on an integer key.       */
-/************************************************************************/
-
-struct DDFIndexedRecord
-{
-    int nKey = 0;
-    std::unique_ptr<DDFRecord> poRecord;
-    const void *pClientData = nullptr;
-};
-
-class CPL_DLL DDFRecordIndex
-{
-    mutable bool bSorted = false;
-    mutable std::vector<DDFIndexedRecord> asRecords{};
-
-    void Sort() const;
-
-    DDFRecordIndex(const DDFRecordIndex &) = delete;
-    DDFRecordIndex &operator=(const DDFRecordIndex &) = delete;
-    DDFRecordIndex(DDFRecordIndex &&) = delete;
-    DDFRecordIndex &operator=(DDFRecordIndex &&) = delete;
-
-  public:
-    DDFRecordIndex();
-    ~DDFRecordIndex();
-
-    void AddRecord(int nKey, std::unique_ptr<DDFRecord> poRecord);
-    bool RemoveRecord(int nKey);
-
-    DDFRecord *FindRecord(int nKey) const;
-
-    void Clear();
-
-    int GetCount() const
-    {
-        return static_cast<int>(asRecords.size());
-    }
-
-    const DDFRecord *GetByIndex(int i) const;
-    const void *GetClientInfoByIndex(int i) const;
-    void SetClientInfoByIndex(int i, const void *pClientInfo);
 };
 
 /************************************************************************/

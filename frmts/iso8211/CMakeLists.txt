@@ -8,7 +8,9 @@ add_library(
   ddffielddefn.cpp
   ddfrecord.cpp
   ddffield.cpp
-  ddfsubfielddefn.cpp)
+  ddfsubfielddefn.cpp
+  ddfrecordindex.cpp
+)
 set_property(TARGET gdal_iso8211 PROPERTY POSITION_INDEPENDENT_CODE ${GDAL_OBJECT_LIBRARIES_POSITION_INDEPENDENT_CODE})
 target_sources(${GDAL_LIB_TARGET_NAME} PRIVATE $<TARGET_OBJECTS:gdal_iso8211>)
 gdal_standard_includes(gdal_iso8211)

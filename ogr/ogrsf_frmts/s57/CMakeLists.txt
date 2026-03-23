@@ -7,7 +7,6 @@ add_gdal_driver(
           ogrs57layer.cpp
           s57classregistrar.cpp
           s57reader.cpp
-          ddfrecordindex.cpp
           s57featuredefns.cpp
           s57filecollector.cpp
           s57writer.cpp
