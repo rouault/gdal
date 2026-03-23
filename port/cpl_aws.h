@@ -83,6 +83,11 @@ class IVSIS3LikeHandleHelper
         return "";
     }
 
+    virtual std::string GetSignedURL(CSLConstList /*papszOptions*/)
+    {
+        return std::string();
+    }
+
     static bool GetBucketAndObjectKey(const char *pszURI,
                                       const char *pszFSPrefix,
                                       bool bAllowNoObject,
