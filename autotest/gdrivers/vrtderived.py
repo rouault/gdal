@@ -2222,6 +2222,8 @@ def test_vrt_split_in_halves(tmp_vsimem):
 
 def test_vrt_derived_virtual_overviews(tmp_vsimem):
 
+    import struct
+
     width = 2
     height = 2
 
@@ -2231,9 +2233,9 @@ def test_vrt_derived_virtual_overviews(tmp_vsimem):
         src.WriteRaster(0, 0, width, height, b"\x01" * (width * height))
 
     with gdal.GetDriverByName("GTiff").Create(
-        tmp_vsimem / "src2.tif", width, height, 1, gdal.GDT_Byte
+        tmp_vsimem / "src2.tif", width, height, 1, gdal.GDT_Float32
     ) as src:
-        src.WriteRaster(0, 0, width, height, b"\x02" * (width * height))
+        src.WriteRaster(0, 0, width, height, struct.pack("f", 2) * (width * height))
 
     xml = f"""
     <VRTDataset rasterXSize="{width}" rasterYSize="{height}">
@@ -2244,8 +2246,8 @@ def test_vrt_derived_virtual_overviews(tmp_vsimem):
         </SimpleSource>
       </VRTRasterBand>
       <MaskBand>
-          <VRTRasterBand dataType="Byte" subclass="VRTDerivedRasterBand">
-            <PixelFunctionType>sum</PixelFunctionType>
+          <VRTRasterBand dataType="Float32" subclass="VRTDerivedRasterBand">
+            <PixelFunctionType>inv</PixelFunctionType>
             <SimpleSource>
               <SourceFilename>{tmp_vsimem / "src2.tif"}</SourceFilename>
               <SourceBand>1</SourceBand>
@@ -2257,9 +2259,53 @@ def test_vrt_derived_virtual_overviews(tmp_vsimem):
 
     ds = gdal.Open(xml)
     mask_band = ds.GetRasterBand(1).GetMaskBand()
+    assert mask_band.DataType == gdal.GDT_Float32
     with gdaltest.error_raised(gdal.CE_None):
         got = mask_band.ReadRaster(0, 0, width, height, 1, 1)
-    assert got == b"\x02"
+    assert struct.unpack("f", got)[0] == 0.5
+
+
+def test_vrt_derived_implicit_overviews(tmp_vsimem):
+
+    import struct
+
+    width = 2
+    height = 2
+
+    with gdal.GetDriverByName("GTiff").Create(
+        tmp_vsimem / "src.tif", width, height, 1, gdal.GDT_Float32
+    ) as src:
+        src.BuildOverviews("NONE", [2])
+        src.GetRasterBand(1).GetOverview(0).WriteRaster(
+            0,
+            0,
+            width // 2,
+            height // 2,
+            struct.pack("f", 2) * ((width // 2) * (height // 2)),
+        )
+
+    xml = f"""
+    <VRTDataset rasterXSize="{width}" rasterYSize="{height}">
+      <VRTRasterBand dataType="Float32" subclass="VRTDerivedRasterBand">
+        <PixelFunctionType>inv</PixelFunctionType>
+        <SimpleSource>
+          <SourceFilename>{tmp_vsimem / "src.tif"}</SourceFilename>
+          <SourceBand>1</SourceBand>
+        </SimpleSource>
+      </VRTRasterBand>
+    </VRTDataset>"""
+
+    ds = gdal.Open(xml)
+    bnd = ds.GetRasterBand(1)
+    assert bnd.DataType == gdal.GDT_Float32
+    assert bnd.GetOverviewCount() == 1
+    with gdaltest.error_raised(gdal.CE_None):
+        got = bnd.ReadRaster(0, 0, width, height, 1, 1)
+    assert struct.unpack("f", got)[0] == 0.5
+
+    with gdaltest.error_raised(gdal.CE_None):
+        got = bnd.GetOverview(0).ReadRaster(0, 0, width // 2, height // 2, 1, 1)
+    assert struct.unpack("f", got)[0] == 0.5
 
 
 def test_vrt_derived_zero_initialization(tmp_vsimem):

@@ -2899,12 +2899,12 @@ void VRTDataset::BuildVirtualOverviews()
 
     for (int j = 0; j < nOverviews; j++)
     {
-        auto poOvrBand = poFirstBand->GetOverview(j);
-        if (!poOvrBand)
+        auto poSrcOvrBand = poFirstBand->GetOverview(j);
+        if (!poSrcOvrBand)
             return;
-        const double dfXRatio = static_cast<double>(poOvrBand->GetXSize()) /
+        const double dfXRatio = static_cast<double>(poSrcOvrBand->GetXSize()) /
                                 poFirstBand->GetXSize();
-        const double dfYRatio = static_cast<double>(poOvrBand->GetYSize()) /
+        const double dfYRatio = static_cast<double>(poSrcOvrBand->GetYSize()) /
                                 poFirstBand->GetYSize();
         if (dfXRatio >= dfDstToSrcXRatio || dfYRatio >= dfDstToSrcYRatio)
         {
@@ -2942,21 +2942,36 @@ void VRTDataset::BuildVirtualOverviews()
         if (VRTDataset::IsDefaultBlockSize(nBlockYSize, nRasterYSize))
             nBlockYSize = 0;
 
-        VRTDataset *poOvrVDS =
-            new VRTDataset(nOvrXSize, nOvrYSize, nBlockXSize, nBlockYSize);
-        m_apoOverviews.push_back(poOvrVDS);
+        auto poOvrVDS = std::make_unique<VRTDataset>(nOvrXSize, nOvrYSize,
+                                                     nBlockXSize, nBlockYSize);
 
         const auto CreateOverviewBand =
             [&poOvrVDS, nOvrXSize, nOvrYSize, dfXRatio,
              dfYRatio](VRTSourcedRasterBand *poVRTBand)
+            -> std::unique_ptr<VRTSourcedRasterBand>
         {
-            auto poOvrVRTBand = std::make_unique<VRTSourcedRasterBand>(
-                poOvrVDS, poVRTBand->GetBand(), poVRTBand->GetRasterDataType(),
-                nOvrXSize, nOvrYSize);
-            poOvrVRTBand->CopyCommonInfoFrom(poVRTBand);
-            poOvrVRTBand->m_bNoDataValueSet = poVRTBand->m_bNoDataValueSet;
-            poOvrVRTBand->m_dfNoDataValue = poVRTBand->m_dfNoDataValue;
-            poOvrVRTBand->m_bHideNoDataValue = poVRTBand->m_bHideNoDataValue;
+            std::unique_ptr<VRTSourcedRasterBand> poOvrVRTBand;
+            if (auto poDerivedBand =
+                    dynamic_cast<VRTDerivedRasterBand *>(poVRTBand))
+            {
+                poOvrVRTBand = poDerivedBand->CloneWithoutSources(
+                    poOvrVDS.get(), nOvrXSize, nOvrYSize);
+            }
+            else
+            {
+                poOvrVRTBand = poVRTBand->CloneWithoutSources(
+                    poOvrVDS.get(), nOvrXSize, nOvrYSize);
+            }
+            auto &oOvrVRTBand = *poOvrVRTBand;
+            auto &oVRTBand = *poVRTBand;
+            if (typeid(oOvrVRTBand) != typeid(oVRTBand))
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Lack of CloneWithoutSources() implementation for "
+                         "subclass %s of VRTSourcedRasterBand",
+                         typeid(oVRTBand).name());
+                return nullptr;
+            }
 
             VRTSimpleSource *poSrcSource = cpl::down_cast<VRTSimpleSource *>(
                 poVRTBand->m_papoSources[0].get());
@@ -2989,16 +3004,24 @@ void VRTDataset::BuildVirtualOverviews()
         {
             VRTSourcedRasterBand *poSrcBand =
                 cpl::down_cast<VRTSourcedRasterBand *>(GetRasterBand(i + 1));
+            auto poOvrBand = CreateOverviewBand(poSrcBand);
+            if (!poOvrBand)
+                return;
             poOvrVDS->SetBand(poOvrVDS->GetRasterCount() + 1,
-                              CreateOverviewBand(poSrcBand));
+                              std::move(poOvrBand));
         }
 
         if (m_poMaskBand)
         {
             VRTSourcedRasterBand *poSrcBand =
                 cpl::down_cast<VRTSourcedRasterBand *>(m_poMaskBand.get());
-            poOvrVDS->SetMaskBand(CreateOverviewBand(poSrcBand));
+            auto poOvrBand = CreateOverviewBand(poSrcBand);
+            if (!poOvrBand)
+                return;
+            poOvrVDS->SetMaskBand(std::move(poOvrBand));
         }
+
+        m_apoOverviews.push_back(poOvrVDS.release());
     }
 }
 

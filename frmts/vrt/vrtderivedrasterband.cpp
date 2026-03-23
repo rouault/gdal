@@ -228,7 +228,40 @@ VRTDerivedRasterBand::~VRTDerivedRasterBand()
 }
 
 /************************************************************************/
-/*                               Cleanup()                              */
+/*                     CopyForCloneWithoutSources()                     */
+/************************************************************************/
+
+void VRTDerivedRasterBand::CopyForCloneWithoutSources(
+    const VRTDerivedRasterBand *poSrcBand)
+{
+    VRTSourcedRasterBand::CopyForCloneWithoutSources(poSrcBand);
+    osFuncName = poSrcBand->osFuncName;
+    eSourceTransferType = poSrcBand->eSourceTransferType;
+    m_poPrivate->m_osCode = poSrcBand->m_poPrivate->m_osCode;
+    m_poPrivate->m_osLanguage = poSrcBand->m_poPrivate->m_osLanguage;
+    m_poPrivate->m_nBufferRadius = poSrcBand->m_poPrivate->m_nBufferRadius;
+    m_poPrivate->m_oFunctionArgs = poSrcBand->m_poPrivate->m_oFunctionArgs;
+    m_poPrivate->m_bSkipNonContributingSources =
+        poSrcBand->m_poPrivate->m_bSkipNonContributingSources;
+}
+
+/************************************************************************/
+/*                        CloneWithoutSources()                         */
+/************************************************************************/
+
+std::unique_ptr<VRTSourcedRasterBand>
+VRTDerivedRasterBand::CloneWithoutSources(GDALDataset *poNewDS, int nNewXSize,
+                                          int nNewYSize) const
+{
+    auto poClone = std::make_unique<VRTDerivedRasterBand>(
+        poNewDS, GetBand(), GetRasterDataType(), nNewXSize, nNewYSize,
+        nBlockXSize, nBlockYSize);
+    poClone->CopyForCloneWithoutSources(this);
+    return poClone;
+}
+
+/************************************************************************/
+/*                              Cleanup()                               */
 /************************************************************************/
 
 void VRTDerivedRasterBand::Cleanup()
