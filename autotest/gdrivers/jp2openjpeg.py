@@ -1103,6 +1103,38 @@ def test_jp2openjpeg_26():
 
 
 ###############################################################################
+# Test that multi-band GRAY+alpha produces a valid CDEF box (no duplicate
+# type/association pairs) - https://github.com/OSGeo/gdal/issues/14185
+
+
+def test_jp2openjpeg_26_multiband_gray_alpha():
+
+    src_ds = gdal.GetDriverByName("MEM").Create("", 128, 128, 4)
+    sr = osr.SpatialReference()
+    sr.ImportFromEPSG(32631)
+    src_ds.SetProjection(sr.ExportToWkt())
+    src_ds.SetGeoTransform([450000, 1, 0, 5000000, 0, -1])
+    out_ds = gdaltest.jp2openjpeg_drv.CreateCopy(
+        "/vsimem/jp2openjpeg_26_multiband_gray_alpha.jp2",
+        src_ds,
+        options=["INSPIRE_TG=YES", "ALPHA=YES"],
+    )
+    assert out_ds is not None
+    out_ds = None
+    ds = gdal.OpenEx(
+        "/vsimem/jp2openjpeg_26_multiband_gray_alpha.jp2",
+        open_options=["1BIT_ALPHA_PROMOTION=NO"],
+    )
+    assert ds.GetRasterBand(4).GetColorInterpretation() == gdal.GCI_AlphaBand
+    ds = None
+    assert (
+        gdal.VSIStatL("/vsimem/jp2openjpeg_26_multiband_gray_alpha.jp2.aux.xml") is None
+    )
+    assert validate("/vsimem/jp2openjpeg_26_multiband_gray_alpha.jp2") != "fail"
+    gdal.Unlink("/vsimem/jp2openjpeg_26_multiband_gray_alpha.jp2")
+
+
+###############################################################################
 # Test CreateCopy() from a JPEG2000 with a 2048x2048 tiling
 
 
