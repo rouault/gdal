@@ -17,6 +17,8 @@
 
 #include "iso8211.h"
 
+#include <map>
+
 /************************************************************************/
 /*                            DDFRecordIndex                            */
 /*                                                                      */
@@ -34,6 +36,7 @@ class CPL_DLL DDFRecordIndex
 {
     mutable bool bSorted = false;
     mutable std::vector<DDFIndexedRecord> asRecords{};
+    std::map<int, DDFRecord *> oMapKeyToRecord{};
 
     void Sort() const;
 

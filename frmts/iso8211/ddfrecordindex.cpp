@@ -45,6 +45,7 @@ void DDFRecordIndex::Clear()
 {
     bSorted = false;
     asRecords.clear();
+    oMapKeyToRecord.clear();
 }
 
 /************************************************************************/
@@ -63,6 +64,7 @@ void DDFRecordIndex::AddRecord(int nKey, std::unique_ptr<DDFRecord> poRecord)
     indexRec.nKey = nKey;
     indexRec.poRecord = std::move(poRecord);
     asRecords.push_back(std::move(indexRec));
+    oMapKeyToRecord[nKey] = asRecords.back().poRecord.get();
     bSorted = false;
 }
 
@@ -76,31 +78,10 @@ void DDFRecordIndex::AddRecord(int nKey, std::unique_ptr<DDFRecord> poRecord)
 DDFRecord *DDFRecordIndex::FindRecord(int nKey) const
 
 {
-    if (!bSorted)
-        Sort();
-
-    /* -------------------------------------------------------------------- */
-    /*      Do a binary search based on the key to find the desired record. */
-    /* -------------------------------------------------------------------- */
-    if (!asRecords.empty() && nKey >= asRecords[0].nKey)
-    {
-        size_t nMinIndex = 0;
-        size_t nMaxIndex = asRecords.size() - 1;
-
-        while (nMinIndex <= nMaxIndex)
-        {
-            const size_t nTestIndex = (nMaxIndex + nMinIndex) / 2;
-
-            if (asRecords[nTestIndex].nKey < nKey)
-                nMinIndex = nTestIndex + 1;
-            else if (asRecords[nTestIndex].nKey > nKey)
-                nMaxIndex = nTestIndex - 1;
-            else
-                return asRecords[nTestIndex].poRecord.get();
-        }
-    }
-
-    return nullptr;
+    auto oIter = oMapKeyToRecord.find(nKey);
+    if (oIter == oMapKeyToRecord.end())
+        return nullptr;
+    return oIter->second;
 }
 
 /************************************************************************/
@@ -142,6 +123,10 @@ bool DDFRecordIndex::RemoveRecord(int nKey)
     /*      Delete this record.                                             */
     /* -------------------------------------------------------------------- */
     asRecords.erase(asRecords.begin() + nTestIndex);
+
+    auto oIter = oMapKeyToRecord.find(nKey);
+    CPLAssert(oIter != oMapKeyToRecord.end());
+    oMapKeyToRecord.erase(oIter);
 
     return true;
 }
