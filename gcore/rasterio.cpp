@@ -44,7 +44,18 @@
 
 #if defined(__x86_64) || defined(_M_X64)
 #include <emmintrin.h>
+#include <immintrin.h>
 #define HAVE_SSE2
+// AVX2 dispatch: compile AVX2 code with target attribute, detect at runtime
+#if defined(__GNUC__) || defined(__clang__)
+#define HAVE_AVX2_DISPATCH
+#elif defined(_MSC_VER)
+#include <intrin.h>
+#define HAVE_AVX2_DISPATCH
+#define HAVE_AVX2_DISPATCH_MSVC
+#elif defined(__AVX2__)
+#define HAVE_AVX2_NATIVELY
+#endif
 #elif defined(USE_NEON_OPTIMIZATIONS)
 #include "include_sse2neon.h"
 #define HAVE_SSE2
@@ -2981,6 +2992,248 @@ CPL_NOINLINE void GDALCopyWordsT(const int16_t *const CPL_RESTRICT pSrcData,
         for (; n < nWordCount; n++)
         {
             pDstData[n] = pSrcData[n];
+        }
+    }
+    else
+    {
+        GDALCopyWordsGenericT(pSrcData, nSrcPixelStride, pDstData,
+                              nDstPixelStride, nWordCount);
+    }
+}
+
+// ---- AVX2 helpers for int32 narrowing (runtime dispatch) ----
+
+#if defined(HAVE_AVX2_DISPATCH) || defined(HAVE_AVX2_NATIVELY)
+#if defined(HAVE_AVX2_DISPATCH) && !defined(HAVE_AVX2_DISPATCH_MSVC)
+__attribute__((target("avx2")))
+#endif
+static void GDALCopyWordsInt32ToUInt8_AVX2(const int32_t *CPL_RESTRICT pSrc,
+                                           uint8_t *CPL_RESTRICT pDst,
+                                           GPtrDiff_t nWordCount)
+{
+    const __m256i ymm_zero = _mm256_setzero_si256();
+    const __m256i ymm_255 = _mm256_set1_epi32(255);
+    const __m256i permuteIdx = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
+    GPtrDiff_t n = 0;
+    for (; n < nWordCount - 31; n += 32)
+    {
+        __m256i v0 =
+            _mm256_loadu_si256(reinterpret_cast<const __m256i *>(pSrc + n));
+        __m256i v1 =
+            _mm256_loadu_si256(reinterpret_cast<const __m256i *>(pSrc + n + 8));
+        __m256i v2 = _mm256_loadu_si256(
+            reinterpret_cast<const __m256i *>(pSrc + n + 16));
+        __m256i v3 = _mm256_loadu_si256(
+            reinterpret_cast<const __m256i *>(pSrc + n + 24));
+        // Clamp to [0, 255]
+        v0 = _mm256_max_epi32(v0, ymm_zero);
+        v1 = _mm256_max_epi32(v1, ymm_zero);
+        v2 = _mm256_max_epi32(v2, ymm_zero);
+        v3 = _mm256_max_epi32(v3, ymm_zero);
+        v0 = _mm256_min_epi32(v0, ymm_255);
+        v1 = _mm256_min_epi32(v1, ymm_255);
+        v2 = _mm256_min_epi32(v2, ymm_255);
+        v3 = _mm256_min_epi32(v3, ymm_255);
+        // Pack int32→int16→uint8, then fix cross-lane ordering
+        __m256i ab16 = _mm256_packs_epi32(v0, v1);
+        __m256i cd16 = _mm256_packs_epi32(v2, v3);
+        __m256i bytes = _mm256_packus_epi16(ab16, cd16);
+        bytes = _mm256_permutevar8x32_epi32(bytes, permuteIdx);
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(pDst + n), bytes);
+    }
+    for (; n < nWordCount; n++)
+    {
+        pDst[n] = pSrc[n] <= 0     ? 0
+                  : pSrc[n] >= 255 ? 255
+                                   : static_cast<uint8_t>(pSrc[n]);
+    }
+}
+#endif  // HAVE_AVX2_DISPATCH || HAVE_AVX2_NATIVELY
+
+#if defined(HAVE_AVX2_DISPATCH) || defined(HAVE_AVX2_NATIVELY)
+#if defined(HAVE_AVX2_DISPATCH) && !defined(HAVE_AVX2_DISPATCH_MSVC)
+__attribute__((target("avx2")))
+#endif
+static void GDALCopyWordsInt32ToUInt16_AVX2(const int32_t *CPL_RESTRICT pSrc,
+                                            uint16_t *CPL_RESTRICT pDst,
+                                            GPtrDiff_t nWordCount)
+{
+    const __m256i ymm_zero = _mm256_setzero_si256();
+    // _mm256_packus_epi32(v0, v1) produces per-lane interleaved result:
+    //   [v0_lo4, v1_lo4, v0_hi4, v1_hi4] (in uint16 pairs per 32-bit lane)
+    // Permute to deinterleave: all v0 values first, then all v1 values
+    const __m256i permuteIdx = _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7);
+    GPtrDiff_t n = 0;
+    for (; n < nWordCount - 15; n += 16)
+    {
+        __m256i v0 =
+            _mm256_loadu_si256(reinterpret_cast<const __m256i *>(pSrc + n));
+        __m256i v1 =
+            _mm256_loadu_si256(reinterpret_cast<const __m256i *>(pSrc + n + 8));
+        // Clamp to [0, 65535]: _mm256_packus_epi32 saturates uint
+        v0 = _mm256_max_epi32(v0, ymm_zero);
+        v1 = _mm256_max_epi32(v1, ymm_zero);
+        __m256i packed = _mm256_packus_epi32(v0, v1);
+        // Fix cross-lane interleave from packus
+        packed = _mm256_permutevar8x32_epi32(packed, permuteIdx);
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(pDst + n), packed);
+    }
+    for (; n < nWordCount; n++)
+    {
+        pDst[n] = pSrc[n] <= 0       ? 0
+                  : pSrc[n] >= 65535 ? 65535
+                                     : static_cast<uint16_t>(pSrc[n]);
+    }
+}
+#endif  // HAVE_AVX2_DISPATCH || HAVE_AVX2_NATIVELY
+
+// ---- int32 -> uint8 with clamping to [0, 255] ----
+template <>
+CPL_NOINLINE void GDALCopyWordsT(const int32_t *const CPL_RESTRICT pSrcData,
+                                 int nSrcPixelStride,
+                                 uint8_t *const CPL_RESTRICT pDstData,
+                                 int nDstPixelStride, GPtrDiff_t nWordCount)
+{
+    if (nSrcPixelStride == static_cast<int>(sizeof(*pSrcData)) &&
+        nDstPixelStride == static_cast<int>(sizeof(*pDstData)))
+    {
+#if defined(HAVE_AVX2_DISPATCH)
+        if (CPLHaveRuntimeAVX2())
+        {
+            GDALCopyWordsInt32ToUInt8_AVX2(pSrcData, pDstData, nWordCount);
+            return;
+        }
+#elif defined(HAVE_AVX2_NATIVELY)
+        GDALCopyWordsInt32ToUInt8_AVX2(pSrcData, pDstData, nWordCount);
+        return;
+#endif
+#ifdef HAVE_SSE2
+        // SSE2 path: 16 pixels per iteration
+        decltype(nWordCount) n = 0;
+        const __m128i xmm_255 = _mm_set1_epi32(255);
+        for (; n < nWordCount - 15; n += 16)
+        {
+            __m128i v0 = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(pSrcData + n));
+            __m128i v1 = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(pSrcData + n + 4));
+            __m128i v2 = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(pSrcData + n + 8));
+            __m128i v3 = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(pSrcData + n + 12));
+            // Clamp to [0, 255] using SSE2 arithmetic:
+            // max(v, 0): zero out negatives via sign bit mask
+            v0 = _mm_andnot_si128(_mm_srai_epi32(v0, 31), v0);
+            v1 = _mm_andnot_si128(_mm_srai_epi32(v1, 31), v1);
+            v2 = _mm_andnot_si128(_mm_srai_epi32(v2, 31), v2);
+            v3 = _mm_andnot_si128(_mm_srai_epi32(v3, 31), v3);
+            // min(v, 255): blend 255 where v > 255
+            __m128i gt0 = _mm_cmpgt_epi32(v0, xmm_255);
+            __m128i gt1 = _mm_cmpgt_epi32(v1, xmm_255);
+            __m128i gt2 = _mm_cmpgt_epi32(v2, xmm_255);
+            __m128i gt3 = _mm_cmpgt_epi32(v3, xmm_255);
+            v0 = _mm_or_si128(_mm_andnot_si128(gt0, v0),
+                              _mm_and_si128(gt0, xmm_255));
+            v1 = _mm_or_si128(_mm_andnot_si128(gt1, v1),
+                              _mm_and_si128(gt1, xmm_255));
+            v2 = _mm_or_si128(_mm_andnot_si128(gt2, v2),
+                              _mm_and_si128(gt2, xmm_255));
+            v3 = _mm_or_si128(_mm_andnot_si128(gt3, v3),
+                              _mm_and_si128(gt3, xmm_255));
+            // Values in [0, 255]: pack int32→int16→uint8
+            __m128i lo16 = _mm_packs_epi32(v0, v1);
+            __m128i hi16 = _mm_packs_epi32(v2, v3);
+            __m128i bytes = _mm_packus_epi16(lo16, hi16);
+            _mm_storeu_si128(reinterpret_cast<__m128i *>(pDstData + n), bytes);
+        }
+        for (; n < nWordCount; n++)
+#else
+        for (decltype(nWordCount) n = 0; n < nWordCount; n++)
+#endif
+        {
+            pDstData[n] = pSrcData[n] <= 0 ? 0
+                          : pSrcData[n] >= 255
+                              ? 255
+                              : static_cast<uint8_t>(pSrcData[n]);
+        }
+    }
+    else
+    {
+        GDALCopyWordsGenericT(pSrcData, nSrcPixelStride, pDstData,
+                              nDstPixelStride, nWordCount);
+    }
+}
+
+// ---- int32 -> uint16 with clamping to [0, 65535] ----
+template <>
+CPL_NOINLINE void GDALCopyWordsT(const int32_t *const CPL_RESTRICT pSrcData,
+                                 int nSrcPixelStride,
+                                 uint16_t *const CPL_RESTRICT pDstData,
+                                 int nDstPixelStride, GPtrDiff_t nWordCount)
+{
+    if (nSrcPixelStride == static_cast<int>(sizeof(*pSrcData)) &&
+        nDstPixelStride == static_cast<int>(sizeof(*pDstData)))
+    {
+#if defined(HAVE_AVX2_DISPATCH)
+        if (CPLHaveRuntimeAVX2())
+        {
+            GDALCopyWordsInt32ToUInt16_AVX2(pSrcData, pDstData, nWordCount);
+            return;
+        }
+#elif defined(HAVE_AVX2_NATIVELY)
+        GDALCopyWordsInt32ToUInt16_AVX2(pSrcData, pDstData, nWordCount);
+        return;
+#endif
+        decltype(nWordCount) n = 0;
+#if defined(__SSE4_1__) || defined(USE_NEON_OPTIMIZATIONS)
+        // SSE4.1: _mm_packus_epi32 directly handles uint saturation
+        for (; n < nWordCount - 7; n += 8)
+        {
+            __m128i v0 = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(pSrcData + n));
+            __m128i v1 = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(pSrcData + n + 4));
+            v0 = _mm_max_epi32(v0, _mm_setzero_si128());
+            v1 = _mm_max_epi32(v1, _mm_setzero_si128());
+            __m128i packed = _mm_packus_epi32(v0, v1);
+            _mm_storeu_si128(reinterpret_cast<__m128i *>(pDstData + n), packed);
+        }
+#else
+        // SSE2: clamp to [0, 65535], bias to signed range, pack, unbias
+        const __m128i xmm_65535 = _mm_set1_epi32(65535);
+        const __m128i xmm_bias32 = _mm_set1_epi32(32768);
+        const __m128i xmm_bias16 = _mm_set1_epi16(-32768);
+        for (; n < nWordCount - 7; n += 8)
+        {
+            __m128i v0 = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(pSrcData + n));
+            __m128i v1 = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(pSrcData + n + 4));
+            // max(v, 0)
+            v0 = _mm_andnot_si128(_mm_srai_epi32(v0, 31), v0);
+            v1 = _mm_andnot_si128(_mm_srai_epi32(v1, 31), v1);
+            // min(v, 65535)
+            __m128i gt0 = _mm_cmpgt_epi32(v0, xmm_65535);
+            __m128i gt1 = _mm_cmpgt_epi32(v1, xmm_65535);
+            v0 = _mm_or_si128(_mm_andnot_si128(gt0, v0),
+                              _mm_and_si128(gt0, xmm_65535));
+            v1 = _mm_or_si128(_mm_andnot_si128(gt1, v1),
+                              _mm_and_si128(gt1, xmm_65535));
+            // Shift [0, 65535] → [-32768, 32767] for _mm_packs_epi32
+            v0 = _mm_sub_epi32(v0, xmm_bias32);
+            v1 = _mm_sub_epi32(v1, xmm_bias32);
+            __m128i packed = _mm_packs_epi32(v0, v1);
+            // Shift back: sub_epi16(x, -32768) == add 32768 (mod 2^16)
+            packed = _mm_sub_epi16(packed, xmm_bias16);
+            _mm_storeu_si128(reinterpret_cast<__m128i *>(pDstData + n), packed);
+        }
+#endif
+        for (; n < nWordCount; n++)
+        {
+            pDstData[n] = pSrcData[n] <= 0 ? 0
+                          : pSrcData[n] >= 65535
+                              ? 65535
+                              : static_cast<uint16_t>(pSrcData[n]);
         }
     }
     else
