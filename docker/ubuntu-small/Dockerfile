@@ -8,8 +8,8 @@
 # or licensed under MIT (LICENSE.TXT) Copyright 2019 Even Rouault <even.rouault@spatialys.com>
 
 ARG PROJ_INSTALL_PREFIX=/usr/local/gdal-internal
-ARG BASE_IMAGE=ubuntu:24.04
-ARG TARGET_BASE_IMAGE=ubuntu:24.04
+ARG BASE_IMAGE=ubuntu:26.04
+ARG TARGET_BASE_IMAGE=ubuntu:26.04
 
 FROM $BASE_IMAGE AS builder
 
@@ -30,18 +30,18 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     . /buildscripts/bh-set-envvars.sh \
     && if test "${TARGET_ARCH}" != ""; then \
     rm -f /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources \
-    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ noble main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ noble-updates main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ noble-backports main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=amd64] http://security.ubuntu.com/ubuntu noble-security main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ resolute main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ resolute-updates main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ resolute-backports main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=amd64] http://security.ubuntu.com/ubuntu resolute-security main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ resolute main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ resolute-updates main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ resolute-security main restricted universe" >> /etc/apt/sources.list \
     && dpkg --add-architecture ${TARGET_ARCH} \
     && apt-get update -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends g++-13-${GCC_ARCH}-linux-gnu \
-    && ln -s ${GCC_ARCH}-linux-gnu-gcc-13 /usr/bin/${GCC_ARCH}-linux-gnu-gcc \
-    && ln -s ${GCC_ARCH}-linux-gnu-g++-13 /usr/bin/${GCC_ARCH}-linux-gnu-g++; \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends g++-15-${GCC_ARCH}-linux-gnu \
+    && ln -s ${GCC_ARCH}-linux-gnu-gcc-15 /usr/bin/${GCC_ARCH}-linux-gnu-gcc \
+    && ln -s ${GCC_ARCH}-linux-gnu-g++-15 /usr/bin/${GCC_ARCH}-linux-gnu-g++; \
     fi
 
 # Setup build env for PROJ
@@ -240,8 +240,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         unzip ca-certificates \
     # GDAL dependencies
     && apt-get install -y --no-install-recommends \
-        bash-completion python3-numpy libpython3.12 \
-        libjpeg-turbo8 libgeos3.12.1 libgeos-c1v5 \
+        bash-completion python3-numpy libpython3.14 \
+        libjpeg-turbo8 libgeos3.14.1 libgeos-c1v5 \
         libexpat1 \
         libxerces-c3.2 \
         libwebp7 libpng16-16 \

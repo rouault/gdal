@@ -7,8 +7,8 @@
 # Public domain
 # or licensed under MIT (LICENSE.TXT) Copyright 2019 Even Rouault <even.rouault@spatialys.com>
 
-ARG BASE_IMAGE=ubuntu:24.04
-ARG TARGET_BASE_IMAGE=ubuntu:24.04
+ARG BASE_IMAGE=ubuntu:26.04
+ARG TARGET_BASE_IMAGE=ubuntu:26.04
 
 FROM $BASE_IMAGE AS builder
 
@@ -29,18 +29,18 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     . /buildscripts/bh-set-envvars.sh \
     && if test "${TARGET_ARCH}" != ""; then \
     rm -f /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources \
-    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ noble main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ noble-updates main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ noble-backports main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=amd64] http://security.ubuntu.com/ubuntu noble-security main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe" >> /etc/apt/sources.list \
-    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ resolute main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ resolute-updates main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu/ resolute-backports main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=amd64] http://security.ubuntu.com/ubuntu resolute-security main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ resolute main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ resolute-updates main restricted universe" >> /etc/apt/sources.list \
+    && echo "deb [arch=${TARGET_ARCH}] http://ports.ubuntu.com/ubuntu-ports/ resolute-security main restricted universe" >> /etc/apt/sources.list \
     && dpkg --add-architecture ${TARGET_ARCH} \
     && apt-get update -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends g++-13-${GCC_ARCH}-linux-gnu \
-    && ln -s ${GCC_ARCH}-linux-gnu-gcc-13 /usr/bin/${GCC_ARCH}-linux-gnu-gcc \
-    && ln -s ${GCC_ARCH}-linux-gnu-g++-13 /usr/bin/${GCC_ARCH}-linux-gnu-g++; \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends g++-15-${GCC_ARCH}-linux-gnu \
+    && ln -s ${GCC_ARCH}-linux-gnu-gcc-15 /usr/bin/${GCC_ARCH}-linux-gnu-gcc \
+    && ln -s ${GCC_ARCH}-linux-gnu-g++-15 /usr/bin/${GCC_ARCH}-linux-gnu-g++; \
     fi
 
 # Setup build env for PROJ
@@ -68,10 +68,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
        libpng-dev${APT_ARCH_SUFFIX} libjpeg-dev${APT_ARCH_SUFFIX} libgif-dev${APT_ARCH_SUFFIX} liblzma-dev${APT_ARCH_SUFFIX} libgeos-dev${APT_ARCH_SUFFIX} \
        curl libxml2-dev${APT_ARCH_SUFFIX} libexpat-dev${APT_ARCH_SUFFIX} libxerces-c-dev${APT_ARCH_SUFFIX} \
        libnetcdf-dev${APT_ARCH_SUFFIX} libpoppler-dev${APT_ARCH_SUFFIX} libpoppler-private-dev${APT_ARCH_SUFFIX} \
-       libspatialite-dev${APT_ARCH_SUFFIX} librasterlite2-dev${APT_ARCH_SUFFIX} swig ant libhdf4-alt-dev${APT_ARCH_SUFFIX} libhdf5-serial-dev${APT_ARCH_SUFFIX} \
+       libspatialite-dev${APT_ARCH_SUFFIX} librasterlite2-dev${APT_ARCH_SUFFIX} swig ant libhdf4-dev${APT_ARCH_SUFFIX} libhdf5-serial-dev${APT_ARCH_SUFFIX} \
        libfreexl-dev${APT_ARCH_SUFFIX} unixodbc-dev${APT_ARCH_SUFFIX}  mdbtools-dev${APT_ARCH_SUFFIX} libwebp-dev${APT_ARCH_SUFFIX} \
        liblcms2-2 libpcre3-dev${APT_ARCH_SUFFIX} libcrypto++-dev${APT_ARCH_SUFFIX} libfyba-dev${APT_ARCH_SUFFIX} \
-       libkml-dev${APT_ARCH_SUFFIX} libmysqlclient-dev${APT_ARCH_SUFFIX} \
+       libkml-dev${APT_ARCH_SUFFIX} libmariadb-dev${APT_ARCH_SUFFIX} \
        libcfitsio-dev${APT_ARCH_SUFFIX} openjdk-"$JAVA_VERSION"-jdk${APT_ARCH_SUFFIX} libzstd-dev${APT_ARCH_SUFFIX} \
        libpq-dev${APT_ARCH_SUFFIX} libssl-dev${APT_ARCH_SUFFIX} libboost-dev${APT_ARCH_SUFFIX} \
        autoconf automake bash-completion libarmadillo-dev${APT_ARCH_SUFFIX} \
@@ -554,21 +554,21 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     # GDAL dependencies
     && apt-get install -y --no-install-recommends \
         bash-completion libopenjp2-7 libcairo2 python3-numpy \
-        libpng16-16 libjpeg-turbo8 libgif7 liblzma5 libgeos3.12.1 libgeos-c1v5 \
-        libxml2 libexpat1 \
-        libxerces-c3.2 libnetcdf-c++4-1 netcdf-bin libpoppler134 libspatialite8 librasterlite2-1 gpsbabel \
-        libhdf4-0-alt libhdf5-103-1 libhdf5-cpp-103-1 poppler-utils libfreexl1 unixodbc mdbtools libwebp7 \
+        libpng16-16 libjpeg-turbo8 libgif7 liblzma5 libgeos3.14.1 libgeos-c1v5 \
+        libxml2-16 libexpat1 \
+        libxerces-c3.2 libnetcdf-c++4-1 netcdf-bin libpoppler156 libspatialite8 librasterlite2-1 gpsbabel \
+        libhdf4-0 libhdf5-310 libhdf5-cpp-310 poppler-utils libfreexl1 unixodbc mdbtools libwebp7 \
         liblcms2-2 libpcre3 libcrypto++8 libfyba0 \
         libkmlbase1 libkmlconvenience1 libkmldom1 libkmlengine1 libkmlregionator1 libkmlxsd1 \
-        libmysqlclient21 libcfitsio10 \
+        libmariadb3 libcfitsio10 \
         libzstd1 bash bash-completion libpq5 \
-        libarmadillo12 libpython3.12 libopenexr-3-1-30 libheif1 \
+        libarmadillo15 libpython3.14 libopenexr-3-1-30 libheif1 \
         libdeflate0 libblosc1 liblz4-1 \
         libbrotli1 \
         libarchive13 \
         libaec0 \
         libavif16 \
-        libspdlog1.12 libmagic1t64 \
+        libspdlog1.15 libmagic1t64 \
         libmuparser2v5 \
         libtcmalloc-minimal4 \
         python-is-python3 \
