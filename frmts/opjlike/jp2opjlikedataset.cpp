@@ -2966,50 +2966,48 @@ GDALDataset *JP2OPJLikeDataset<CODEC, BASE>::CreateCopy(
             cdefBox.AppendUInt16(static_cast<GUInt16>(nComponents));
             for (int i = 0; i < nComponents; i++)
             {
-                cdefBox.AppendUInt16(
-                    static_cast<GUInt16>(i)); /* Component number */
+                uint16_t nTyp = 65535;   // Unspecified
+                uint16_t nAsoc = 65535;  // Unassociated
                 if (i != nAlphaBandIndex)
                 {
-                    cdefBox.AppendUInt16(
-                        0); /* Signification: This channel is the colour image
-                               data for the associated colour */
                     if (eColorSpace == CODEC::cvtenum(JP2_CLRSPC_GRAY) &&
-                        nComponents == 2)
-                        cdefBox.AppendUInt16(
-                            1); /* Colour of the component: associated with a
-                                   particular colour */
+                        i == 0)
+                    {
+                        nTyp =
+                            0;  // colour image data for the associated colour
+                        nAsoc = 1;  // associated with a particular colour
+                    }
                     else if ((eColorSpace == CODEC::cvtenum(JP2_CLRSPC_SRGB) ||
                               eColorSpace == CODEC::cvtenum(JP2_CLRSPC_SYCC)) &&
                              (nComponents == 3 || nComponents == 4))
                     {
+                        nTyp =
+                            0;  // colour image data for the associated colour
                         if (i == nRedBandIndex)
-                            cdefBox.AppendUInt16(1);
+                            nAsoc = 1;
                         else if (i == nGreenBandIndex)
-                            cdefBox.AppendUInt16(2);
+                            nAsoc = 2;
                         else if (i == nBlueBandIndex)
-                            cdefBox.AppendUInt16(3);
+                            nAsoc = 3;
                         else
                         {
                             CPLError(CE_Warning, CPLE_AppDefined,
                                      "Could not associate band %d with a "
                                      "red/green/blue channel",
                                      i + 1);
-                            cdefBox.AppendUInt16(65535);
                         }
                     }
-                    else
-                        cdefBox.AppendUInt16(
-                            65535); /* Colour of the component: not associated
-                                       with any particular colour */
                 }
                 else
                 {
-                    cdefBox.AppendUInt16(
-                        1); /* Signification: Non pre-multiplied alpha */
-                    cdefBox.AppendUInt16(
-                        0); /* Colour of the component: This channel is
-                               associated as the image as a whole */
+                    nTyp = 1;   // Non pre-multiplied alpha
+                    nAsoc = 0;  // Associated to the image as a whole
                 }
+
+                // Component number
+                cdefBox.AppendUInt16(static_cast<GUInt16>(i));
+                cdefBox.AppendUInt16(nTyp);
+                cdefBox.AppendUInt16(nAsoc);
             }
         }
 
