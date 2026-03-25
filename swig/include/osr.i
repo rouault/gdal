@@ -1597,9 +1597,9 @@ void GetCRSInfoListFromDatabase( const char *authName,
 #endif // SWIGPYTHON
 
 %inline %{
-void SetPROJSearchPath( const char *utf8_path )
+void SetPROJSearchPath( const char *utf8_string )
 {
-    const char* const apszPaths[2] = { utf8_path, NULL };
+    const char* const apszPaths[2] = { utf8_string, NULL };
     OSRSetPROJSearchPaths(apszPaths);
 }
 %}
@@ -1656,9 +1656,9 @@ void SetPROJEnableNetwork(bool enabled)
 %}
 
 %inline %{
-void SetPROJAuxDbPath( const char *utf8_path )
+void SetPROJAuxDbPath( const char *utf8_string )
 {
-    const char* const apszPaths[2] = { utf8_path, NULL };
+    const char* const apszPaths[2] = { utf8_string, NULL };
     OSRSetPROJAuxDbPaths(apszPaths);
 }
 %}

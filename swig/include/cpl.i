@@ -28,6 +28,8 @@ typedef enum
 typedef char retStringAndCPLFree;
 %}
 
+%apply (const char *utf8_string) { (const char* path) };
+
 %apply Pointer NONNULL {const char *message};
 %inline %{
   void Debug( const char *msg_class, const char *message ) {
@@ -226,7 +228,7 @@ void CPLPopErrorHandler();
 
 void CPLErrorReset();
 void VSICurlClearCache();
-void VSICurlPartialClearCache( const char* utf8_path );
+void VSICurlPartialClearCache( const char* path );
 
 #ifndef SWIGJAVA
 %feature( "kwargs" ) EscapeString;
@@ -351,35 +353,35 @@ int VSIGetLastErrorNo();
 const char *VSIGetLastErrorMsg();
 void VSIErrorReset();
 
-void CPLPushFinderLocation( const char * utf8_path );
+void CPLPushFinderLocation( const char * path );
 
 void CPLPopFinderLocation();
 
 void CPLFinderClean();
 
-const char * CPLFindFile( const char *pszClass, const char *utf8_path );
+const char * CPLFindFile( const char *pszClass, const char *path );
 
 %apply (char **CSL) {char **};
 %inline {
-char **wrapper_VSIReadDirEx( const char * utf8_path, int nMaxFiles = 0 )
+char **wrapper_VSIReadDirEx( const char * path, int nMaxFiles = 0 )
 {
-    return VSIReadDirEx(utf8_path, nMaxFiles);
+    return VSIReadDirEx(path, nMaxFiles);
 }
 }
 %clear char **;
 
 %apply (char **CSL) {char **};
-char **VSIReadDirRecursive( const char * utf8_path );
+char **VSIReadDirRecursive( const char * path );
 %clear char **;
 
 #ifdef SWIGPYTHON
 %rename (OpenDir) wrapper_VSIOpenDir;
 %inline {
-VSIDIR* wrapper_VSIOpenDir( const char * utf8_path,
+VSIDIR* wrapper_VSIOpenDir( const char * path,
                             int nRecurseDepth = -1,
                             char** options = NULL )
 {
-    return VSIOpenDir(utf8_path, nRecurseDepth, options);
+    return VSIOpenDir(path, nRecurseDepth, options);
 }
 }
 
@@ -470,10 +472,9 @@ void VSICloseDir(VSIDIR* dir);
 
 #endif
 
-/* Utf-8 string marshalling for C# */
-#if defined(SWIGCSHARP)
-%apply (const char *utf8_or_null) { (const char* pszValue), (const char* pszDefault) };
-#endif
+%apply (const char *utf8_string) { (const char* pszKey) };
+%apply (const char *utf8_string_or_null) { (const char* pszValue), (const char* pszDefault) };
+
 %apply Pointer NONNULL {const char * pszKey};
 void CPLSetConfigOption( const char * pszKey, const char * pszValue );
 void CPLSetThreadLocalConfigOption( const char * pszKey, const char * pszValue );
@@ -514,6 +515,7 @@ char** wrapper_GetConfigOptions() {
 }
 %clear char **;
 
+%apply (const char *utf8_string) { (const char* pszPathPrefix) };
 %apply Pointer NONNULL {const char * pszPathPrefix};
 void VSISetPathSpecificOption( const char* pszPathPrefix, const char * pszKey, const char * pszValue );
 
@@ -583,14 +585,14 @@ GByte *CPLHexToBinary( const char *pszHex, int *pnBytes );
 
 %apply (GIntBig nLen, char *pBuf) {( GIntBig nBytes, const char *pabyData )};
 %inline {
-VSI_RETVAL wrapper_VSIFileFromMemBuffer( const char* utf8_path, GIntBig nBytes, const char *pabyData)
+VSI_RETVAL wrapper_VSIFileFromMemBuffer( const char* path, GIntBig nBytes, const char *pabyData)
 {
     const size_t nSize = static_cast<size_t>(nBytes);
     void* pabyDataDup = VSIMalloc(nSize);
     if (pabyDataDup == NULL)
             return -1;
     memcpy(pabyDataDup, pabyData, nSize);
-    VSILFILE *fp = VSIFileFromMemBuffer(utf8_path, (GByte*) pabyDataDup, nSize, TRUE);
+    VSILFILE *fp = VSIFileFromMemBuffer(path, (GByte*) pabyDataDup, nSize, TRUE);
 
     if (fp == NULL) {
         VSIFree(pabyDataDup);
@@ -607,13 +609,13 @@ VSI_RETVAL wrapper_VSIFileFromMemBuffer( const char* utf8_path, GIntBig nBytes, 
 %apply (int nLen, unsigned char *pBuf ) {( int nBytes, const GByte *pabyData )};
 #endif
 %inline {
-VSI_RETVAL wrapper_VSIFileFromMemBuffer( const char* utf8_path, int nBytes, const GByte *pabyData)
+VSI_RETVAL wrapper_VSIFileFromMemBuffer( const char* path, int nBytes, const GByte *pabyData)
 {
     GByte* pabyDataDup = (GByte*)VSIMalloc(nBytes);
     if (pabyDataDup == NULL)
             return -1;
     memcpy(pabyDataDup, pabyData, nBytes);
-    VSILFILE *fp = VSIFileFromMemBuffer(utf8_path, (GByte*) pabyDataDup, nBytes, TRUE);
+    VSILFILE *fp = VSIFileFromMemBuffer(path, (GByte*) pabyDataDup, nBytes, TRUE);
 
     if (fp == NULL) {
         VSIFree(pabyDataDup);
@@ -630,7 +632,7 @@ VSI_RETVAL wrapper_VSIFileFromMemBuffer( const char* utf8_path, int nBytes, cons
 #endif
 #endif
 
-VSI_RETVAL VSIUnlink(const char * utf8_path );
+VSI_RETVAL VSIUnlink(const char * path );
 
 %rename (UnlinkBatch) wrapper_VSIUnlinkBatch;
 %apply (char **options) {char ** files};
@@ -666,14 +668,14 @@ int wrapper_HasThreadSupport()
 %rename (GetCurrentThreadCount) CPLGetCurrentThreadCount();
 int CPLGetCurrentThreadCount();
 
-VSI_RETVAL VSIMkdir(const char *utf8_path, int mode );
-VSI_RETVAL VSIRmdir(const char *utf8_path );
+VSI_RETVAL VSIMkdir(const char *path, int mode );
+VSI_RETVAL VSIRmdir(const char *path );
 
-VSI_RETVAL VSIMkdirRecursive(const char *utf8_path, int mode );
-VSI_RETVAL VSIRmdirRecursive(const char *utf8_path );
+VSI_RETVAL VSIMkdirRecursive(const char *path, int mode );
+VSI_RETVAL VSIRmdirRecursive(const char *path );
 
-%apply (const char* utf8_path) {(const char* old_path)};
-%apply (const char* utf8_path) {(const char* new_path)};
+%apply (const char* utf8_string) {(const char* old_path)};
+%apply (const char* utf8_string) {(const char* new_path)};
 VSI_RETVAL VSIRename(const char * old_path, const char *new_path );
 #if !defined(SWIGJAVA)
 %feature( "kwargs" ) wrapper_VSIMove;
@@ -692,8 +694,8 @@ VSI_RETVAL wrapper_VSIMove(const char * old_path, const char *new_path, char** o
 #if defined(SWIGPYTHON)
 %rename (Sync) wrapper_VSISync;
 
-%apply (const char* utf8_path) {(const char* pszSource)};
-%apply (const char* utf8_path) {(const char* pszTarget)};
+%apply (const char* utf8_string) {(const char* pszSource)};
+%apply (const char* utf8_string) {(const char* pszTarget)};
 %feature( "kwargs" ) wrapper_VSISync;
 
 %inline {
@@ -710,17 +712,13 @@ bool wrapper_VSISync(const char* pszSource,
 %clear (const char* pszSource);
 %clear (const char* pszTarget);
 
-bool VSIAbortPendingUploads(const char *utf8_path );
+bool VSIAbortPendingUploads(const char *path );
 
 #endif
 
 %rename (CopyFile) wrapper_VSICopyFile;
-#if defined(SWIGPYTHON)
-%apply (const char* utf8_path_or_none) {(const char* pszSource)};
-#else
-%apply (const char* utf8_path) {(const char* pszSource)};
-#endif
-%apply (const char* utf8_path) {(const char* pszTarget)};
+%apply (const char* utf8_string_or_null) {(const char* pszSource)};
+%apply (const char* utf8_string) {(const char* pszTarget)};
 
 #if defined(SWIGPYTHON)
 %feature( "kwargs" ) wrapper_VSICopyFile;
@@ -770,12 +768,12 @@ int wrapper_MoveFile(const char* pszSource, const char* pszTarget)
 %clear (const char* pszSource);
 %clear (const char* pszTarget);
 
-const char* VSIGetActualURL(const char * utf8_path);
+const char* VSIGetActualURL(const char * path);
 
 %inline {
-retStringAndCPLFree* wrapper_VSIGetSignedURL(const char * utf8_path, char** options = NULL )
+retStringAndCPLFree* wrapper_VSIGetSignedURL(const char * path, char** options = NULL )
 {
-    return VSIGetSignedURL( utf8_path, options );
+    return VSIGetSignedURL( path, options );
 }
 }
 
@@ -783,7 +781,7 @@ retStringAndCPLFree* wrapper_VSIGetSignedURL(const char * utf8_path, char** opti
 char** VSIGetFileSystemsPrefixes();
 %clear char **;
 
-const char* VSIGetFileSystemOptions(const char * utf8_path);
+const char* VSIGetFileSystemOptions(const char * path);
 
 /*
    We do not bother renaming the VSI*L api as this wrapping is not
@@ -850,12 +848,12 @@ struct StatBuf
 
 %rename (VSIStatL) wrapper_VSIStatL;
 %inline {
-int wrapper_VSIStatL( const char * utf8_path, StatBuf *psStatBufOut, int nFlags = 0 )
+int wrapper_VSIStatL( const char * path, StatBuf *psStatBufOut, int nFlags = 0 )
 {
     VSIStatBufL sStat;
     memset(&sStat, 0, sizeof(sStat));
     memset(psStatBufOut, 0, sizeof(StatBuf));
-    int nRet = VSIStatExL(utf8_path, &sStat, nFlags);
+    int nRet = VSIStatExL(path, &sStat, nFlags);
     psStatBufOut->mode = sStat.st_mode;
     psStatBufOut->size = (GIntBig)sStat.st_size;
     psStatBufOut->mtime = (GIntBig)sStat.st_mtime;
@@ -872,13 +870,13 @@ int wrapper_VSIStatL( const char * utf8_path, StatBuf *psStatBufOut, int nFlags 
 %apply (char **) { char ** };
 #endif
 %apply (char **options) { char ** options };
-char** VSIGetFileMetadata( const char *utf8_path, const char* domain,
+char** VSIGetFileMetadata( const char *path, const char* domain,
                            char** options = NULL );
 %clear char **;
 
 %rename (SetFileMetadata) VSISetFileMetadata;
 %apply (char **dict) { char ** metadata };
-bool VSISetFileMetadata( const char * utf8_path,
+bool VSISetFileMetadata( const char * path,
                          char** metadata,
                          const char* domain,
                          char** options = NULL );
@@ -888,22 +886,22 @@ bool VSISetFileMetadata( const char * utf8_path,
 
 %rename (VSIFOpenL) wrapper_VSIFOpenL;
 %inline %{
-VSILFILE   *wrapper_VSIFOpenL( const char *utf8_path, const char *pszMode )
+VSILFILE   *wrapper_VSIFOpenL( const char *path, const char *pszMode )
 {
     if (!pszMode) /* would lead to segfault */
         pszMode = "r";
-    return VSIFOpenL( utf8_path, pszMode );
+    return VSIFOpenL( path, pszMode );
 }
 %}
 
 %rename (VSIFOpenExL) wrapper_VSIFOpenExL;
 %apply (char **dict) { char ** };
 %inline %{
-VSILFILE   *wrapper_VSIFOpenExL( const char *utf8_path, const char *pszMode, int bSetError = FALSE, char** options = NULL )
+VSILFILE   *wrapper_VSIFOpenExL( const char *path, const char *pszMode, int bSetError = FALSE, char** options = NULL )
 {
     if (!pszMode) /* would lead to segfault */
         pszMode = "r";
-    return VSIFOpenEx2L( utf8_path, pszMode, bSetError, options );
+    return VSIFOpenEx2L( path, pszMode, bSetError, options );
 }
 %}
 %clear char **;
@@ -945,7 +943,7 @@ return VSIFSeekL(fp, (vsi_l_offset)offset, whence);
 GIntBig    VSIFTellL( VSILFILE* fp );
 int     VSIFTruncateL( VSILFILE* fp, GIntBig length );
 
-int     VSISupportsSparseFiles( const char* utf8_path );
+int     VSISupportsSparseFiles( const char* path );
 
 #define VSI_RANGE_STATUS_UNKNOWN    0
 #define VSI_RANGE_STATUS_DATA       1
@@ -985,7 +983,7 @@ retStringAndCPLFree* VSINetworkStatsGetAsSerializedJSON( char** options = NULL )
 
 %apply (char **CSL) {char **};
 %rename (ParseCommandLine) CSLParseCommandLine;
-char **CSLParseCommandLine( const char * utf8_path );
+char **CSLParseCommandLine( const char * path );
 %clear char **;
 
 %rename (GetNumCPUs) CPLGetNumCPUs;

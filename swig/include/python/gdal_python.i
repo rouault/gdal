@@ -612,9 +612,9 @@ unsigned int wrapper_VSIFReadL( void **buf, unsigned int nMembSize, unsigned int
 }
 
 %inline %{
-void wrapper_VSIGetMemFileBuffer(const char *utf8_path, GByte **out, vsi_l_offset *length)
+void wrapper_VSIGetMemFileBuffer(const char *utf8_string, GByte **out, vsi_l_offset *length)
 {
-    *out = VSIGetMemFileBuffer(utf8_path, length, 0);
+    *out = VSIGetMemFileBuffer(utf8_string, length, 0);
 }
 %}
 %clear (GByte **out, vsi_l_offset *length);
@@ -3169,31 +3169,31 @@ def _WarnIfUserHasNotSpecifiedIfUsingOgrExceptions():
 
 %pythoncode %{
 
-def CreateDataSource(self, utf8_path, options=None):
+def CreateDataSource(self, utf8_string, options=None):
     """
     Synonym for :py:meth:`CreateVector`.
     """
-    return self.Create(utf8_path, 0, 0, 0, GDT_Unknown, options or [])
+    return self.Create(utf8_string, 0, 0, 0, GDT_Unknown, options or [])
 
-def CopyDataSource(self, ds, utf8_path, options=None):
+def CopyDataSource(self, ds, utf8_string, options=None):
     """
     Synonym for :py:meth:`CreateCopy`.
     """
-    return self.CreateCopy(utf8_path, ds, options = options or [])
+    return self.CreateCopy(utf8_string, ds, options = options or [])
 
-def DeleteDataSource(self, utf8_path):
+def DeleteDataSource(self, utf8_string):
     """
     Synonym for :py:meth:`Delete`.
     """
-    return self.Delete(utf8_path)
+    return self.Delete(utf8_string)
 
-def Open(self, utf8_path, update=False):
+def Open(self, utf8_string, update=False):
     """
     Attempt to open a specified path with this driver.
 
     Parameters
     ----------
-    utf8_path : str
+    utf8_string : str
        The path to open
     update : bool, default = False
        Whether to open the dataset in update mode.
@@ -3203,7 +3203,7 @@ def Open(self, utf8_path, update=False):
     Dataset or None
         ``None`` on error
     """
-    return OpenEx(utf8_path,
+    return OpenEx(utf8_string,
                   OF_VECTOR | (OF_UPDATE if update else 0),
                   [self.GetDescription()])
 

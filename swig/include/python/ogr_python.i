@@ -225,7 +225,7 @@ def _WarnIfUserHasNotSpecifiedIfUsingExceptions():
         ----------
         options : list of str or dict, optional
             Options such as ``INCLUDE_FID=NO``, ``MAX_FEATURES_IN_BATCH=<number>``, etc.
-        
+
         Returns
         -------
         object
@@ -500,7 +500,7 @@ def _WarnIfUserHasNotSpecifiedIfUsingExceptions():
 
 %extend OGRFeatureShadow {
 
-  %apply ( const char *utf8_path ) { (const char* value) };
+  %apply ( const char *utf8_string ) { (const char* value) };
   void SetFieldString(int id, const char* value) {
     OGR_F_SetFieldString(self, id, value);
   }

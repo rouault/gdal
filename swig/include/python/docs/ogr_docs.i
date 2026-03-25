@@ -203,7 +203,7 @@ Equivalent to calling :py:func:`gdal.OpenEx` with the
 
 Parameters
 ----------
-utf8_path : str
+path : str
     name of the file to open
 
 Returns
@@ -230,7 +230,7 @@ opened in the current thread, return a reference to the already-opened
 
 Parameters
 ----------
-utf8_path : str
+path : str
     name of the file to open
 
 Returns

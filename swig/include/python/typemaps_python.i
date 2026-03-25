@@ -2561,9 +2561,9 @@ DecomposeSequenceOf4DCoordinates( PyObject *seq, int nCount, double *x, double *
     }
 }
 
-%typemap(in) (const char *utf8_path) (int bToFree = 0)
+%typemap(in) (const char *utf8_string) (int bToFree = 0)
 {
-    /* %typemap(in) (const char *utf8_path) */
+    /* %typemap(in) (const char *utf8_string) */
     if (PyUnicode_Check($input) || PyBytes_Check($input))
     {
         $1 = GDALPythonObjectToCStr( $input, &bToFree );
@@ -2580,15 +2580,15 @@ DecomposeSequenceOf4DCoordinates( PyObject *seq, int nCount, double *x, double *
     }
 }
 
-%typemap(freearg)(const char *utf8_path)
+%typemap(freearg)(const char *utf8_string)
 {
-    /* %typemap(freearg) (const char *utf8_path) */
+    /* %typemap(freearg) (const char *utf8_string) */
     GDALPythonFreeCStr($1, bToFree$argnum);
 }
 
-%typemap(in) (const char *utf8_path_or_none) (int bToFree = 0)
+%typemap(in) (const char *utf8_string_or_null) (int bToFree = 0)
 {
-    /* %typemap(in) (const char *utf8_path_or_none) */
+    /* %typemap(in) (const char *utf8_string_or_null) */
     if( $input == Py_None )
     {
         $1 = NULL;
@@ -2601,12 +2601,12 @@ DecomposeSequenceOf4DCoordinates( PyObject *seq, int nCount, double *x, double *
             PyErr_SetString( PyExc_RuntimeError, "not a string" );
             SWIG_fail;
         }
-        }
+    }
 }
 
-%typemap(freearg)(const char *utf8_path_or_none)
+%typemap(freearg)(const char *utf8_string_or_null)
 {
-    /* %typemap(freearg) (const char *utf8_path_or_none) */
+    /* %typemap(freearg) (const char *utf8_string_or_null) */
     if( $1 != NULL )
         GDALPythonFreeCStr($1, bToFree$argnum);
 }
