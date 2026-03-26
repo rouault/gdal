@@ -336,8 +336,8 @@ $1;
 %}
 
 //************************************************************************
-// Apply NONNULL to all utf8_string's.
-%apply Pointer NONNULL { const char* utf8_string };
+// Apply NONNULL to all paths.
+%apply Pointer NONNULL { const char* path };
 
 //************************************************************************
 //

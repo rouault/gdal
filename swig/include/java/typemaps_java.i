@@ -401,7 +401,6 @@ SafeNewStringUTF8(JNIEnv *jenv, const char* pszInput)
     return $jnicall;
   }
 
-
 /***************************************************************
  * Typemaps for  (const char *utf8_string, vsi_l_offset *length)
  * Used only for wrapper_VSIGetMemFileBuffer

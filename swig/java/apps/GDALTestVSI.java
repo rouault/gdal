@@ -34,5 +34,21 @@ public class GDALTestVSI
         if( gdal.GetConfigOption("foo") != null ) {
              throw new RuntimeException("failed: gdal.GetConfigOption(\"foo\") != null");
         }
+        try {
+            gdal.SetConfigOption(null, null);
+            throw new RuntimeException("exception expected");
+        }
+        catch(java.lang.NullPointerException e) {
+        }
+        catch(java.lang.IllegalArgumentException e) {
+        }
+        try {
+            gdal.VSICurlPartialClearCache(null);
+            throw new RuntimeException("exception expected");
+        }
+        catch(java.lang.NullPointerException e) {
+        }
+        catch(java.lang.IllegalArgumentException e) {
+        }
     }
 }
