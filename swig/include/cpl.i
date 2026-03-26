@@ -726,6 +726,8 @@ bool VSIAbortPendingUploads(const char *path );
 %feature( "kwargs" ) wrapper_VSICopyFile;
 #endif
 
+// a NULL pszSource is acceptable for CopyFile (when fpSource != NULL, which
+// is checked at the C++ level)
 %inline {
 int wrapper_VSICopyFile(const char* pszSource,
                         const char* pszTarget,
@@ -740,8 +742,12 @@ int wrapper_VSICopyFile(const char* pszSource,
         nSourceSize < 0 ? static_cast<vsi_l_offset>(-1) : static_cast<vsi_l_offset>(nSourceSize),
         options, callback, callback_data );
 }
+}
+
+%apply Pointer NONNULL { const char* pszSource };
 
 #if defined(SWIGPYTHON)
+%inline {
 void CopyFileRestartable(const char* pszSource,
                          const char* pszTarget,
                          const char* pszInputPayload,
@@ -755,9 +761,8 @@ void CopyFileRestartable(const char* pszSource,
                                         ppszOutputPayload, options, callback,
                                         callback_data);
 }
-#endif
-
 }
+#endif
 
 %rename (MoveFile) wrapper_MoveFile;
 %inline {

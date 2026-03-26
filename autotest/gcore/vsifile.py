@@ -1393,6 +1393,35 @@ def test_vsifile_copyfile_error_on_input(tmp_vsimem):
         gdal.VSIFCloseL(fp)
 
 
+def test_vsifile_copyfile_errors(tmp_vsimem):
+
+    with gdal.ExceptionMgr():
+        with pytest.raises(
+            Exception, match="pszSource == nullptr && fpSource == nullptr"
+        ):
+            gdal.CopyFile(None, tmp_vsimem / "out")
+
+    with pytest.raises(Exception, match="NULL pointer"):
+        gdal.CopyFile(tmp_vsimem / "src", None)
+
+
+def test_vsifile_movefile(tmp_vsimem):
+
+    srcfilename = tmp_vsimem / "src.bin"
+    gdal.FileFromMemBuffer(srcfilename, b"foo")
+    dstfilename = str(tmp_vsimem / "out.bin")
+    assert gdal.MoveFile(srcfilename, dstfilename) == 0
+    assert gdal.VSIStatL(dstfilename).size == 3
+    assert gdal.VSIStatL(srcfilename) is None
+
+
+def test_vsifile_movefile_errors(tmp_vsimem):
+    with pytest.raises(Exception, match="NULL pointer"):
+        gdal.MoveFile(None, tmp_vsimem / "out")
+    with pytest.raises(Exception, match="NULL pointer"):
+        gdal.MoveFile(tmp_vsimem / "src", None)
+
+
 ###############################################################################
 
 
