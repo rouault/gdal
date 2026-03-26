@@ -1144,6 +1144,7 @@ __version__ = _gdal.VersionInfo("RELEASE_NAME")
 %}
 
 %apply (const char* utf8_string) {(const char* dest)};
+%apply Pointer NONNULL {const char* dest};
 
 #ifdef SWIGPYTHON
 %{

@@ -70,9 +70,6 @@ in (const char *utf8_string) - Required -
   Any inputs marked this way should be treated as utf-8, and if the language supports it
   a conversion should be applied.
 
-in (const char *utf8_string_or_null) - Required -
-  Same as utf8_string but accepts NULL input
-
 -------------------
 
 out (char **dict) - Required - The return value is a collection of name/value pairs.  This can be

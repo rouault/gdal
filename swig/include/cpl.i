@@ -473,8 +473,7 @@ void VSICloseDir(VSIDIR* dir);
 #endif
 
 %apply Pointer NONNULL {const char * pszKey};
-%apply (const char *utf8_string) { (const char* pszKey) };
-%apply (const char *utf8_string_or_null) { (const char* pszValue), (const char* pszDefault) };
+%apply (const char *utf8_string) { (const char* pszKey), (const char* pszValue), (const char* pszDefault) };
 
 void CPLSetConfigOption( const char * pszKey, const char * pszValue );
 void CPLSetThreadLocalConfigOption( const char * pszKey, const char * pszValue );
@@ -698,8 +697,7 @@ VSI_RETVAL wrapper_VSIMove(const char * old_path, const char *new_path, char** o
 
 %apply Pointer NONNULL { const char* pszSource };
 %apply Pointer NONNULL { const char* pszTarget };
-%apply (const char* utf8_string) {(const char* pszSource)};
-%apply (const char* utf8_string) {(const char* pszTarget)};
+%apply (const char* utf8_string) {(const char* pszSource), (const char* pszTarget)};
 %feature( "kwargs" ) wrapper_VSISync;
 
 %inline {
@@ -721,8 +719,7 @@ bool VSIAbortPendingUploads(const char *path );
 #endif
 
 %rename (CopyFile) wrapper_VSICopyFile;
-%apply (const char* utf8_string_or_null) {(const char* pszSource)};
-%apply (const char* utf8_string) {(const char* pszTarget)};
+%apply (const char* utf8_string) {(const char* pszSource), (const char* pszTarget)};
 %apply Pointer NONNULL { const char* pszTarget };
 
 #if defined(SWIGPYTHON)

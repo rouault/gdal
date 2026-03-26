@@ -477,10 +477,10 @@ CSHARP_OBJECT_ARRAYS_PINNED(GDALRasterBandShadow, Band)
 %apply (int inout[ANY]) {int *pList};
 
 /*
- * Typemap for const char *utf8_string and utf8_string_or_null.
+ * Typemap for const char *utf8_string
  */
-%typemap(csin) (const char *utf8_string), (const char *utf8_string_or_null) "$module.StringToUtf8Bytes($csinput)"
-%typemap(imtype, out="IntPtr") (const char *utf8_string), (const char *utf8_string_or_null) "byte[]"
+%typemap(csin) (const char *utf8_string) "$module.StringToUtf8Bytes($csinput)"
+%typemap(imtype, out="IntPtr") (const char *utf8_string) "byte[]"
 %typemap(out) (const char *utf8_string) %{ $result = $1; %}
 %typemap(csout, excode=SWIGEXCODE) (const char *utf8_string) {
         /* %typemap(csout) (const char *utf8_string) */
