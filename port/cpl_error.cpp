@@ -1012,7 +1012,7 @@ void CPL_STDCALL CPLDefaultErrorHandler(CPLErr eErrClass, CPLErrorNum nError,
 {
     static int nCount = 0;
     static int nMaxErrors = -1;
-    static const char *pszErrorSeparator = ":";
+    static char chErrorSeparator = ':';
 
     if (eErrClass != CE_Debug)
     {
@@ -1023,7 +1023,10 @@ void CPL_STDCALL CPLDefaultErrorHandler(CPLErr eErrClass, CPLErrorNum nError,
             // If running GDAL as a CustomBuild Command os MSBuild, "ERROR bla:"
             // is considered as failing the job. This is rarely the intended
             // behavior
-            pszErrorSeparator = CPLGetConfigOption("CPL_ERROR_SEPARATOR", ":");
+            const char *pszErrorSeparator =
+                CPLGetConfigOption("CPL_ERROR_SEPARATOR", ":");
+            if (pszErrorSeparator[0])
+                chErrorSeparator = pszErrorSeparator[0];
         }
 
         nCount++;
@@ -1082,7 +1085,7 @@ void CPL_STDCALL CPLDefaultErrorHandler(CPLErr eErrClass, CPLErrorNum nError,
     else if (eErrClass == CE_Warning)
         fprintf(fpLog, "Warning %d: %s\n", nError, pszErrorMsg);
     else
-        fprintf(fpLog, "ERROR %d%s %s\n", nError, pszErrorSeparator,
+        fprintf(fpLog, "ERROR %d%c %s\n", nError, chErrorSeparator,
                 pszErrorMsg);
 
     if (eErrClass != CE_Debug && nMaxErrors > 0 && nCount == nMaxErrors)
