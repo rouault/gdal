@@ -89,6 +89,10 @@ if (GDAL_ENABLE_DRIVER_GTIFF)
   target_compile_definitions(gcore PRIVATE -DHAVE_TIFF)
 endif()
 
+if (GDAL_ENABLE_ALGORITHMS)
+target_compile_definitions(gcore PRIVATE -DGDAL_ENABLE_ALGORITHMS)
+endif()
+
 if (NOT DEFINED GDAL_RESOURCE_PATH)
   message(FATAL_ERROR "GDAL_RESOURCE_PATH not set")
 endif ()
