@@ -83,8 +83,11 @@ void CPL_STDCALL PyCPLErrorHandler(CPLErr eErrClass, CPLErrorNum err_no, const c
     }
     else
     {
-        psArgs = Py_BuildValue("(iis)", eErrClass, err_no, pszErrorMsg );
-        PyObject_CallObject( callable, psArgs);
+        PyObject* msg = GDALPythonObjectFromCStr(pszErrorMsg);
+        psArgs = Py_BuildValue("(iiO)", eErrClass, err_no, msg );
+        Py_XDECREF(msg);
+        PyObject* ret = PyObject_CallObject(callable, psArgs);
+        Py_XDECREF(ret);
         Py_XDECREF(psArgs);
     }
 
