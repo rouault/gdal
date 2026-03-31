@@ -542,6 +542,17 @@ static CPLErr GWKRun(GDALWarpKernel *poWK, const char *pszFuncName,
                     break;
                 }
             }
+
+            if (!psThreadData->stopFlag)
+            {
+                if (!poWK->pfnProgress(poWK->dfProgressBase +
+                                           poWK->dfProgressScale,
+                                       "", poWK->pProgress))
+                {
+                    CPLError(CE_Failure, CPLE_UserInterrupt, "User terminated");
+                    psThreadData->stopFlag = true;
+                }
+            }
         }
 
         bStopFlag = psThreadData->stopFlag;

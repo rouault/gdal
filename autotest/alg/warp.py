@@ -937,7 +937,9 @@ def test_warp_30():
             cbk_user_data,
         )  # Progress callback user data
 
-    with gdal.config_option("GDAL_NUM_THREADS", "2"), pytest.raises(Exception):
+    with gdal.config_option("GDAL_NUM_THREADS", "2"), pytest.raises(
+        Exception, match="User terminated"
+    ):
         gdal.ReprojectImage(
             src_ds,
             dst_ds,
