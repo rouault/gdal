@@ -260,7 +260,13 @@ static void ApplyErrorHandler(CPLErrorContext *psCtx, CPLErr eErrClass,
         {
             if (pfnErrorHandler != nullptr)
             {
+                // Make sure to empty the thread-specific handler stack,
+                // otherwise the global error handler might get unrelated
+                // data when calling CPLGetErrorHandlerUserData()
+                CPLErrorHandlerNode *psCurNodeBackup = psCtx->psHandlerStack;
+                psCtx->psHandlerStack = nullptr;
                 pfnErrorHandler(eErrClass, err_no, pszMessage);
+                psCtx->psHandlerStack = psCurNodeBackup;
             }
         }
         else /* if( eErrClass == CE_Debug ) */

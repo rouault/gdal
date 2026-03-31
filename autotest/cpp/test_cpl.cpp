@@ -21,6 +21,7 @@
 
 #include "cpl_compressor.h"
 #include "cpl_error.h"
+#include "cpl_error_internal.h"
 #include "cpl_float.h"
 #include "cpl_hash_set.h"
 #include "cpl_levenshtein.h"
@@ -1215,6 +1216,7 @@ TEST_F(test_cpl, CPLSetErrorHandler)
     ASSERT_EQ(gbGotError, false);
     gbGotError = false;
     CPLSetErrorHandler(oldHandler);
+    CPLSetCurrentErrorHandlerCatchDebug(true);
 
     CPLPushErrorHandler(myErrorHandler);
     CPLSetCurrentErrorHandlerCatchDebug(FALSE);
@@ -1233,6 +1235,45 @@ TEST_F(test_cpl, CPLSetErrorHandler)
     ASSERT_EQ(newOldHandler, static_cast<CPLErrorHandler>(nullptr));
     CPLDebug("TEST", "Test");
     CPLError(CE_Failure, CPLE_AppDefined, "test");
+    CPLSetErrorHandler(oldHandler);
+}
+
+TEST_F(test_cpl, global_error_handler_and_CPLSetCurrentErrorHandlerCatchDebug)
+{
+    static bool gbGotDebugMessage = false;
+    static bool gbGotExpectedUserData = false;
+
+    struct MyStruct
+    {
+        static void CPL_STDCALL myErrorHandler(CPLErr eErr, CPLErrorNum,
+                                               const char *msg)
+        {
+            if (CPLGetErrorHandlerUserData() == &gbGotExpectedUserData)
+            {
+                gbGotExpectedUserData = true;
+            }
+            if (eErr == CE_Debug && strcmp(msg, "TEST: my debug message") == 0)
+            {
+                gbGotDebugMessage = true;
+            }
+        }
+    };
+
+    CPLErrorHandler oldHandler =
+        CPLSetErrorHandlerEx(MyStruct::myErrorHandler, &gbGotExpectedUserData);
+
+    CPLErrorAccumulator oAccumulator;
+    {
+        auto scopedAccumulator = oAccumulator.InstallForCurrentScope();
+        CPL_IGNORE_RET_VAL(scopedAccumulator);
+
+        CPLConfigOptionSetter oSetter("CPL_DEBUG", "ON", false);
+        CPLDebug("TEST", "my debug message");
+    }
+
+    EXPECT_TRUE(gbGotExpectedUserData);
+    EXPECT_TRUE(gbGotDebugMessage);
+
     CPLSetErrorHandler(oldHandler);
 }
 
