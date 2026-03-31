@@ -60,7 +60,7 @@ GDALVectorCreateAlgorithm::GDALVectorCreateAlgorithm(bool standaloneStep)
     AddGeometryTypeArg(&m_geometryType, _("Layer geometry type"));
 
     // Add optional geometry field name argument, not all drivers support it, and if not specified, the default "geom" name will be used.
-    const auto &geomFieldNameArg =
+    auto &geomFieldNameArg =
         AddArg("geometry-field", 0,
                _("Name of the geometry field to create (if supported by the "
                  "output "
