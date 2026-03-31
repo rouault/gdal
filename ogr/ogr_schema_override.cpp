@@ -66,6 +66,9 @@ bool OGRSchemaOverride::LoadFromJSON(const std::string &osJSON,
                     oLayerOverride.SetLayerName(osLayerName);
                     oLayerOverride.SetFullOverride(bSchemaFullOverride);
 
+                    oLayerOverride.SetFIDColumnName(
+                        oLayer.GetString("fidColumnName"));
+
                     if (oLayerFields.Size() > 0 && !osLayerName.empty())
                     {
                         for (const auto &oField : oLayerFields)
@@ -348,19 +351,21 @@ bool OGRSchemaOverride::LoadFromJSON(const std::string &osJSON,
                             const auto osGeomFieldName =
                                 oGeometryField.GetString("name");
                             oGeomFieldOverride.SetFieldName(osGeomFieldName);
-                            const CPLString oGeometryType(
+                            const CPLString osGeometryType(
                                 CPLString(oGeometryField.GetString("type"))
                                     .tolower());
-                            if (!oGeometryType.empty())
+                            if (!osGeometryType.empty())
                             {
                                 const OGRwkbGeometryType eType =
-                                    OGRFromOGCGeomType(oGeometryType.c_str());
-                                if (eType == wkbUnknown)
+                                    OGRFromOGCGeomType(osGeometryType.c_str());
+                                if (eType == wkbUnknown &&
+                                    !cpl::starts_with(osGeometryType,
+                                                      "geometry"))
                                 {
                                     CPLError(CE_Failure, CPLE_AppDefined,
                                              "Unsupported geometry field type: "
                                              "%s for geometry field %s",
-                                             oGeometryType.c_str(),
+                                             osGeometryType.c_str(),
                                              osGeomFieldName.c_str());
                                     return false;
                                 }
@@ -632,6 +637,12 @@ void OGRLayerSchemaOverride::SetLayerName(const std::string &osLayerName)
     m_osLayerName = osLayerName;
 }
 
+void OGRLayerSchemaOverride::SetFIDColumnName(
+    const std::string &osFIDColumnName)
+{
+    m_osFIDColumnName = osFIDColumnName;
+}
+
 void OGRLayerSchemaOverride::AddNamedFieldOverride(
     const std::string &osFieldName, const OGRFieldDefnOverride &oFieldOverride)
 {
@@ -647,6 +658,11 @@ void OGRLayerSchemaOverride::AddUnnamedFieldOverride(
 const std::string &OGRLayerSchemaOverride::GetLayerName() const
 {
     return m_osLayerName;
+}
+
+const std::string &OGRLayerSchemaOverride::GetFIDColumnName() const
+{
+    return m_osFIDColumnName;
 }
 
 const std::map<std::string, OGRFieldDefnOverride> &
@@ -706,9 +722,9 @@ void OGRLayerSchemaOverride::SetFullOverride(bool bIsFullOverride)
 
 bool OGRLayerSchemaOverride::IsValid() const
 {
-    bool isValid =
-        !m_osLayerName.empty() &&
-        (!m_oNamedFieldOverrides.empty() || !m_aoUnnamedFieldOverrides.empty());
+    bool isValid = !m_osLayerName.empty() &&
+                   (!m_oNamedFieldOverrides.empty() ||
+                    !m_aoUnnamedFieldOverrides.empty() || m_bIsFullOverride);
     for (const auto &oFieldOverrideIter : m_oNamedFieldOverrides)
     {
         isValid &= !oFieldOverrideIter.first.empty();

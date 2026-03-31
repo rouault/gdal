@@ -47,11 +47,7 @@ GDALVectorCreateAlgorithm::GDALVectorCreateAlgorithm(bool standaloneStep)
               // Note: this is required despite SetAddDefaultArguments(false)
               .SetAddUpsertArgument(false)
               .SetAddSkipErrorsArgument(false)
-              .SetAddAppendLayerArgument(false)
-
-              ),
-      m_crs(), m_geometryType(), m_geometryFieldName("geom"),
-      m_schemaJsonOrPath(), m_fieldDefinitions(), m_fieldStrDefinitions()
+              .SetAddAppendLayerArgument(false))
 {
 
     AddVectorInputArgs(false);
@@ -63,15 +59,16 @@ GDALVectorCreateAlgorithm::GDALVectorCreateAlgorithm(bool standaloneStep)
     auto &geomFieldNameArg =
         AddArg("geometry-field", 0,
                _("Name of the geometry field to create (if supported by the "
-                 "output "
-                 "format)"),
+                 "output format)"),
                &m_geometryFieldName)
             .SetMetaVar("GEOMETRY-FIELD")
-            .SetDefault("geom");
+            .SetDefault(m_geometryFieldName);
 
     AddArg("crs", 0, _("Set CRS"), &m_crs)
         .AddHiddenAlias("srs")
         .SetIsCRSArg(/*noneAllowed=*/false);
+
+    AddArg("fid", 0, _("FID column name"), &m_fidColumnName);
 
     constexpr auto inputMutexGroup = "like-schema-field";
 
@@ -104,19 +101,12 @@ GDALVectorCreateAlgorithm::GDALVectorCreateAlgorithm(bool standaloneStep)
                 ((!m_geometryFieldName.empty() &&
                   geomFieldNameArg.IsExplicitlySet()) ||
                  !m_geometryType.empty() || !m_fieldDefinitions.empty() ||
-                 !m_crs.empty()))
+                 !m_crs.empty() || !m_fidColumnName.empty()))
             {
                 ReportError(CE_Failure, CPLE_AppDefined,
                             "When --schema or --like is specified, "
-                            "--geometry-field, --geometry-type, "
-                            "--field and --crs options must not be specified.");
-                return false;
-            }
-            if (!m_geometryType.empty() && m_crs.empty())
-            {
-                ReportError(CE_Failure, CPLE_AppDefined,
-                            "When --geometry-type is specified, --crs must "
-                            "also be specified");
+                            "--geometry-field, --geometry-type, --field, "
+                            "--crs and --fid options must not be specified.");
                 return false;
             }
             return true;
@@ -131,8 +121,9 @@ bool GDALVectorCreateAlgorithm::RunStep(GDALPipelineStepRunContext &)
 {
 
     const auto datasetName = m_outputDataset.GetName();
-    auto outputLayerName =
-        m_outputLayerName.empty() ? datasetName : m_outputLayerName;
+    const auto outputLayerName = m_outputLayerName.empty()
+                                     ? CPLGetBasenameSafe(datasetName.c_str())
+                                     : m_outputLayerName;
 
     std::unique_ptr<GDALDataset> poDstDS;
     poDstDS.reset(GDALDataset::Open(datasetName.c_str(),
@@ -265,13 +256,6 @@ bool GDALVectorCreateAlgorithm::RunStep(GDALPipelineStepRunContext &)
         return false;
     }
 
-    if (EQUAL(poDstDriver->GetDescription(), "ESRI Shapefile") &&
-        EQUAL(CPLGetExtensionSafe(poDstDS->GetDescription()).c_str(), "shp") &&
-        poDstDS->GetLayerCount() <= 1)
-    {
-        outputLayerName = CPLGetBasenameSafe(outputLayerName.c_str());
-    }
-
     // An OGR_SCHEMA has been provided
     if (!oSchemaOverride.GetLayerOverrides().empty())
     {
@@ -353,6 +337,7 @@ bool GDALVectorCreateAlgorithm::RunStep(GDALPipelineStepRunContext &)
                                              : userSpecifiedNewName;
 
             if (!CreateLayer(poDstDS.get(), outputLayerNewName,
+                             oLayerOverride.GetFIDColumnName(),
                              oLayerOverride.GetFieldDefinitions(),
                              oLayerOverride.GetGeomFieldDefinitions()))
             {
@@ -370,7 +355,8 @@ bool GDALVectorCreateAlgorithm::RunStep(GDALPipelineStepRunContext &)
         {
             const OGRwkbGeometryType eDstType =
                 OGRFromOGCGeomType(m_geometryType.c_str());
-            if (eDstType == wkbUnknown)
+            if (eDstType == wkbUnknown &&
+                !STARTS_WITH_CI(m_geometryType.c_str(), "GEOMETRY"))
             {
                 ReportError(CE_Failure, CPLE_AppDefined,
                             "Unsupported geometry type: '%s'.",
@@ -403,16 +389,8 @@ bool GDALVectorCreateAlgorithm::RunStep(GDALPipelineStepRunContext &)
             }
         }
 
-        if (EQUAL(poDstDriver->GetDescription(), "ESRI Shapefile") &&
-            EQUAL(CPLGetExtensionSafe(poDstDS->GetDescription()).c_str(),
-                  "shp") &&
-            poDstDS->GetLayerCount() <= 1)
-        {
-            outputLayerName = CPLGetBasenameSafe(poDstDS->GetDescription());
-        }
-
-        if (!CreateLayer(poDstDS.get(), outputLayerName, GetOutputFields(),
-                         geometryFieldDefinitions))
+        if (!CreateLayer(poDstDS.get(), outputLayerName, m_fidColumnName,
+                         GetOutputFields(), geometryFieldDefinitions))
         {
             ReportError(CE_Failure, CPLE_AppDefined,
                         "Cannot create layer '%s'.", outputLayerName.c_str());
@@ -452,6 +430,7 @@ std::vector<OGRFieldDefn> GDALVectorCreateAlgorithm::GetOutputFields() const
 /************************************************************************/
 bool GDALVectorCreateAlgorithm::CreateLayer(
     GDALDataset *poDstDS, const std::string &layerName,
+    const std::string &fidColumnName,
     const std::vector<OGRFieldDefn> &fieldDefinitions,
     const std::vector<OGRGeomFieldDefn> &geometryFieldDefinitions) const
 {
@@ -517,10 +496,19 @@ bool GDALVectorCreateAlgorithm::CreateLayer(
 
     if (!poDstLayer)
     {
-
-        poDstLayer = poDstDS->CreateLayer(
-            layerName.c_str(), poGeomFieldDefn.get(),
-            CPLStringList(GetLayerCreationOptions()).List());
+        CPLStringList aosCreationOptions(GetLayerCreationOptions());
+        if (aosCreationOptions.FetchNameValue("FID") == nullptr &&
+            !fidColumnName.empty())
+        {
+            auto poDstDriver = poDstDS->GetDriver();
+            if (poDstDriver && poDstDriver->HasLayerCreationOption("FID"))
+            {
+                aosCreationOptions.SetNameValue("FID", fidColumnName.c_str());
+            }
+        }
+        poDstLayer =
+            poDstDS->CreateLayer(layerName.c_str(), poGeomFieldDefn.get(),
+                                 aosCreationOptions.List());
     }
 
     if (!poDstLayer)

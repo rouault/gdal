@@ -118,6 +118,13 @@ Program-Specific Options
 
    Mutually exclusive with :option:`--schema` and with :option:`--like`.
 
+.. option:: --fid <FID>
+
+   Defines the name of the Feature Identifier (FID) column, for drivers that
+   support setting it (those which declare a ``FID`` layer creation option)
+
+   Mutually exclusive with :option:`--schema` and with :option:`--like`.
+
 
 Standard Options
 ----------------

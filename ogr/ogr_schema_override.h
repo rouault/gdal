@@ -261,12 +261,16 @@ class CPL_DLL OGRLayerSchemaOverride
 
     void SetLayerName(const std::string &osLayerName);
 
+    void SetFIDColumnName(const std::string &osFIDColumnName);
+
     void AddNamedFieldOverride(const std::string &osFieldName,
                                const OGRFieldDefnOverride &oFieldOverride);
 
     void AddUnnamedFieldOverride(const OGRFieldDefnOverride &oFieldOverride);
 
     const std::string &GetLayerName() const;
+
+    const std::string &GetFIDColumnName() const;
 
     const std::map<std::string, OGRFieldDefnOverride> &
     GetNamedFieldOverrides() const;
@@ -293,6 +297,7 @@ class CPL_DLL OGRLayerSchemaOverride
 
   private:
     std::string m_osLayerName{};
+    std::string m_osFIDColumnName{};
     std::map<std::string, OGRFieldDefnOverride> m_oNamedFieldOverrides{};
     std::vector<OGRFieldDefnOverride> m_aoUnnamedFieldOverrides{};
     std::vector<OGRGeomFieldDefnOverride> m_aoGeomFieldOverrides{};

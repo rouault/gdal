@@ -63,15 +63,17 @@ class GDALVectorCreateAlgorithm /* non final */
      */
     bool CreateLayer(
         GDALDataset *poDstDS, const std::string &layerName,
+        const std::string &fidColumnName,
         const std::vector<OGRFieldDefn> &fieldDefinitions,
         const std::vector<OGRGeomFieldDefn> &geometryFieldDefinitions) const;
 
-    std::string m_crs;
-    std::string m_geometryType;
-    std::string m_geometryFieldName;
-    std::string m_schemaJsonOrPath;
-    std::vector<OGRFieldDefn> m_fieldDefinitions;
-    std::vector<std::string> m_fieldStrDefinitions;
+    std::string m_crs{};
+    std::string m_fidColumnName{};
+    std::string m_geometryType{};
+    std::string m_geometryFieldName{"geom"};
+    std::string m_schemaJsonOrPath{};
+    std::vector<OGRFieldDefn> m_fieldDefinitions{};
+    std::vector<std::string> m_fieldStrDefinitions{};
 };
 
 /************************************************************************/

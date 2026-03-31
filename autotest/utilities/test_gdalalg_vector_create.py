@@ -485,15 +485,19 @@ def test_gdalalg_vector_create_layer_names(
         ),
         (
             {"schema": r"{}", "geometry-type": "Point"},
-            " When --schema or --like is specified, --geometry-field, --geometry-type, --field and --crs options must not be specified.",
+            "When --schema or --like is specified, .*options must not be specified.",
         ),
         (
             {"schema": r"{}", "geometry-field": "geomm"},
-            " When --schema or --like is specified, --geometry-field, --geometry-type, --field and --crs options must not be specified.",
+            "When --schema or --like is specified, .*options must not be specified.",
         ),
         (
             {"schema": r"{}", "crs": "EPSG:4326"},
-            " When --schema or --like is specified, --geometry-field, --geometry-type, --field and --crs options must not be specified.",
+            "When --schema or --like is specified, .*options must not be specified.",
+        ),
+        (
+            {"schema": r"{}", "fid": "fid"},
+            "When --schema or --like is specified, .*options must not be specified.",
         ),
     ],
 )
@@ -612,3 +616,48 @@ def test_gdalalg_vector_create_datetime_timezone_round_trip(tmp_vsimem):
     assert (
         json_field_defn["timezone"] == "+11:30"
     ), "Unexpected timezone information in exported schema"
+
+
+@pytest.mark.require_driver("GPKG")
+def test_gdalalg_vector_create_geometry_field_without_crs(tmp_vsimem):
+
+    with gdal.alg.vector.create(
+        output=tmp_vsimem / "out.gpkg", geometry_type="GEOMETRY"
+    ) as alg:
+        out_ds = alg.Output()
+        out_lyr = out_ds.GetLayer(0)
+        assert out_lyr.GetName() == "out"
+        assert out_lyr.GetFIDColumn() == "fid"
+        assert out_lyr.GetGeometryColumn() == "geom"
+        assert out_lyr.GetGeomType() == ogr.wkbUnknown
+        assert out_lyr.GetSpatialRef() is None
+        assert out_lyr.GetLayerDefn().GetFieldCount() == 0
+
+
+@pytest.mark.require_driver("GPKG")
+def test_gdalalg_vector_create_implicit_fid_from_source(tmp_vsimem):
+
+    src_ds = gdal.GetDriverByName("GPKG").CreateVector(tmp_vsimem / "src.gpkg")
+    src_ds.CreateLayer("test", options=["FID=my_fid"])
+
+    with gdal.alg.vector.create(input=src_ds, output=tmp_vsimem / "out.gpkg") as alg:
+        out_ds = alg.Output()
+        out_lyr = out_ds.GetLayer(0)
+        assert out_lyr.GetName() == "test"
+        assert out_lyr.GetFIDColumn() == "my_fid"
+        assert out_lyr.GetGeometryColumn() == "geom"
+        assert out_lyr.GetGeomType() == ogr.wkbUnknown
+        assert out_lyr.GetSpatialRef() is None
+        assert out_lyr.GetLayerDefn().GetFieldCount() == 0
+
+
+@pytest.mark.require_driver("GPKG")
+def test_gdalalg_vector_create_explicit_fid(tmp_vsimem):
+
+    with gdal.alg.vector.create(output=tmp_vsimem / "out.gpkg", fid="my_fid") as alg:
+        out_ds = alg.Output()
+        out_lyr = out_ds.GetLayer(0)
+        assert out_lyr.GetName() == "out"
+        assert out_lyr.GetFIDColumn() == "my_fid"
+        assert out_lyr.GetLayerDefn().GetFieldCount() == 0
+        assert out_lyr.GetLayerDefn().GetGeomFieldCount() == 0
