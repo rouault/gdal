@@ -69,14 +69,22 @@ void CPL_STDCALL PyCPLErrorHandler(CPLErr eErrClass, CPLErrorNum err_no, const c
         return;
     }
 
-    void* user_data = CPLGetErrorHandlerUserData();
+    PyObject* callable = (PyObject*)CPLGetErrorHandlerUserData();
     PyObject *psArgs;
 
     SWIG_PYTHON_THREAD_BEGIN_BLOCK;
 
-    psArgs = Py_BuildValue("(iis)", eErrClass, err_no, pszErrorMsg );
-    PyObject_CallObject( (PyObject*)user_data, psArgs);
-    Py_XDECREF(psArgs);
+    if (!PyCallable_Check(callable))
+    {
+        PyErr_SetString( PyExc_RuntimeError,
+                         "PyCPLErrorHandler: Critical error: callback is not callable" );
+    }
+    else
+    {
+        psArgs = Py_BuildValue("(iis)", eErrClass, err_no, pszErrorMsg );
+        PyObject_CallObject( callable, psArgs);
+        Py_XDECREF(psArgs);
+    }
 
     SWIG_PYTHON_THREAD_END_BLOCK;
 }
@@ -113,7 +121,9 @@ void CPL_STDCALL PyCPLErrorHandler(CPLErr eErrClass, CPLErrorNum err_no, const c
      void* user_data = CPLGetErrorHandlerUserData();
      if( user_data != NULL )
      {
+         SWIG_PYTHON_THREAD_BEGIN_BLOCK;
          Py_XDECREF((PyObject*)user_data);
+         SWIG_PYTHON_THREAD_END_BLOCK;
      }
      CPLPopErrorHandler();
   }

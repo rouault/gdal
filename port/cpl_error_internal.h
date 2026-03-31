@@ -67,7 +67,18 @@ class CPL_DLL CPLErrorAccumulator
 
     struct CPL_DLL Context
     {
+        /*! @cond Doxygen_Suppress */
         ~Context();
+
+        Context(const Context &) = delete;
+        Context &operator=(const Context &) = delete;
+        Context(Context &&) = delete;
+        Context &operator=(Context &&) = delete;
+
+      private:
+        friend class CPLErrorAccumulator;
+        explicit Context(CPLErrorAccumulator &sAccumulator);
+        /*! @endcond Doxygen_Suppress */
     };
 
     /** Install a temporary error handler that will store errors and warnings.

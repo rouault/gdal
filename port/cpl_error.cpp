@@ -260,7 +260,13 @@ static void ApplyErrorHandler(CPLErrorContext *psCtx, CPLErr eErrClass,
         {
             if (pfnErrorHandler != nullptr)
             {
+                // Make sure to empty the thread-specific handler stack,
+                // otherwise the global error handler might get unrelated
+                // data when calling CPLGetErrorHandlerUserData()
+                CPLErrorHandlerNode *psCurNodeBackup = psCtx->psHandlerStack;
+                psCtx->psHandlerStack = nullptr;
                 pfnErrorHandler(eErrClass, err_no, pszMessage);
+                psCtx->psHandlerStack = psCurNodeBackup;
             }
         }
         else /* if( eErrClass == CE_Debug ) */
@@ -1577,7 +1583,17 @@ CPLErrorStateBackuper::~CPLErrorStateBackuper()
 /*! @cond Doxygen_Suppress */
 
 /************************************************************************/
-/*                CPLErrorAccumulator::Context::~Context()              */
+/*               CPLErrorAccumulator::Context::Context()                */
+/************************************************************************/
+
+CPLErrorAccumulator::Context::Context(CPLErrorAccumulator &sAccumulator)
+{
+    CPLPushErrorHandlerEx(CPLErrorAccumulator::Accumulator, &sAccumulator);
+    CPLSetCurrentErrorHandlerCatchDebug(false);
+}
+
+/************************************************************************/
+/*               CPLErrorAccumulator::Context::~Context()               */
 /************************************************************************/
 
 CPLErrorAccumulator::Context::~Context()
@@ -1591,8 +1607,7 @@ CPLErrorAccumulator::Context::~Context()
 
 CPLErrorAccumulator::Context CPLErrorAccumulator::InstallForCurrentScope()
 {
-    CPLPushErrorHandlerEx(CPLErrorAccumulator::Accumulator, this);
-    return CPLErrorAccumulator::Context();
+    return CPLErrorAccumulator::Context(*this);
 }
 
 /************************************************************************/
