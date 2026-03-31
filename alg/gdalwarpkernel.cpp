@@ -507,11 +507,17 @@ static CPLErr GWKRun(GDALWarpKernel *poWK, const char *pszFuncName,
 
     bool bStopFlag;
     {
-        std::unique_lock<std::mutex> lock(psThreadData->mutex);
+        {
+            // Important: do not run the SubmitJob() loop under the mutex
+            // because in some cases (typically if the current thread has been
+            // created by the GDAL global thread pool), the task will actually
+            // be run synchronously by SubmitJob(), and as it tries to acquire
+            // the mutex, that would result in a dead-lock
+            std::unique_lock<std::mutex> lock(psThreadData->mutex);
 
-        psThreadData->nTotalThreadCountForThisRun = nThreads;
-        // coverity[missing_lock]
-        psThreadData->nCurThreadCountForThisRun = 0;
+            psThreadData->nTotalThreadCountForThisRun = nThreads;
+            psThreadData->nCurThreadCountForThisRun = 0;
+        }
 
         // Start jobs.
         for (int i = 0; i < nThreads; ++i)
@@ -526,6 +532,7 @@ static CPLErr GWKRun(GDALWarpKernel *poWK, const char *pszFuncName,
         /*      Report progress. */
         /* --------------------------------------------------------------------
          */
+        std::unique_lock<std::mutex> lock(psThreadData->mutex);
         if (poWK->pfnProgress != GDALDummyProgress)
         {
             while (psThreadData->counter < nDstYSize)
