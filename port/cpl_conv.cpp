@@ -1708,7 +1708,9 @@ const char *CPL_STDCALL CPLGetConfigOption(const char *pszKey,
     if (gbIgnoreEnvVariables)
     {
         const char *pszEnvVar = getenv(pszKey);
-        if (pszEnvVar != nullptr)
+        // Skipping for CPL_DEBUG to avoid infinite recursion since CPLvDebug()
+        // calls CPLGetConfigOption()...
+        if (pszEnvVar != nullptr && !EQUAL(pszKey, "CPL_DEBUG"))
         {
             CPLDebug("CPL",
                      "Ignoring environment variable %s=%s because of "
