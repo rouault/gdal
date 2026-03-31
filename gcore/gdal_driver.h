@@ -106,6 +106,14 @@ class CPL_DLL GDALDriver : public GDALMajorObject
      */
     bool HasOpenOption(const char *pszOpenOptionName) const;
 
+    /**
+     * \brief Returns TRUE if the given layer creation option is supported by the driver.
+     * @param pszOptionName name of the layer creation option to be checked
+     * @return TRUE if the driver supports the layer creation option
+     * @since GDAL 3.13
+     */
+    bool HasLayerCreationOption(const char *pszOptionName) const;
+
     GDALDataset *
     VectorTranslateFrom(const char *pszDestName, GDALDataset *poSourceDS,
                         CSLConstList papszVectorTranslateArguments,

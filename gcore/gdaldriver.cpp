@@ -1481,6 +1481,10 @@ bool GDALDriver::CanVectorTranslateFrom(
     return bRet;
 }
 
+/************************************************************************/
+/*                           HasOpenOption()                            */
+/************************************************************************/
+
 bool GDALDriver::HasOpenOption(const char *pszOpenOptionName) const
 {
     if (pszOpenOptionName == nullptr)
@@ -1498,6 +1502,32 @@ bool GDALDriver::HasOpenOption(const char *pszOpenOptionName) const
     {
         if (EQUAL(CPLGetXMLValue(CPLGetXMLNode(option, "name"), nullptr, ""),
                   pszOpenOptionName))
+            return true;
+    }
+    return false;
+}
+
+/************************************************************************/
+/*                       HasLayerCreationOption()                       */
+/************************************************************************/
+
+bool GDALDriver::HasLayerCreationOption(const char *pszOptionName) const
+{
+    if (pszOptionName == nullptr)
+        return false;
+
+    // Const cast is safe here since we are only reading the metadata
+    auto pszXML{const_cast<GDALDriver *>(this)->GetMetadataItem(
+        GDAL_DS_LAYER_CREATIONOPTIONLIST)};
+    if (pszXML == nullptr)
+        return false;
+
+    const CPLXMLTreeCloser oXml{CPLParseXMLString(pszXML)};
+    for (CPLXMLNode *option = oXml->psChild; option != nullptr;
+         option = option->psNext)
+    {
+        if (EQUAL(CPLGetXMLValue(CPLGetXMLNode(option, "name"), nullptr, ""),
+                  pszOptionName))
             return true;
     }
     return false;
