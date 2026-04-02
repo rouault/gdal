@@ -55,6 +55,7 @@ copyright
 country-code
 creation-option
 crs
+crs-format
 curvature-coefficient
 curve
 dataset
