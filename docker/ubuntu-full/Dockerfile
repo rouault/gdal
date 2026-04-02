@@ -70,7 +70,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
        libnetcdf-dev${APT_ARCH_SUFFIX} libpoppler-dev${APT_ARCH_SUFFIX} libpoppler-private-dev${APT_ARCH_SUFFIX} \
        libspatialite-dev${APT_ARCH_SUFFIX} librasterlite2-dev${APT_ARCH_SUFFIX} swig ant libhdf4-dev${APT_ARCH_SUFFIX} libhdf5-serial-dev${APT_ARCH_SUFFIX} \
        libfreexl-dev${APT_ARCH_SUFFIX} unixodbc-dev${APT_ARCH_SUFFIX}  mdbtools-dev${APT_ARCH_SUFFIX} libwebp-dev${APT_ARCH_SUFFIX} \
-       liblcms2-2 libpcre3-dev${APT_ARCH_SUFFIX} libcrypto++-dev${APT_ARCH_SUFFIX} libfyba-dev${APT_ARCH_SUFFIX} \
+       liblcms2-2 libpcre2-dev${APT_ARCH_SUFFIX} libcrypto++-dev${APT_ARCH_SUFFIX} libfyba-dev${APT_ARCH_SUFFIX} \
        libkml-dev${APT_ARCH_SUFFIX} libmariadb-dev${APT_ARCH_SUFFIX} \
        libcfitsio-dev${APT_ARCH_SUFFIX} openjdk-"$JAVA_VERSION"-jdk${APT_ARCH_SUFFIX} libzstd-dev${APT_ARCH_SUFFIX} \
        libpq-dev${APT_ARCH_SUFFIX} libssl-dev${APT_ARCH_SUFFIX} libboost-dev${APT_ARCH_SUFFIX} \
@@ -558,7 +558,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         libxml2-16 libexpat1 \
         libxerces-c3.2 libnetcdf-c++4-1 netcdf-bin libpoppler156 libspatialite8 librasterlite2-1 gpsbabel \
         libhdf4-0 libhdf5-310 libhdf5-cpp-310 poppler-utils libfreexl1 unixodbc mdbtools libwebp7 \
-        liblcms2-2 libpcre3 libcrypto++8 libfyba0 \
+        liblcms2-2 libpcre2-8-0 libcrypto++8 libfyba0 \
         libkmlbase1 libkmlconvenience1 libkmldom1 libkmlengine1 libkmlregionator1 libkmlxsd1 \
         libmariadb3 libcfitsio10 \
         libzstd1 bash bash-completion libpq5 \
