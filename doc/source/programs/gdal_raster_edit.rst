@@ -109,7 +109,7 @@ Program-Specific Options
 
     Several syntaxes are supported:
 
-    - specifying one sine ``<SCALE>``: set the scale on all bands.
+    - specifying one single ``<SCALE>``: set the scale on all bands.
 
     - specifying as many ``<SCALE>`` as there are bands, starting from band 1 to the last band.
 
@@ -124,7 +124,7 @@ Program-Specific Options
 
     Several syntaxes are supported:
 
-    - specifying one sine ``<OFFSET>``: set the offset on all bands.
+    - specifying one single ``<OFFSET>``: set the offset on all bands.
 
     - specifying as many ``<OFFSET>`` as there are bands, starting from band 1 to the last band.
 
