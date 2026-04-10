@@ -25,11 +25,11 @@ project taking a position on whether or not LLM code contributions are acceptabl
 Grumpy maintainer effect
 ------------------------
 
-Our initial feedback from receiving AI tools based contributions is that they
-have the effect of making maintainers more grumpy as usual. As fixing human
-behavior to play nicely with AI will involve natural selection over many generations,
-be prepared for not getting a very warm welcome if you misuse those tools.
-You have been warned!
+Our initial feedback from receiving contributions assisted by AI tools is that they
+take about 20% more time to process, and have the effect of making maintainers 20%
+grumpier than usual. As fixing human behavior to play nicely with AI will involve
+natural selection over many generations, be prepared for not getting a very warm 
+welcome if you misuse those tools. You have been warned!
 
 Policy
 ------
