@@ -290,7 +290,7 @@ int OGROpenFileGDBLayer::BuildGeometryColumnGDBv10(
         }
         if (poSRS != nullptr)
         {
-            poGeomFieldDefn->SetSpatialRef(poSRS.get());
+            poGeomFieldDefn->SetSpatialRef(std::move(poSRS));
         }
         m_poFeatureDefn->AddGeomFieldDefn(std::move(poGeomFieldDefn));
     }

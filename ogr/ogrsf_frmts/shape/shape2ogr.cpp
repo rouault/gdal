@@ -1091,17 +1091,16 @@ static OGRErr SHPWriteOGRObject(SHPHandle hSHP, int iShape,
 /*                       SHPReadOGRFeatureDefn()                        */
 /************************************************************************/
 
-OGRFeatureDefn *SHPReadOGRFeatureDefn(const char *pszName, SHPHandle hSHP,
-                                      DBFHandle hDBF, VSILFILE *fpSHPXML,
-                                      const char *pszSHPEncoding,
-                                      int bAdjustType)
+OGRFeatureDefnRefCountedPtr
+SHPReadOGRFeatureDefn(const char *pszName, SHPHandle hSHP, DBFHandle hDBF,
+                      VSILFILE *fpSHPXML, const char *pszSHPEncoding,
+                      int bAdjustType)
 
 {
     int nAdjustableFields = 0;
     const int nFieldCount = hDBF ? DBFGetFieldCount(hDBF) : 0;
 
-    OGRFeatureDefn *const poDefn = new OGRFeatureDefn(pszName);
-    poDefn->Reference();
+    auto poDefn = OGRFeatureDefnRefCountedPtr::makeInstance(pszName);
 
     // Parse .shp.xml side car if available, to get long field names and aliases
     // but only if they are consistent with the number of DBF fields and their

@@ -196,17 +196,15 @@ OGRShapeLayer::OGRShapeLayer(OGRShapeDataSource *poDSIn,
             eType = m_eRequestedGeomType;
         }
 
-        OGRSpatialReference *poSRSClone = poSRSIn ? poSRSIn->Clone() : nullptr;
+        auto poSRSClone = OGRSpatialReferenceRefCountedPtr::makeClone(poSRSIn);
         if (poSRSClone)
         {
             poSRSClone->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
         }
         auto poGeomFieldDefn = std::make_unique<OGRShapeGeomFieldDefn>(
-            m_osFullName.c_str(), eType, bSRSSetIn, poSRSClone);
+            m_osFullName.c_str(), eType, bSRSSetIn, poSRSClone.get());
         if (!osPrjFilename.empty())
             poGeomFieldDefn->SetPrjFilename(osPrjFilename);
-        if (poSRSClone)
-            poSRSClone->Release();
         m_poFeatureDefn->SetGeomType(wkbNone);
         m_poFeatureDefn->AddGeomFieldDefn(std::move(poGeomFieldDefn));
     }
@@ -247,9 +245,6 @@ OGRShapeLayer::~OGRShapeLayer()
 
     ClearMatchingFIDs();
     ClearSpatialFIDs();
-
-    if (m_poFeatureDefn != nullptr)
-        m_poFeatureDefn->Release();
 
     if (m_hDBF != nullptr)
         DBFClose(m_hDBF);
@@ -909,7 +904,7 @@ OGRFeature *OGRShapeLayer::FetchShape(int iShapeId)
               psShape->dfYMin == psShape->dfYMax)) ||
             psShape->nSHPType == SHPT_NULL)
         {
-            poFeature = SHPReadOGRFeature(m_hSHP, m_hDBF, m_poFeatureDefn,
+            poFeature = SHPReadOGRFeature(m_hSHP, m_hDBF, m_poFeatureDefn.get(),
                                           iShapeId, psShape, m_osEncoding,
                                           m_bHasWarnedWrongWindingOrder);
         }
@@ -923,15 +918,15 @@ OGRFeature *OGRShapeLayer::FetchShape(int iShapeId)
         }
         else
         {
-            poFeature = SHPReadOGRFeature(m_hSHP, m_hDBF, m_poFeatureDefn,
+            poFeature = SHPReadOGRFeature(m_hSHP, m_hDBF, m_poFeatureDefn.get(),
                                           iShapeId, psShape, m_osEncoding,
                                           m_bHasWarnedWrongWindingOrder);
         }
     }
     else
     {
-        poFeature = SHPReadOGRFeature(m_hSHP, m_hDBF, m_poFeatureDefn, iShapeId,
-                                      nullptr, m_osEncoding,
+        poFeature = SHPReadOGRFeature(m_hSHP, m_hDBF, m_poFeatureDefn.get(),
+                                      iShapeId, nullptr, m_osEncoding,
                                       m_bHasWarnedWrongWindingOrder);
     }
 
@@ -1036,8 +1031,8 @@ OGRFeature *OGRShapeLayer::GetFeature(GIntBig nFeatureId)
         return nullptr;
 
     OGRFeature *poFeature = SHPReadOGRFeature(
-        m_hSHP, m_hDBF, m_poFeatureDefn, static_cast<int>(nFeatureId), nullptr,
-        m_osEncoding, m_bHasWarnedWrongWindingOrder);
+        m_hSHP, m_hDBF, m_poFeatureDefn.get(), static_cast<int>(nFeatureId),
+        nullptr, m_osEncoding, m_bHasWarnedWrongWindingOrder);
 
     if (poFeature == nullptr)
     {
@@ -1109,9 +1104,9 @@ OGRErr OGRShapeLayer::ISetFeature(OGRFeature *poFeature)
         bIsLastRecord = (nOffset + nSize + 8 == m_hSHP->nFileSize);
     }
 
-    OGRErr eErr = SHPWriteOGRFeature(m_hSHP, m_hDBF, m_poFeatureDefn, poFeature,
-                                     m_osEncoding, &m_bTruncationWarningEmitted,
-                                     m_bRewindOnWrite);
+    OGRErr eErr = SHPWriteOGRFeature(
+        m_hSHP, m_hDBF, m_poFeatureDefn.get(), poFeature, m_osEncoding,
+        &m_bTruncationWarningEmitted, m_bRewindOnWrite);
 
     if (m_hSHP != nullptr)
     {
@@ -1351,7 +1346,7 @@ OGRErr OGRShapeLayer::ICreateFeature(OGRFeature *poFeature)
     }
 
     const OGRErr eErr = SHPWriteOGRFeature(
-        m_hSHP, m_hDBF, m_poFeatureDefn, poFeature, m_osEncoding,
+        m_hSHP, m_hDBF, m_poFeatureDefn.get(), poFeature, m_osEncoding,
         &m_bTruncationWarningEmitted, m_bRewindOnWrite);
 
     if (m_hSHP != nullptr)
@@ -2405,9 +2400,8 @@ OGRErr OGRShapeLayer::AlterGeomFieldDefn(
 
             CPLFree(pszWKT);
 
-            auto poNewSRS = poNewSRSRef->Clone();
-            poFieldDefn->SetSpatialRef(poNewSRS);
-            poNewSRS->Release();
+            poFieldDefn->SetSpatialRef(
+                OGRSpatialReferenceRefCountedPtr::makeClone(poNewSRSRef));
         }
         else
         {
@@ -2440,7 +2434,7 @@ const OGRSpatialReference *OGRShapeGeomFieldDefn::GetSpatialRef() const
 
 {
     if (m_bSRSSet)
-        return poSRS;
+        return poSRS.get();
 
     m_bSRSSet = true;
 
@@ -2463,8 +2457,8 @@ const OGRSpatialReference *OGRShapeGeomFieldDefn::GetSpatialRef() const
     {
         m_osPrjFile = std::move(l_osPrjFile);
 
-        auto poSRSNonConst = new OGRSpatialReference();
-        poSRSNonConst->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+        auto poTmpSRS = OGRSpatialReferenceRefCountedPtr::makeInstance();
+        poTmpSRS->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
         // Remove UTF-8 BOM if found
         // http://lists.osgeo.org/pipermail/gdal-dev/2014-July/039527.html
         if (static_cast<unsigned char>(papszLines[0][0]) == 0xEF &&
@@ -2497,42 +2491,41 @@ const OGRSpatialReference *OGRShapeGeomFieldDefn::GetSpatialRef() const
                 }
             }
         }
-        if (poSRSNonConst->importFromESRI(papszLines) != OGRERR_NONE)
+        if (poTmpSRS->importFromESRI(papszLines) != OGRERR_NONE)
         {
-            delete poSRSNonConst;
-            poSRSNonConst = nullptr;
+            poTmpSRS.reset();
         }
         CSLDestroy(papszLines);
 
-        if (poSRSNonConst)
+        if (poTmpSRS)
         {
             double adfTOWGS84[7];
-            const char *pszSRSName = poSRSNonConst->GetName();
+            const char *pszSRSName = poTmpSRS->GetName();
             if (CPLTestBool(
                     CPLGetConfigOption("USE_OSR_FIND_MATCHES", "YES")) &&
                 // Below works around bug fixed in PROJ per
                 // https://github.com/OSGeo/PROJ/pull/4599
                 !(pszSRSName && strstr(pszSRSName, "NTF (Paris)") != nullptr &&
-                  poSRSNonConst->GetTOWGS84(adfTOWGS84) == OGRERR_NONE))
+                  poTmpSRS->GetTOWGS84(adfTOWGS84) == OGRERR_NONE))
             {
-                auto poSRSMatch = poSRSNonConst->FindBestMatch();
+                OGRSpatialReferenceRefCountedPtr poSRSMatch(
+                    poTmpSRS->FindBestMatch(), /* add_ref = */ false);
                 if (poSRSMatch)
                 {
-                    poSRSNonConst->Release();
-                    poSRSNonConst = poSRSMatch;
-                    poSRSNonConst->SetAxisMappingStrategy(
+                    poTmpSRS = std::move(poSRSMatch);
+                    poTmpSRS->SetAxisMappingStrategy(
                         OAMS_TRADITIONAL_GIS_ORDER);
                 }
             }
             else
             {
-                poSRSNonConst->AutoIdentifyEPSG();
+                poTmpSRS->AutoIdentifyEPSG();
             }
-            poSRS = poSRSNonConst;
+            poSRS = std::move(poTmpSRS);
         }
     }
 
-    return poSRS;
+    return poSRS.get();
 }
 
 /************************************************************************/
@@ -3916,7 +3909,7 @@ int OGRShapeLayer::GetNextArrowArray(struct ArrowArrayStream *stream,
         !m_poFeatureDefn->GetGeomFieldDefn(0)->IsIgnored())
         return OGRLayer::GetNextArrowArray(stream, out_array);
 
-    OGRArrowArrayHelper sHelper(m_poDS, m_poFeatureDefn,
+    OGRArrowArrayHelper sHelper(m_poDS, m_poFeatureDefn.get(),
                                 m_aosArrowArrayStreamOptions, out_array);
     if (out_array->release == nullptr)
     {

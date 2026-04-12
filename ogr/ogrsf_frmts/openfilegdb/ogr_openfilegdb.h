@@ -328,10 +328,10 @@ class OGROpenFileGDBGeomFieldDefn final : public OGRGeomFieldDefn
     const OGRSpatialReference *GetSpatialRef() const override
     {
         if (poSRS)
-            return poSRS;
+            return poSRS.get();
         if (m_poLayer != nullptr)
             (void)m_poLayer->BuildLayerDefinition();
-        return poSRS;
+        return poSRS.get();
     }
 };
 

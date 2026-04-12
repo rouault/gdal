@@ -338,7 +338,7 @@ class CPL_DLL OGRGeomFieldDefn
     char *pszName = nullptr;
     OGRwkbGeometryType eGeomType =
         wkbUnknown; /* all values possible except wkbNone */
-    mutable const OGRSpatialReference *poSRS = nullptr;
+    mutable OGRSpatialReferenceRefCountedPtr poSRS = nullptr;
 
     int bIgnore = false;
     mutable int bNullable = true;
@@ -381,6 +381,7 @@ class CPL_DLL OGRGeomFieldDefn
 
     virtual const OGRSpatialReference *GetSpatialRef() const;
     void SetSpatialRef(const OGRSpatialReference *poSRSIn);
+    void SetSpatialRef(OGRSpatialReferenceRefCountedPtr poSRSIn);
 
     int IsIgnored() const
     {
@@ -456,6 +457,13 @@ class CPL_DLL OGRGeomFieldDefn
     /*! @endcond */
 
     TemporaryUnsealer GetTemporaryUnsealer();
+
+  private:
+    OGRSpatialReferenceRefCountedPtr &GetRefCountedSRS() const
+    {
+        GetSpatialRef();
+        return poSRS;
+    }
 };
 
 #ifdef GDAL_COMPILATION
@@ -1014,6 +1022,13 @@ inline OGRFeatureDefn::TemporaryUnsealer whileUnsealing(OGRFeatureDefn *object,
 {
     return object->GetTemporaryUnsealer(bSealFields);
 }
+
+inline OGRFeatureDefn::TemporaryUnsealer
+whileUnsealing(OGRFeatureDefnRefCountedPtr &object, bool bSealFields = true)
+{
+    return object->GetTemporaryUnsealer(bSealFields);
+}
+
 #endif
 
 /************************************************************************/

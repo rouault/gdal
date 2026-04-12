@@ -874,12 +874,11 @@ OGRShapeDataSource::ICreateLayer(const char *pszLayerName,
     /*      Create the .prj file, if required.                              */
     /* -------------------------------------------------------------------- */
     std::string osPrjFilename;
-    OGRSpatialReference *poSRSClone = nullptr;
-    if (poSRS != nullptr)
+    auto poSRSClone = OGRSpatialReferenceRefCountedPtr::makeClone(poSRS);
+    if (poSRSClone)
     {
         osPrjFilename =
             CPLFormFilenameSafe(nullptr, osFilenameWithoutExt.c_str(), "prj");
-        poSRSClone = poSRS->Clone();
 
         char *pszWKT = nullptr;
         VSILFILE *fp = nullptr;
@@ -904,13 +903,9 @@ OGRShapeDataSource::ICreateLayer(const char *pszLayerName,
         CPLFormFilenameSafe(nullptr, osFilenameWithoutExt.c_str(), "shp");
 
     auto poLayer = std::make_unique<OGRShapeLayer>(
-        this, osSHPFilename.c_str(), hSHP, hDBF, poSRSClone,
+        this, osSHPFilename.c_str(), hSHP, hDBF, poSRSClone.get(),
         /* bSRSSet = */ true, osPrjFilename,
         /* bUpdate = */ true, eType);
-    if (poSRSClone != nullptr)
-    {
-        poSRSClone->Release();
-    }
 
     poLayer->SetResizeAtClose(CPLFetchBool(papszOptions, "RESIZE", false));
     poLayer->CreateSpatialIndexAtClose(

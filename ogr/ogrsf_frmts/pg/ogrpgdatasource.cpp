@@ -2325,7 +2325,7 @@ OGRErr OGRPGDataSource::InitializeMetadataTables()
 /*      OGRSpatialReference, as handles may be cached.                  */
 /************************************************************************/
 
-const OGRSpatialReference *OGRPGDataSource::FetchSRS(int nId)
+OGRSpatialReferenceRefCountedPtr OGRPGDataSource::FetchSRS(int nId)
 
 {
     if (nId < 0 || !m_bHasSpatialRefSys)
@@ -2337,7 +2337,7 @@ const OGRSpatialReference *OGRPGDataSource::FetchSRS(int nId)
     auto oIter = m_oSRSCache.find(nId);
     if (oIter != m_oSRSCache.end())
     {
-        return oIter->second.get();
+        return oIter->second;
     }
 
     EndCopy();
@@ -2389,7 +2389,7 @@ const OGRSpatialReference *OGRPGDataSource::FetchSRS(int nId)
     /*      Add to the cache.                                               */
     /* -------------------------------------------------------------------- */
     oIter = m_oSRSCache.emplace(nId, std::move(poSRS)).first;
-    return oIter->second.get();
+    return oIter->second;
 }
 
 /************************************************************************/

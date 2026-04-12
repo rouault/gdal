@@ -530,7 +530,7 @@ OGRErr OGRMySQLDataSource::UpdateMetadataTables(const char *pszLayerName,
 /*      OGRSpatialReference, as handles may be cached.                  */
 /************************************************************************/
 
-const OGRSpatialReference *OGRMySQLDataSource::FetchSRS(int nId)
+OGRSpatialReferenceRefCountedPtr OGRMySQLDataSource::FetchSRS(int nId)
 {
     if (nId < 0)
         return nullptr;
@@ -541,7 +541,7 @@ const OGRSpatialReference *OGRMySQLDataSource::FetchSRS(int nId)
     auto oIter = m_oSRSCache.find(nId);
     if (oIter != m_oSRSCache.end())
     {
-        return oIter->second.get();
+        return oIter->second;
     }
 
     // make sure to attempt to free any old results
@@ -606,7 +606,7 @@ const OGRSpatialReference *OGRMySQLDataSource::FetchSRS(int nId)
     /*      Add to the cache.                                               */
     /* -------------------------------------------------------------------- */
     oIter = m_oSRSCache.emplace(nId, std::move(poSRS)).first;
-    return oIter->second.get();
+    return oIter->second;
 }
 
 /************************************************************************/
