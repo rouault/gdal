@@ -342,6 +342,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "GDAL_MAX_DATASET_POOL_SIZE", // from gdal_translate_bin.cpp, gdalproxypool.cpp, gdalwarp_bin.cpp
    "GDAL_MAX_RAW_BLOCK_CACHE_SIZE", // from gtiffdataset_read.cpp
    "GDAL_MEM_ENABLE_OPEN", // from memdataset.cpp
+   "GDAL_NAME_AND_SHAME", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp
    "GDAL_NETCDF_ASSUME_LONGLAT", // from netcdfdataset.cpp
    "GDAL_NETCDF_BOTTOMUP", // from netcdfdataset.cpp
    "GDAL_NETCDF_CENTERLONG_180", // from netcdfdataset.cpp
@@ -413,6 +414,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "GDAL_SWATH_SIZE", // from gdalmultidim_array.cpp, rasterio.cpp
    "GDAL_TEMP_DRIVER_NAME", // from nearblack_lib_floodfill.cpp
    "GDAL_TERM_PROGRESS_OSC_9_4", // from cpl_progress.cpp
+   "GDAL_TEST_NAME_AND_SHAME", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp
    "GDAL_THRESHOLD_MIN_THREADS_FOR_SPAWN", // from gdalalg_raster_tile.cpp
    "GDAL_THRESHOLD_MIN_TILES_PER_JOB", // from gdalalg_raster_tile.cpp
    "GDAL_TIFF_DEFLATE_SUBCODEC", // from gtiffdataset.cpp

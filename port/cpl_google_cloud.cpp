@@ -846,11 +846,18 @@ VSIGSHandleHelper::GetCurlHeaders(const std::string &osVerb,
 
     // If accessing a Google Cloud account from a GC VM, check that
     // Google is still a sponsor, and if not, make some (kind) noise.
-    if (m_oManager.GetAuthMethod() == GOA2Manager::GCE &&
-        cpl::starts_with(m_osEndpoint, "https://storage.googleapis.com/"))
+    if ((m_oManager.GetAuthMethod() == GOA2Manager::GCE &&
+         cpl::starts_with(m_osEndpoint, "https://storage.googleapis.com/"))
+#ifdef DEBUG
+        || CPLTestBool(CPLGetConfigOption("GDAL_TEST_NAME_AND_SHAME", "NO"))
+#endif
+    )
     {
         static const bool bCheckSponsoring = []()
         {
+            if (!CPLTestBool(CPLGetConfigOption("GDAL_NAME_AND_SHAME", "YES")))
+                return true;
+
             const std::string osCacheDir = []()
             {
 #ifdef _WIN32
@@ -893,8 +900,12 @@ VSIGSHandleHelper::GetCurlHeaders(const std::string &osVerb,
                     osCacheDir.c_str(), "cloud_check_gcs.txt", nullptr);
                 // Sideral day, why not? "Aim for the stars, expect dust"
                 constexpr int ONE_DAY_IN_SECS = 86164;
-                if (VSIStatL(osCloudCheck.c_str(), &sStat) != 0 ||
-                    sStat.st_mtime + ONE_DAY_IN_SECS < time(nullptr))
+                if (VSIStatL(osCloudCheck.c_str(), &sStat) == 0 &&
+                    sStat.st_mtime + ONE_DAY_IN_SECS >= time(nullptr))
+                {
+                    CPLDebugOnly("GDAL", "%s checked", osCloudCheck.c_str());
+                }
+                else
                 {
                     FILE *f = fopen(osCloudCheck.c_str(), "wb");
                     if (f)
@@ -918,14 +929,13 @@ VSIGSHandleHelper::GetCurlHeaders(const std::string &osVerb,
                         const auto CPLE_NonCooperativeSponsor = CPLE_AppDefined;
                         CPLError(
                             CE_Warning, CPLE_NonCooperativeSponsor,
-                            "WARNING: You are depending on Google Cloud "
-                            "Storage "
-                            "functionality through Google Cloud premises. "
-                            "Google generates a lot of money "
-                            "through GDAL, used to sponsor us, but no longer "
-                            "does. "
-                            "Please contact your Google sales representative "
-                            "to remove this warning.");
+                            "Due to lack of resources, Google Cloud Storage "
+                            "access is undergoing minimal maintenance and may "
+                            "be removed in the future unless Google Cloud "
+                            "re-evaluates its decision to stop sponsoring "
+                            "GDAL. If you are interested in keeping this "
+                            "functionality please get in touch with your "
+                            "Google Cloud representative.");
                     }
                 }
             }
