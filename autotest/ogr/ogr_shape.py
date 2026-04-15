@@ -6346,3 +6346,36 @@ def test_ogr_shape_read_shp_xml(tmp_vsimem):
         "/vsimem/test_ogr_shape_read_shp_xml/test.dbf",
         "/vsimem/test_ogr_shape_read_shp_xml/test.shp.xml",
     ]
+
+
+###############################################################################
+
+
+@gdaltest.enable_exceptions()
+def test_ogr_shape_inconsistent_record_count(tmp_vsimem):
+
+    with gdal.GetDriverByName("ESRI Shapefile").CreateVector(
+        tmp_vsimem / "tmp.shp"
+    ) as ds:
+        lyr = ds.CreateLayer("tmp")
+        f = ogr.Feature(lyr.GetLayerDefn())
+        f.SetGeometry(ogr.CreateGeometryFromWkt("POINT (1 2)"))
+        lyr.CreateFeature(f)
+        f = ogr.Feature(lyr.GetLayerDefn())
+        f.SetGeometry(ogr.CreateGeometryFromWkt("POINT (2 3)"))
+        lyr.CreateFeature(f)
+
+    with gdal.VSIFile(tmp_vsimem / "tmp.dbf", "rb+") as f:
+        f.seek(4)
+        f.write(b"\x01")
+
+    with gdaltest.error_raised(
+        gdal.CE_Warning, match="Inconsistent record number in .shx (2) and in .dbf (1)"
+    ):
+        ds = ogr.Open(tmp_vsimem / "tmp.shp")
+
+    lyr = ds.GetLayer(0)
+    # Current behaviour, but could as well be 1.
+    assert lyr.GetFeatureCount() == 2
+    lyr.GetNextFeature()
+    lyr.GetNextFeature()

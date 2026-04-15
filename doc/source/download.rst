@@ -246,9 +246,9 @@ GDAL subpackages may need to be updated individually, because the master version
     conda list gdal
     gdal --version
     # remove current master version
-    conda remove gdal --yes
+    conda remove gdal libgdal-core --yes
     # install latest GDAL master build
-    conda install -c gdal-master -c conda-forge gdal-master::gdal --yes
+    conda install -c gdal-master -c conda-forge gdal libgdal-core --yes
     gdal --version
 
 .. _pixi:

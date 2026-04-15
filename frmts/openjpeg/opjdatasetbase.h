@@ -716,6 +716,12 @@ struct OPJCodecWrapper
         return false;
     }
 
+    static bool transcode(const char *, const char *, GDALDataset *,
+                          CSLConstList)
+    {
+        return false;
+    }
+
     bool compressTile(int tileIndex, GByte *buff, uint32_t buffLen)
     {
         if (!pCodec || !pStream)

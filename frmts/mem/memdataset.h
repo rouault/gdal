@@ -16,6 +16,7 @@
 #include "gdal_pam.h"
 #include "gdal_priv.h"
 #include "gdal_rat.h"
+#include "ogr_feature.h"
 #include "ogrsf_frmts.h"
 
 #include <map>
@@ -245,7 +246,7 @@ class CPL_DLL OGRMemLayer CPL_NON_FINAL : public OGRLayer
     typedef std::map<GIntBig, std::unique_ptr<OGRFeature>> FeatureMap;
     typedef FeatureMap::iterator FeatureIterator;
 
-    OGRFeatureDefn *m_poFeatureDefn = nullptr;
+    OGRFeatureDefnRefCountedPtr m_poFeatureDefn{};
 
     GIntBig m_nFeatureCount = 0;
 
@@ -310,7 +311,7 @@ class CPL_DLL OGRMemLayer CPL_NON_FINAL : public OGRLayer
 
     const OGRFeatureDefn *GetLayerDefn() const override
     {
-        return m_poFeatureDefn;
+        return m_poFeatureDefn.get();
     }
 
     GIntBig GetFeatureCount(int = true) override;

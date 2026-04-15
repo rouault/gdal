@@ -2194,6 +2194,7 @@ bool VSIS3HandleHelper::GetConfiguration(
             return false;
         }
 
+        eCredentialsSource = AWSCredentialsSource::REGULAR;
         return true;
     }
 
@@ -2575,6 +2576,107 @@ struct curl_slist *VSIS3HandleHelper::GetCurlHeaders(
     std::string osCanonicalQueryString(GetQueryString(true));
     if (!osCanonicalQueryString.empty())
         osCanonicalQueryString = osCanonicalQueryString.substr(1);
+
+    // If accessing a AWS account from a AWS VM, check that
+    // AWS is still a sponsor, and if not, make some (kind) noise.
+    if ((m_eCredentialsSource != AWSCredentialsSource::UNINITIALIZED &&
+         m_eCredentialsSource != AWSCredentialsSource::NO_SIGN_REQUEST &&
+         m_eCredentialsSource != AWSCredentialsSource::REGULAR &&
+         m_osEndpoint.find(".amazonaws.com") != std::string::npos)
+#ifdef DEBUG
+        || CPLTestBool(CPLGetConfigOption("GDAL_TEST_NAME_AND_SHAME", "NO"))
+#endif
+    )
+    {
+        static const bool bCheckSponsoring = []()
+        {
+            if (!CPLTestBool(CPLGetConfigOption("GDAL_NAME_AND_SHAME", "YES")))
+                return true;
+
+            const std::string osCacheDir = []()
+            {
+#ifdef _WIN32
+                const char *pszHome =
+                    CPLGetConfigOption("USERPROFILE", nullptr);
+#else
+                const char *pszHome = CPLGetConfigOption("HOME", nullptr);
+#endif
+                if (pszHome != nullptr)
+                {
+                    return CPLFormFilenameSafe(pszHome, ".gdal", nullptr);
+                }
+                else
+                {
+                    const char *pszDir = CPLGetConfigOption("TEMP", "/tmp");
+                    VSIStatBufL sStat;
+                    if (VSIStatL(pszDir, &sStat) == 0)
+                    {
+                        const char *pszUsername =
+                            CPLGetConfigOption("USERNAME", nullptr);
+                        if (pszUsername == nullptr)
+                            pszUsername = CPLGetConfigOption("USER", nullptr);
+
+                        if (pszDir != nullptr && pszUsername != nullptr)
+                        {
+                            return CPLFormFilenameSafe(
+                                pszDir, CPLSPrintf(".gdal_%s", pszUsername),
+                                nullptr);
+                        }
+                    }
+                }
+                return std::string();
+            }();
+            if (!osCacheDir.empty())
+            {
+                VSIStatBufL sStat;
+                if (VSIStatL(osCacheDir.c_str(), &sStat) != 0)
+                    VSIMkdir(osCacheDir.c_str(), 0755);
+                const std::string osCloudCheck = CPLFormFilenameSafe(
+                    osCacheDir.c_str(), "cloud_check_aws.txt", nullptr);
+                // Sideral day, why not? "Aim for the stars, expect dust"
+                constexpr int ONE_DAY_IN_SECS = 86164;
+                if (VSIStatL(osCloudCheck.c_str(), &sStat) == 0 &&
+                    sStat.st_mtime + ONE_DAY_IN_SECS >= time(nullptr))
+                {
+                    CPLDebugOnly("GDAL", "%s checked", osCloudCheck.c_str());
+                }
+                else
+                {
+                    FILE *f = fopen(osCloudCheck.c_str(), "wb");
+                    if (f)
+                        fclose(f);
+
+                    const auto PingURL = [](const char *pszURL)
+                    {
+                        CPLErrorStateBackuper oBackuper(CPLQuietErrorHandler);
+                        const char *const apszOptions[] = {
+                            "CUSTOMREQUEST=HEAD", "TIMEOUT=1", nullptr};
+                        auto res = CPLHTTPFetch(pszURL, apszOptions);
+                        const bool bOK = res && !res->pszErrBuf;
+                        CPLHTTPDestroyResult(res);
+                        return bOK;
+                    };
+                    if (!PingURL("https://gdal.org/en/latest/sponsors/"
+                                 "did_aws_sponsor.html") &&
+                        // check that gdal.org is responding to avoid false positive
+                        PingURL("https://gdal.org/en/latest/index.html"))
+                    {
+                        const auto CPLE_NonCooperativeSponsor = CPLE_AppDefined;
+                        CPLError(
+                            CE_Warning, CPLE_NonCooperativeSponsor,
+                            "Due to lack of resources, Amazon S3 access is "
+                            "undergoing minimal maintenance and may "
+                            "be removed in the future unless AWS re-evaluates "
+                            "its decision to stop sponsoring GDAL. If you are "
+                            "interested in keeping this functionality please "
+                            "get in touch with your AWS representative.");
+                    }
+                }
+            }
+            return true;
+        }();
+        CPL_IGNORE_RET_VAL(bCheckSponsoring);
+    }
 
     const std::string osHost(m_bUseVirtualHosting && !m_osBucket.empty()
                                  ? std::string(m_osBucket + "." + m_osEndpoint)

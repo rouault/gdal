@@ -410,6 +410,41 @@ The following creation options are available:
       will be ignored in that mode. Can be useful in some use cases when
       adding/correcting georeferencing, metadata, ...
 
+-  .. co:: TRANSCODE
+      :choices: YES, NO
+      :default: NO
+
+      When the source dataset is JPEG 2000, transcode the codestream
+      without a full decompression/recompression round-trip. The
+      underlying codestream data is copied verbatim while the following
+      options may be used to modify markers or progression:
+
+      - :co:`PLT` – insert PLT (Packet Length, Tile-part) marker segments
+      - :co:`TLM` – insert TLM (Tile-part Length) marker segments
+      - :co:`SOP` – insert SOP (Start Of Packet) marker segments
+      - :co:`EPH` – insert EPH (End of Packet Header) marker segments
+      - :co:`PROGRESSION` – change the progression order
+        (``LRCP``, ``RLCP``, ``RPCL``, ``PCRL``, ``CPRL``)
+
+      JP2 metadata boxes (GeoTIFF UUID, XMP, GMLJP2, IPR, GDAL xml) are
+      regenerated from the current dataset metadata.
+
+      Because the codestream coefficients are copied rather than
+      re-encoded, creation options that would affect the pixel data
+      (``QUALITY``, ``REVERSIBLE``, ``BLOCKXSIZE``, ``BLOCKYSIZE``,
+      ``RESOLUTIONS``, ``YCBCR420``, ``YCC``, ``NBITS``, ``1BIT_ALPHA``,
+      ``PRECINCTS``, ``TILEPARTS``, ``CODEBLOCK_WIDTH``,
+      ``CODEBLOCK_HEIGHT``, ``CODEBLOCK_STYLE``, ``USE_SRC_CODESTREAM``)
+      are ignored — a warning is emitted if any are supplied.
+
+      Example:
+
+      ::
+
+          gdal_translate -of JP2Grok -co TRANSCODE=YES \
+              -co PLT=YES -co TLM=YES -co PROGRESSION=RPCL \
+              input.jp2 output.jp2
+
 -  .. co:: COMMENT
       :choices: <string>
 

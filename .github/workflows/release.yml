@@ -32,7 +32,7 @@ jobs:
       - name: extract tag info
         id: unpack_tag
         run: |
-          export TAG=${{ github.ref_name }}
+          export TAG="${GITHUB_REF_NAME}"
           export RC=$(python3 -c "print('' if 'rc' not in '$TAG'.lower() else ''.join('$TAG'.lower().rpartition('rc')[1:]).lower())")
           export BETA=$(python3 -c "print('' if 'beta' not in '$TAG'.lower() else ''.join('$TAG'.lower().rpartition('beta')[1:]).lower())")
           export VERSION=$(python3 -c "print('$TAG'.lower().lstrip('v').partition('rc')[0])")
@@ -67,6 +67,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Setup environment
         shell: bash -l {0}
         env:
@@ -110,9 +112,9 @@ jobs:
         id: mkgdaldist
         run: |
           if test "$RC" != ""; then
-            ./mkgdaldist.sh $VERSION -tag ${{ github.ref_name }} -rc $RC
+            ./mkgdaldist.sh "$VERSION" -tag "${GITHUB_REF_NAME}" -rc $RC
           else
-            ./mkgdaldist.sh $VERSION -tag ${{ github.ref_name }}
+            ./mkgdaldist.sh "$VERSION" -tag "${GITHUB_REF_NAME}"
           fi
       - name: Upload tar.gz
         id: upload_tar_gz
@@ -188,7 +190,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') && env.PRE_RELEASE != 'true'
         with:
           attestations: true
-      - uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+      - uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1   # zizmor: ignore[superfluous-actions]
         if: startsWith(github.ref, 'refs/tags/')
         name: Publish release as draft
         with:
@@ -225,6 +227,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Docker
         uses: docker/setup-docker-action@1a6edb0ba9ac496f6850236981f15d8f9a82254d # v5.0.0
         with:
@@ -261,7 +265,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
         run: |
           cd docker/${{ matrix.base }}
-          ./build.sh --platform linux/${{ matrix.platform }} --with-multi-arch --push --gdal ${{ github.ref_name }} --tag ${{ env.VERSION }} --release --proj ${{ env.PROJ_VERSION }}
+          ./build.sh --platform linux/${{ matrix.platform }} --with-multi-arch --push --gdal "${GITHUB_REF_NAME}" --tag "${VERSION}" --release --proj "${PROJ_VERSION}"
           docker run --rm ghcr.io/osgeo/gdal:${{ matrix.base }}-${VERSION_WITH_RC}-${{ matrix.platform }} gdalinfo --formats
           docker run --rm ghcr.io/osgeo/gdal:${{ matrix.base }}-${VERSION_WITH_RC}-${{ matrix.platform }} ogrinfo --formats
   create-docker-manifest:

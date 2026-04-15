@@ -208,6 +208,13 @@ bool GDALVectorClipAlgorithm::RunStep(GDALPipelineStepRunContext &)
         ReportError(CE_Failure, CPLE_AppDefined, "%s", errMsg.c_str());
         return false;
     }
+    if (!poClipGeom->IsValid())
+    {
+        ReportError(CE_Failure, CPLE_AppDefined,
+                    "Clipping geometry is invalid. You can attempt to correct "
+                    "it with 'gdal vector make-valid'.");
+        return false;
+    }
 
     auto poLikeDS = m_likeDataset.GetDatasetRef();
     if (bSrcLayerHasSRS && !poClipGeom->getSpatialReference() && poLikeDS &&
@@ -221,46 +228,63 @@ bool GDALVectorClipAlgorithm::RunStep(GDALPipelineStepRunContext &)
 
     auto outDS = std::make_unique<GDALVectorPipelineOutputDataset>(*poSrcDS);
 
-    bool ret = true;
-    for (int i = 0; ret && i < nLayerCount; ++i)
+    for (int i = 0; i < nLayerCount; ++i)
     {
-        auto poSrcLayer = poSrcDS->GetLayer(i);
-        ret = (poSrcLayer != nullptr);
-        if (ret)
+        const auto poSrcLayer = poSrcDS->GetLayer(i);
+        if (poSrcLayer == nullptr)
         {
-            if (m_activeLayer.empty() ||
-                m_activeLayer == poSrcLayer->GetDescription())
+            return false;
+        }
+
+        if (m_activeLayer.empty() ||
+            m_activeLayer == poSrcLayer->GetDescription())
+        {
+            const OGRSpatialReference *clipSRS =
+                poClipGeom->getSpatialReference();
+            const OGRSpatialReference *layerSRS = poSrcLayer->GetSpatialRef();
+
+            auto poClipGeomForLayer =
+                std::unique_ptr<OGRGeometry>(poClipGeom->clone());
+            if (clipSRS && layerSRS && !clipSRS->IsSame(layerSRS))
             {
-                auto poClipGeomForLayer =
-                    std::unique_ptr<OGRGeometry>(poClipGeom->clone());
-                if (poClipGeomForLayer->getSpatialReference() &&
-                    poSrcLayer->GetSpatialRef())
+                if (poClipGeomForLayer->transformTo(
+                        poSrcLayer->GetSpatialRef()) != OGRERR_NONE)
                 {
-                    ret = poClipGeomForLayer->transformTo(
-                              poSrcLayer->GetSpatialRef()) == OGRERR_NONE;
+                    ReportError(CE_Failure, CPLE_AppDefined,
+                                "Could not transform clipping geometry to "
+                                "layer SRS.");
+                    return false;
                 }
-                if (ret)
+
+                if (!poClipGeomForLayer->IsValid())
                 {
-                    outDS->AddLayer(
-                        *poSrcLayer,
-                        std::make_unique<GDALVectorClipAlgorithmLayer>(
-                            *poSrcLayer, std::move(poClipGeomForLayer)));
+                    ReportError(
+                        CE_Failure, CPLE_AppDefined,
+                        "Clipping geometry became invalid upon "
+                        "transformation to the layer SRS. You can "
+                        "try transforming the geometry and repairing it "
+                        "separately with 'gdal vector reproject' "
+                        "and 'gdal vector make-valid'.");
+                    return false;
                 }
             }
-            else
-            {
-                outDS->AddLayer(
-                    *poSrcLayer,
-                    std::make_unique<GDALVectorPipelinePassthroughLayer>(
-                        *poSrcLayer));
-            }
+
+            outDS->AddLayer(*poSrcLayer,
+                            std::make_unique<GDALVectorClipAlgorithmLayer>(
+                                *poSrcLayer, std::move(poClipGeomForLayer)));
+        }
+        else
+        {
+            outDS->AddLayer(
+                *poSrcLayer,
+                std::make_unique<GDALVectorPipelinePassthroughLayer>(
+                    *poSrcLayer));
         }
     }
 
-    if (ret)
-        m_outputDataset.Set(std::move(outDS));
+    m_outputDataset.Set(std::move(outDS));
 
-    return ret;
+    return true;
 }
 
 GDALVectorClipAlgorithmStandalone::~GDALVectorClipAlgorithmStandalone() =

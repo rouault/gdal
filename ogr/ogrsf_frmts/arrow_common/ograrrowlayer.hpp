@@ -471,6 +471,7 @@ inline bool OGRArrowLayer::MapArrowTypeToOGR(
         }
 
         case arrow::Type::LIST:
+        case arrow::Type::LARGE_LIST:
         case arrow::Type::FIXED_SIZE_LIST:
         {
             bTypeOK = true;
@@ -581,7 +582,6 @@ inline bool OGRArrowLayer::MapArrowTypeToOGR(
         case arrow::Type::DICTIONARY:
         case arrow::Type::EXTENSION:
         case arrow::Type::DURATION:
-        case arrow::Type::LARGE_LIST:
         case arrow::Type::INTERVAL_MONTH_DAY_NANO:
 #if ARROW_VERSION_MAJOR >= 12
         case arrow::Type::RUN_END_ENCODED:
@@ -1676,13 +1676,29 @@ static CPLJSONObject GetObjectAsJSON(const arrow::Array *array,
     }
 }
 
+template <class ArrowType>
+static int GetListLength(const ArrowType *array, int64_t nIdxInArray)
+{
+    const auto nCount = array->value_length(nIdxInArray);
+    if constexpr (!std::is_same_v<decltype(nCount), int>)
+    {
+        if (nCount > INT_MAX)
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "More than %d values in list. Clamping to it", INT_MAX);
+            return INT_MAX;
+        }
+    }
+    return static_cast<int>(nCount);
+}
+
 template <class OGRType, class ArrowType, class ArrayType>
 static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
                      const ArrayType *array)
 {
     const auto values = std::static_pointer_cast<ArrowType>(array->values());
     const auto nIdxStart = array->value_offset(nIdxInArray);
-    const int nCount = array->value_length(nIdxInArray);
+    const int nCount = GetListLength(array, nIdxInArray);
     std::vector<OGRType> aValues;
     aValues.reserve(nCount);
     for (int k = 0; k < nCount; k++)
@@ -1699,7 +1715,7 @@ static void ReadListDouble(OGRFeature *poFeature, int i, int64_t nIdxInArray,
     const auto values = std::static_pointer_cast<ArrowType>(array->values());
     const auto rawValues = values->raw_values();
     const auto nIdxStart = array->value_offset(nIdxInArray);
-    const int nCount = array->value_length(nIdxInArray);
+    const int nCount = GetListLength(array, nIdxInArray);
     std::vector<double> aValues;
     aValues.reserve(nCount);
     for (int k = 0; k < nCount; k++)
@@ -1772,7 +1788,7 @@ static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
             const auto values = std::static_pointer_cast<arrow::HalfFloatArray>(
                 array->values());
             const auto nIdxStart = array->value_offset(nIdxInArray);
-            const int nCount = array->value_length(nIdxInArray);
+            const int nCount = GetListLength(array, nIdxInArray);
             std::vector<double> aValues;
             aValues.reserve(nCount);
             for (int k = 0; k < nCount; k++)
@@ -1809,7 +1825,7 @@ static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
             const auto values = std::static_pointer_cast<arrow::Decimal32Array>(
                 array->values());
             const auto nIdxStart = array->value_offset(nIdxInArray);
-            const int nCount = array->value_length(nIdxInArray);
+            const int nCount = GetListLength(array, nIdxInArray);
             std::vector<double> aValues;
             aValues.reserve(nCount);
             for (int k = 0; k < nCount; k++)
@@ -1829,7 +1845,7 @@ static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
             const auto values = std::static_pointer_cast<arrow::Decimal64Array>(
                 array->values());
             const auto nIdxStart = array->value_offset(nIdxInArray);
-            const int nCount = array->value_length(nIdxInArray);
+            const int nCount = GetListLength(array, nIdxInArray);
             std::vector<double> aValues;
             aValues.reserve(nCount);
             for (int k = 0; k < nCount; k++)
@@ -1851,7 +1867,7 @@ static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
                 std::static_pointer_cast<arrow::Decimal128Array>(
                     array->values());
             const auto nIdxStart = array->value_offset(nIdxInArray);
-            const int nCount = array->value_length(nIdxInArray);
+            const int nCount = GetListLength(array, nIdxInArray);
             std::vector<double> aValues;
             aValues.reserve(nCount);
             for (int k = 0; k < nCount; k++)
@@ -1872,7 +1888,7 @@ static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
                 std::static_pointer_cast<arrow::Decimal256Array>(
                     array->values());
             const auto nIdxStart = array->value_offset(nIdxInArray);
-            const int nCount = array->value_length(nIdxInArray);
+            const int nCount = GetListLength(array, nIdxInArray);
             std::vector<double> aValues;
             aValues.reserve(nCount);
             for (int k = 0; k < nCount; k++)
@@ -1892,7 +1908,7 @@ static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
             const auto values =
                 std::static_pointer_cast<arrow::StringArray>(array->values());
             const auto nIdxStart = array->value_offset(nIdxInArray);
-            const int nCount = array->value_length(nIdxInArray);
+            const int nCount = GetListLength(array, nIdxInArray);
             CPLStringList aosList;
             for (int k = 0; k < nCount; k++)
             {
@@ -1912,7 +1928,7 @@ static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
                 std::static_pointer_cast<arrow::LargeStringArray>(
                     array->values());
             const auto nIdxStart = array->value_offset(nIdxInArray);
-            const auto nCount = array->value_length(nIdxInArray);
+            const auto nCount = GetListLength(array, nIdxInArray);
             CPLStringList aosList;
             for (auto k = decltype(nCount){0}; k < nCount; k++)
             {
@@ -1933,7 +1949,7 @@ static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
                 std::static_pointer_cast<arrow::StringViewArray>(
                     array->values());
             const auto nIdxStart = array->value_offset(nIdxInArray);
-            const int nCount = array->value_length(nIdxInArray);
+            const int nCount = GetListLength(array, nIdxInArray);
             CPLStringList aosList;
             for (int k = 0; k < nCount; k++)
             {
@@ -1953,7 +1969,7 @@ static void ReadList(OGRFeature *poFeature, int i, int64_t nIdxInArray,
             const auto values =
                 std::static_pointer_cast<arrow::BinaryArray>(array->values());
             const auto nIdxStart = array->value_offset(nIdxInArray);
-            const auto nCount = array->value_length(nIdxInArray);
+            const auto nCount = GetListLength(array, nIdxInArray);
             CPLStringList aosList;
             for (auto k = decltype(nCount){0}; k < nCount; k++)
             {
@@ -2229,6 +2245,26 @@ inline OGRFeature *OGRArrowLayer::ReadFeature(
             }
         }
     }
+
+    const auto ReadList =
+        [this, poFeature, nIdxInBatch](const auto *array, int iField)
+    {
+        const auto listType =
+            static_cast<const arrow::ListType *>(array->data()->type.get());
+
+        if (m_bListsAsStringJson)
+        {
+            poFeature->SetField(
+                iField, GetListAsJSON(array, static_cast<size_t>(nIdxInBatch))
+                            .Format(CPLJSONObject::PrettyFormat::Plain)
+                            .c_str());
+        }
+        else
+        {
+            ::ReadList(poFeature, iField, nIdxInBatch, array,
+                       listType->value_field()->type()->id());
+        }
+    };
 
     const int nFieldCount = m_poFeatureDefn->GetFieldCount();
     for (int i = 0; i < nFieldCount; ++i)
@@ -2598,48 +2634,20 @@ inline OGRFeature *OGRArrowLayer::ReadFeature(
 
             case arrow::Type::LIST:
             {
-                const auto castArray =
-                    static_cast<const arrow::ListArray *>(array);
-                const auto listType = static_cast<const arrow::ListType *>(
-                    array->data()->type.get());
+                ReadList(static_cast<const arrow::ListArray *>(array), i);
+                break;
+            }
 
-                if (m_bListsAsStringJson)
-                {
-                    poFeature->SetField(
-                        i, GetListAsJSON(castArray,
-                                         static_cast<size_t>(nIdxInBatch))
-                               .Format(CPLJSONObject::PrettyFormat::Plain)
-                               .c_str());
-                }
-                else
-                {
-                    ReadList(poFeature, i, nIdxInBatch, castArray,
-                             listType->value_field()->type()->id());
-                }
+            case arrow::Type::LARGE_LIST:
+            {
+                ReadList(static_cast<const arrow::LargeListArray *>(array), i);
                 break;
             }
 
             case arrow::Type::FIXED_SIZE_LIST:
             {
-                const auto castArray =
-                    static_cast<const arrow::FixedSizeListArray *>(array);
-                const auto listType =
-                    static_cast<const arrow::FixedSizeListType *>(
-                        array->data()->type.get());
-
-                if (m_bListsAsStringJson)
-                {
-                    poFeature->SetField(
-                        i, GetListAsJSON(castArray,
-                                         static_cast<size_t>(nIdxInBatch))
-                               .Format(CPLJSONObject::PrettyFormat::Plain)
-                               .c_str());
-                }
-                else
-                {
-                    ReadList(poFeature, i, nIdxInBatch, castArray,
-                             listType->value_field()->type()->id());
-                }
+                ReadList(static_cast<const arrow::FixedSizeListArray *>(array),
+                         i);
                 break;
             }
 
@@ -2694,7 +2702,6 @@ inline OGRFeature *OGRArrowLayer::ReadFeature(
             case arrow::Type::DICTIONARY:
             case arrow::Type::EXTENSION:
             case arrow::Type::DURATION:
-            case arrow::Type::LARGE_LIST:
             case arrow::Type::INTERVAL_MONTH_DAY_NANO:
 #if ARROW_VERSION_MAJOR >= 12
             case arrow::Type::RUN_END_ENCODED:

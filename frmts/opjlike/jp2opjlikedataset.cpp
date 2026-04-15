@@ -2140,6 +2140,40 @@ GDALDataset *JP2OPJLikeDataset<CODEC, BASE>::CreateCopy(
         return nullptr;
     }
 
+    /* -------------------------------------------------------------------- */
+    /*      Transcode short-circuit (Grok only).                            */
+    /* -------------------------------------------------------------------- */
+    if (CPLFetchBool(papszOptions, "TRANSCODE", false))
+    {
+        if (!BASE::canPerformDirectIO())
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "TRANSCODE=YES is only supported by the JP2Grok driver");
+            return nullptr;
+        }
+
+        CPLString osSrcFilename(poSrcDS->GetDescription());
+        if (poSrcDS->GetDriver() != nullptr &&
+            poSrcDS->GetDriver() == GDALGetDriverByName("VRT"))
+        {
+            VRTDataset *poVRTDS = dynamic_cast<VRTDataset *>(poSrcDS);
+            if (poVRTDS)
+            {
+                GDALDataset *poSimpleSourceDS =
+                    poVRTDS->GetSingleSimpleSource();
+                if (poSimpleSourceDS)
+                    osSrcFilename = poSimpleSourceDS->GetDescription();
+            }
+        }
+
+        if (!CODEC::transcode(osSrcFilename, pszFilename, poSrcDS,
+                              papszOptions))
+            return nullptr;
+
+        GDALOpenInfo oOpenInfo(pszFilename, GA_ReadOnly);
+        return Open(&oOpenInfo);
+    }
+
     const bool bInspireTG = CPLFetchBool(papszOptions, "INSPIRE_TG", false);
 
     /* -------------------------------------------------------------------- */

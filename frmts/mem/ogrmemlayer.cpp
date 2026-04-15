@@ -53,10 +53,8 @@ IOGRMemLayerFeatureIterator::~IOGRMemLayerFeatureIterator() = default;
 OGRMemLayer::OGRMemLayer(const char *pszName,
                          const OGRSpatialReference *poSRSIn,
                          OGRwkbGeometryType eReqType)
-    : m_poFeatureDefn(new OGRFeatureDefn(pszName))
+    : m_poFeatureDefn(OGRFeatureDefnRefCountedPtr::makeInstance(pszName))
 {
-    m_poFeatureDefn->Reference();
-
     SetDescription(m_poFeatureDefn->GetName());
     m_poFeatureDefn->SetGeomType(eReqType);
 
@@ -74,8 +72,6 @@ OGRMemLayer::OGRMemLayer(const char *pszName,
 OGRMemLayer::OGRMemLayer(const OGRFeatureDefn &oFeatureDefn)
     : m_poFeatureDefn(oFeatureDefn.Clone())
 {
-    m_poFeatureDefn->Reference();
-
     SetDescription(m_poFeatureDefn->GetName());
 
     m_oMapFeaturesIter = m_oMapFeatures.begin();
@@ -104,9 +100,6 @@ OGRMemLayer::~OGRMemLayer()
         }
         CPLFree(m_papoFeatures);
     }
-
-    if (m_poFeatureDefn)
-        m_poFeatureDefn->Release();
 }
 
 /************************************************************************/

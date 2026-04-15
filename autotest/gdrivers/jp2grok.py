@@ -1163,6 +1163,197 @@ def test_jp2grok_rewrite_boxes(tmp_path):
 # Test driver metadata
 
 
+###############################################################################
+# Helper: build a small georeferenced source JP2 for transcode tests.
+
+
+def _make_transcode_source(tmp_path, epsg, gt, src_options=None):
+    np = pytest.importorskip("numpy")
+    sr = osr.SpatialReference()
+    sr.ImportFromEPSG(epsg)
+    mem_ds = gdal.GetDriverByName("MEM").Create("", 20, 20)
+    pixel_data = np.arange(20 * 20, dtype=np.uint8).reshape(20, 20)
+    mem_ds.GetRasterBand(1).WriteArray(pixel_data)
+    mem_ds.SetSpatialRef(sr)
+    mem_ds.SetGeoTransform(list(gt))
+
+    src_jp2 = str(tmp_path / "transcode_src.jp2")
+    out_ds = gdaltest.jp2grok_drv.CreateCopy(
+        src_jp2, mem_ds, options=(src_options or ["REVERSIBLE=YES"])
+    )
+    del out_ds
+    del mem_ds
+    return src_jp2, pixel_data
+
+
+###############################################################################
+# Test transcode with PLT/TLM/SOP/EPH markers and progression order changes.
+#
+# A single parametrized test verifies that:
+#  - each marker option actually causes the corresponding marker to be
+#    written (checked via GetJPEG2000StructureAsString)
+#  - PROGRESSION actually changes the COD SGcod_Progress field
+#  - pixel data and georeferencing are preserved across transcode
+
+
+@pytest.mark.parametrize(
+    "options,expect_plt,expect_tlm,expect_sop,expect_eph,expect_progression",
+    [
+        # PLT + TLM only
+        (["PLT=YES", "TLM=YES"], True, True, False, False, None),
+        # SOP + EPH only
+        ([], False, False, False, False, None),
+        (["SOP=YES", "EPH=YES"], False, False, True, True, None),
+        # Progression-order change (RPCL); also keep PLT/TLM on to exercise
+        # the combined code path
+        (
+            ["PLT=YES", "TLM=YES", "PROGRESSION=RPCL"],
+            True,
+            True,
+            False,
+            False,
+            "RPCL",
+        ),
+    ],
+    ids=["plt_tlm", "default", "sop_eph", "progression_rpcl"],
+)
+def test_jp2grok_transcode_markers(
+    tmp_path,
+    options,
+    expect_plt,
+    expect_tlm,
+    expect_sop,
+    expect_eph,
+    expect_progression,
+):
+    gdaltest.importorskip_gdal_array()
+    np = pytest.importorskip("numpy")
+
+    src_jp2, pixel_data = _make_transcode_source(
+        tmp_path, 32631, (500000, 1, 0, 5000000, 0, -1)
+    )
+
+    dst_jp2 = str(tmp_path / "transcode_dst.jp2")
+    src_ds = gdal.Open(src_jp2)
+    out_ds = gdaltest.jp2grok_drv.CreateCopy(
+        dst_jp2, src_ds, options=["TRANSCODE=YES"] + options
+    )
+    del out_ds
+    del src_ds
+
+    # Pixel data and georeferencing must survive transcode
+    ds = gdal.Open(dst_jp2)
+    assert ds is not None
+    assert ds.GetSpatialRef().GetAuthorityCode(None) == "32631"
+    assert ds.GetGeoTransform() == (500000, 1, 0, 5000000, 0, -1)
+    assert np.array_equal(ds.GetRasterBand(1).ReadAsArray(), pixel_data)
+    ds = None
+
+    # Check that the requested markers and progression were actually written
+    structure = gdal.GetJPEG2000StructureAsString(dst_jp2, ["ALL=YES"])
+
+    if expect_plt:
+        assert '<Marker name="PLT"' in structure
+    else:
+        assert '<Marker name="PLT"' not in structure
+
+    if expect_tlm:
+        assert '<Marker name="TLM"' in structure
+    else:
+        assert '<Marker name="TLM"' not in structure
+
+    # SOP/EPH are encoded in the COD Scod field's description text.
+    if expect_sop:
+        assert "SOP marker segments may be used" in structure
+    else:
+        assert "No SOP marker segments" in structure
+    if expect_eph:
+        assert "EPH marker segments may be used" in structure
+    else:
+        assert "No EPH marker segments" in structure
+
+    if expect_progression is not None:
+        assert (
+            f'<Field name="SGcod_Progress" type="uint8" '
+            f'description="{expect_progression}">' in structure
+        )
+
+
+###############################################################################
+# Test transcode from the existing byte.jp2 test fixture.
+#
+# Unlike the parametrized cases above, this exercises transcode on a real
+# third-party JP2 with a GeoTIFF UUID box already present, checking that
+# metadata (SRS, GeoTransform) and pixel data survive a round-trip through
+# grk_transcode() when the source was NOT created by the Grok driver itself.
+# PLT=YES is included to exercise PLT insertion on a file that did not
+# originally carry a PLT marker.
+
+
+def test_jp2grok_transcode_byte(tmp_path):
+
+    src_ds = gdal.Open("data/jpeg2000/byte.jp2")
+    src_wkt = src_ds.GetProjectionRef()
+    src_gt = src_ds.GetGeoTransform()
+    src_cs = src_ds.GetRasterBand(1).Checksum()
+
+    dst_jp2 = str(tmp_path / "transcode_byte.jp2")
+    out_ds = gdaltest.jp2grok_drv.CreateCopy(
+        dst_jp2, src_ds, options=["TRANSCODE=YES", "PLT=YES"]
+    )
+    del out_ds
+    del src_ds
+
+    ds = gdal.Open(dst_jp2)
+    assert ds is not None
+
+    sr1 = osr.SpatialReference()
+    sr1.SetFromUserInput(ds.GetProjectionRef())
+    sr2 = osr.SpatialReference()
+    sr2.SetFromUserInput(src_wkt)
+    assert sr1.IsSame(sr2), "bad spatial reference after transcode"
+
+    got_gt = ds.GetGeoTransform()
+    for i in range(6):
+        assert got_gt[i] == pytest.approx(src_gt[i], abs=1e-8)
+
+    assert ds.GetRasterBand(1).Checksum() == src_cs
+    ds = None
+
+    # PLT=YES should have actually inserted a PLT marker
+    structure = gdal.GetJPEG2000StructureAsString(dst_jp2, ["ALL=YES"])
+    assert '<Marker name="PLT"' in structure
+
+
+###############################################################################
+# Test transcode warns about ignored options
+
+
+def test_jp2grok_transcode_ignored_options(tmp_path):
+
+    src_ds = gdal.Open("data/jpeg2000/byte.jp2")
+    dst_jp2 = str(tmp_path / "transcode_ignored.jp2")
+
+    with gdaltest.error_raised(gdal.CE_Warning, match="ignored when TRANSCODE=YES"):
+        out_ds = gdaltest.jp2grok_drv.CreateCopy(
+            dst_jp2,
+            src_ds,
+            options=["TRANSCODE=YES", "QUALITY=50", "REVERSIBLE=YES"],
+        )
+        del out_ds
+
+    del src_ds
+
+    # Verify the file was still created successfully despite warnings
+    ds = gdal.Open(dst_jp2)
+    assert ds is not None
+    ds = None
+
+
+###############################################################################
+# Test driver metadata
+
+
 def test_jp2grok_driver_metadata():
 
     drv = gdal.GetDriverByName("JP2Grok")

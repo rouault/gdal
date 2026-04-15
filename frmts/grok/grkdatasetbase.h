@@ -1359,30 +1359,34 @@ struct GRKCodecWrapper
     }
 
     /**
-     * @brief Rewrite JP2 boxes via Grok transcode.
+     * @brief Shared transcode implementation: copy codestream while
+     *        rewriting JP2 metadata boxes from @p poDS.
      *
-     * Replaces the driver-side box rewriting logic in Close() by using
-     * grk_transcode() to copy the codestream verbatim while writing
-     * updated metadata boxes.
+     * Used by both rewriteBoxes() (in-place rewrite via tmp file) and
+     * transcode() (explicit src -> dst with extra cparams set by caller).
      *
-     * @param pszFilename source (and destination) file path
-     * @param poDS        dataset carrying updated metadata
+     * @param pszSrcFilename source file path
+     * @param pszDstFilename destination file path (may equal src only via
+     *                       external caller serialization — prefer tmp)
+     * @param poDS           dataset carrying metadata for output boxes
+     * @param cparams        compression parameters (already configured by
+     *                       caller for PLT/TLM/SOP/EPH/progression etc.)
+     * @param pszErrorCtx    short context label used in error messages
      * @return true on success
      */
-    static bool rewriteBoxes(const char *pszFilename, GDALDataset *poDS)
+    static bool doTranscode(const char *pszSrcFilename,
+                            const char *pszDstFilename, GDALDataset *poDS,
+                            grk_cparameters *cparams, const char *pszErrorCtx)
     {
-        CPLDebug("GROK", "Rewriting boxes via transcode for %s", pszFilename);
-
-        /* Read source header to get image */
         grk_stream_params srcStreamParams{};
-        safe_strcpy(srcStreamParams.file, pszFilename);
+        safe_strcpy(srcStreamParams.file, pszSrcFilename);
 
         grk_decompress_parameters dparams{};
         auto *decCodec = grk_decompress_init(&srcStreamParams, &dparams);
         if (!decCodec)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
-                     "grk_decompress_init() failed for rewrite");
+                     "grk_decompress_init() failed for %s", pszErrorCtx);
             return false;
         }
 
@@ -1390,7 +1394,7 @@ struct GRKCodecWrapper
         if (!grk_decompress_read_header(decCodec, &srcHeader))
         {
             CPLError(CE_Failure, CPLE_AppDefined,
-                     "grk_decompress_read_header() failed for rewrite");
+                     "grk_decompress_read_header() failed for %s", pszErrorCtx);
             grk_object_unref(decCodec);
             return false;
         }
@@ -1399,12 +1403,11 @@ struct GRKCodecWrapper
         if (!srcImage)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
-                     "grk_decompress_get_image() failed for rewrite");
+                     "grk_decompress_get_image() failed for %s", pszErrorCtx);
             grk_object_unref(decCodec);
             return false;
         }
 
-        /* Prepare updated metadata on the image */
         if (!srcImage->meta)
             srcImage->meta = grk_image_meta_new();
 
@@ -1503,27 +1506,50 @@ struct GRKCodecWrapper
             }
         }
 
-        /* Transcode: copy codestream, rewrite boxes */
+        grk_stream_params transSrcParams{};
+        safe_strcpy(transSrcParams.file, pszSrcFilename);
+
+        grk_stream_params dstParams{};
+        safe_strcpy(dstParams.file, pszDstFilename);
+
+        uint64_t written =
+            grk_transcode(&transSrcParams, &dstParams, cparams, srcImage);
+        grk_object_unref(decCodec);
+
+        if (written == 0)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "grk_transcode() failed for %s", pszErrorCtx);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @brief Rewrite JP2 boxes via Grok transcode.
+     *
+     * Replaces the driver-side box rewriting logic in Close() by using
+     * grk_transcode() to copy the codestream verbatim while writing
+     * updated metadata boxes.
+     *
+     * @param pszFilename source (and destination) file path
+     * @param poDS        dataset carrying updated metadata
+     * @return true on success
+     */
+    static bool rewriteBoxes(const char *pszFilename, GDALDataset *poDS)
+    {
+        CPLDebug("GROK", "Rewriting boxes via transcode for %s", pszFilename);
+
         grk_cparameters cparams{};
         grk_compress_set_default_params(&cparams);
         cparams.cod_format = GRK_FMT_JP2;
 
         CPLString osTmpFilename(CPLSPrintf("%s.tmp", pszFilename));
 
-        grk_stream_params transSrcParams{};
-        safe_strcpy(transSrcParams.file, pszFilename);
-
-        grk_stream_params dstParams{};
-        safe_strcpy(dstParams.file, osTmpFilename.c_str());
-
-        uint64_t written =
-            grk_transcode(&transSrcParams, &dstParams, &cparams, srcImage);
-        grk_object_unref(decCodec);
-
-        if (written == 0)
+        if (!doTranscode(pszFilename, osTmpFilename.c_str(), poDS, &cparams,
+                         "box rewrite"))
         {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "grk_transcode() failed for box rewrite");
             VSIUnlink(osTmpFilename);
             return false;
         }
@@ -1537,6 +1563,90 @@ struct GRKCodecWrapper
         }
 
         return true;
+    }
+
+    /**
+     * @brief Transcode a JP2 file without full decompression/recompression.
+     *
+     * Copies the codestream while optionally inserting PLT/TLM/SOP/EPH
+     * markers and/or reordering the progression order.  Metadata boxes
+     * (GeoTIFF, XMP, GMLJP2, etc.) are written from @p poDS.
+     *
+     * @param pszSrcFilename source JP2/J2K file path
+     * @param pszDstFilename destination file path
+     * @param poDS           dataset carrying metadata for output boxes
+     * @param papszOptions   creation options (PLT, TLM, SOP, EPH, PROGRESSION)
+     * @return true on success
+     */
+    static bool transcode(const char *pszSrcFilename,
+                          const char *pszDstFilename, GDALDataset *poDS,
+                          CSLConstList papszOptions)
+    {
+        CPLDebug("GROK", "Transcoding %s -> %s", pszSrcFilename,
+                 pszDstFilename);
+
+        /* Warn about options that are meaningless in transcode mode */
+        static const char *const apszIgnoredOptions[] = {"QUALITY",
+                                                         "REVERSIBLE",
+                                                         "BLOCKXSIZE",
+                                                         "BLOCKYSIZE",
+                                                         "RESOLUTIONS",
+                                                         "YCBCR420",
+                                                         "YCC",
+                                                         "NBITS",
+                                                         "1BIT_ALPHA",
+                                                         "PRECINCTS",
+                                                         "TILEPARTS",
+                                                         "CODEBLOCK_WIDTH",
+                                                         "CODEBLOCK_HEIGHT",
+                                                         "CODEBLOCK_STYLE",
+                                                         "USE_SRC_CODESTREAM",
+                                                         nullptr};
+        for (int i = 0; apszIgnoredOptions[i]; i++)
+        {
+            if (CSLFetchNameValue(papszOptions, apszIgnoredOptions[i]))
+            {
+                CPLError(CE_Warning, CPLE_NotSupported,
+                         "Option %s ignored when TRANSCODE=YES",
+                         apszIgnoredOptions[i]);
+            }
+        }
+
+        grk_cparameters cparams{};
+        grk_compress_set_default_params(&cparams);
+        cparams.cod_format = GRK_FMT_JP2;
+
+        if (CPLTestBool(CSLFetchNameValueDef(papszOptions, "PLT", "FALSE")))
+            cparams.write_plt = true;
+        if (CPLTestBool(CSLFetchNameValueDef(papszOptions, "TLM", "FALSE")))
+            cparams.write_tlm = true;
+        if (CPLTestBool(CSLFetchNameValueDef(papszOptions, "SOP", "FALSE")))
+            cparams.write_sop = true;
+        if (CPLTestBool(CSLFetchNameValueDef(papszOptions, "EPH", "FALSE")))
+            cparams.write_eph = true;
+
+        const char *pszProgOrder =
+            CSLFetchNameValue(papszOptions, "PROGRESSION");
+        if (pszProgOrder)
+        {
+            if (EQUAL(pszProgOrder, "LRCP"))
+                cparams.transcode_prog_order = GRK_LRCP;
+            else if (EQUAL(pszProgOrder, "RLCP"))
+                cparams.transcode_prog_order = GRK_RLCP;
+            else if (EQUAL(pszProgOrder, "RPCL"))
+                cparams.transcode_prog_order = GRK_RPCL;
+            else if (EQUAL(pszProgOrder, "PCRL"))
+                cparams.transcode_prog_order = GRK_PCRL;
+            else if (EQUAL(pszProgOrder, "CPRL"))
+                cparams.transcode_prog_order = GRK_CPRL;
+            else
+                CPLError(CE_Warning, CPLE_NotSupported,
+                         "Unknown PROGRESSION value for transcode: %s",
+                         pszProgOrder);
+        }
+
+        return doTranscode(pszSrcFilename, pszDstFilename, poDS, &cparams,
+                           "transcode");
     }
 
     /**
@@ -2956,6 +3066,10 @@ struct JP2GRKDatasetBase : public JP2DatasetBase
             "source dataset is JPEG2000, whether to reuse the codestream of "
             "the "
             "source dataset unmodified' default='NO'/>"
+            "   <Option name='TRANSCODE' type='boolean' "
+            "description='Transcode source JP2 without full decompression. "
+            "Supports PLT, TLM, SOP, EPH, and PROGRESSION options.' "
+            "default='NO'/>"
             "   <Option name='CODEBLOCK_STYLE' type='string' "
             "description='Comma-separated combination of BYPASS, RESET, "
             "TERMALL, "

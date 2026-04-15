@@ -21,7 +21,8 @@ Description
 -----------
 
 :program:`gdal mdim info` lists various information about a GDAL supported
-multidimensional dataset.
+multidimensional dataset, and returns them on the standard output stream when used from the
+command line, or in the ``output`` parameter when used from the API.
 
 The following items will be reported (when known) as JSON:
 

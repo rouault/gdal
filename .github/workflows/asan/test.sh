@@ -40,6 +40,11 @@ echo "python3 -m pytest --capture=no -ra -vv -p no:sugar --color=no -o console_o
 cat pytest_wrapper.sh
 chmod +x pytest_wrapper.sh
 
+# Avoid flaky test about memory leak in Xerces-C (when the GMLAS driver tries
+# to interrupt Xerces-C work by sending an exception, this may cause memleaks
+# in some parts of Xerces)
+export SKIP_OGR_GMLAS_HUGE_PROCESSING_TIME=YES
+
 # NOTE: `find ... -exec` always exits with 0 even when the tests failed.
 # That turns out to be what we want here though, since we want
 # to not fail when the address sanitizer finds errors.

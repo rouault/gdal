@@ -145,17 +145,20 @@ Examples
 .. example::
    :title: Create a POINT layer named `names` with a string field named `name` in a new vector dataset
 
-   .. command-output:: gdal vector create --geometry-type point  --crs EPSG:4326 --field name:string --output-layer names ./points.gpkg
-      :cwd: ../../data
+   .. code-block:: bash
+
+       gdal vector create --geometry-type point  --crs EPSG:4326 --field name:string --output-layer names points.gpkg
 
 .. example::
    :title: Add a POINT layer named `names2` with a string field named `name` to an existing vector dataset
 
-   .. command-output:: gdal vector create --update --geometry-type point --crs EPSG:4326 --field name:string --output-layer names2 ./points.gpkg
-      :cwd: ../../data
+   .. code-block:: bash
+
+       gdal vector create --update --geometry-type point --crs EPSG:4326 --field name:string --output-layer names2 points.gpkg
 
 .. example::
     :title: Create a new vector dataset with a layer named `countries_new` based on the layer `countries` of an existing dataset
 
-    .. command-output:: gdal vector create --like ../data/poly.gpkg --input-layer poly --output-layer areas_new ./areas.gpkg
-        :cwd: ../../data
+   .. code-block:: bash
+
+       gdal vector create --like ../data/poly.gpkg --input-layer poly --output-layer areas_new areas.gpkg

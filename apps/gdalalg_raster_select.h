@@ -37,6 +37,7 @@ class GDALRasterSelectAlgorithm /* non final */
 
     std::vector<std::string> m_bands{};
     std::string m_mask{};
+    bool m_exclude = false;
 };
 
 /************************************************************************/

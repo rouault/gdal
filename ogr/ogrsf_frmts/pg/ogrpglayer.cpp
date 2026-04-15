@@ -2359,10 +2359,8 @@ const OGRSpatialReference *OGRPGGeomFieldDefn::GetSpatialRef() const
     if (poSRS == nullptr && nSRSId > 0)
     {
         poSRS = poLayer->GetDS()->FetchSRS(nSRSId);
-        if (poSRS != nullptr)
-            const_cast<OGRSpatialReference *>(poSRS)->Reference();
     }
-    return poSRS;
+    return poSRS.get();
 }
 
 /************************************************************************/

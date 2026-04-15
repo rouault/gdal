@@ -1520,7 +1520,7 @@ bool LIBERTIFFDataset::ReadBlock(GByte *pabyBlockData, int nBlockXOff,
 
             if (tlsState.m_tiff.tif_decodestrip)
             {
-                tlsState.m_tiff.tif_row = nBlockYOff * nBlockYSize;
+                tlsState.m_tiff.tif_dir.td_row = nBlockYOff * nBlockYSize;
                 tlsState.m_tiff.tif_rawcc = size;
                 tlsState.m_tiff.tif_rawdata = abyCompressedStrile.data();
                 tlsState.m_tiff.tif_rawcp = tlsState.m_tiff.tif_rawdata;

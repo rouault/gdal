@@ -25,8 +25,9 @@ if [ -z "$files" ]; then
 fi
 
 echo "Anaconda token is available, attempting to upload"
-conda install -c conda-forge python=3.12 anaconda-client -y
+conda install -c conda-forge -c defaults python=3.12 anaconda-client jq curl -y --strict-channel-priority
 
+# remove any existing packages for the same version
 for f in $files; do
   filename=$(basename "$f")
 
@@ -36,9 +37,24 @@ for f in $files; do
   # extract version number (e.g. 3.12.99)
   version=$(echo "$filename" | sed -E 's/^.+-([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 
-  echo "Removing gdal-master/$pkg/$version/$CONDA_SUBDIR"
-  anaconda -t "$ANACONDA_TOKEN" remove -f "gdal-master/$pkg/$version/$CONDA_SUBDIR" || true
+  existing_files=$(curl -s https://api.anaconda.org/package/gdal-master/$pkg | jq -r \
+    --arg version "$version" \
+    --arg subdir "$CONDA_SUBDIR" '
+    .files[]
+    | select(.version == $version)
+    | select(.attrs.subdir == $subdir)
+    | .full_name
+    ' | tr -d '\r')
 
+  for ef in $existing_files; do
+    echo "Removing $ef"
+    anaconda -t "$ANACONDA_TOKEN" remove --force "$ef"
+  done
+done
+
+# upload new packages
+for f in $files; do
+  filename=$(basename "$f")
   echo "Uploading $filename"
   anaconda -t "$ANACONDA_TOKEN" upload --force --no-progress --user gdal-master "$f"
 done

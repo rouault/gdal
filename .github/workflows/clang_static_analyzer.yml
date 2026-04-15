@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Run
         run: docker run --rm -v $PWD:$PWD ubuntu:24.04 sh -c "cd $PWD && apt update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends sudo software-properties-common && DEBIAN_FRONTEND=noninteractive sh ./ci/travis/csa_common/before_install.sh && sh ./ci/travis/csa_common/install.sh && sh ./ci/travis/csa_common/script.sh"

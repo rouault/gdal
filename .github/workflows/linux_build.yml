@@ -138,6 +138,7 @@ jobs:
           - name: Ubuntu 22.04, Intel compiler
             id: icc
             container: icc
+            travis_branch: ubuntu_2204
             build_script: build.sh
             os: ubuntu-22.04
 
@@ -187,13 +188,15 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Login to Docker Hub
         if: env.CONTAINER_REGISTRY == 'docker.io'
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}   # zizmor: ignore[secrets-outside-env]
+          password: ${{ secrets.DOCKERHUB_TOKEN }}   # zizmor: ignore[secrets-outside-env]
 
       - name: Login to GHCR
         if: env.CONTAINER_REGISTRY == 'ghcr.io'
@@ -409,8 +412,10 @@ jobs:
       - name: Deploy ssh key (for coverage)
         if: ${{ matrix.id == 'coverage' && github.event_name == 'push' && github.ref_name == 'master' && github.repository == 'OSGeo/gdal' }}
         shell: bash -l {0}
+        env:
+          GDAL_TEST_COVERAGE_RESULTS_SSH_KEY: ${{ secrets.GDAL_TEST_COVERAGE_RESULTS_SSH_KEY }}   # zizmor: ignore[secrets-outside-env]
         run: |
-          mkdir $HOME/.ssh && echo "${{ secrets.GDAL_TEST_COVERAGE_RESULTS_SSH_KEY }}" > $HOME/.ssh/id_rsa
+          mkdir $HOME/.ssh && echo "${GDAL_TEST_COVERAGE_RESULTS_SSH_KEY}" > $HOME/.ssh/id_rsa
           chmod 700 $HOME/.ssh && chmod 600 $HOME/.ssh/id_rsa
           ssh-keyscan -t rsa github.com >> $HOME/.ssh/known_hosts
           eval `ssh-agent -s`

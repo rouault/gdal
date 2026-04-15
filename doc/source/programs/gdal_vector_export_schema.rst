@@ -23,8 +23,9 @@ Synopsis
 Description
 -----------
 
-:program:`gdal vector export-schema` export the OGR_SCHEMA from a GDAL supported
-vector dataset.
+:program:`gdal vector export-schema` exports the OGR_SCHEMA from a GDAL supported
+vector dataset, and returns it on the standard output stream when used from the
+command line, or in the ``output`` parameter when used from the API.
 
 OGR_SCHEMA is a JSON object describing the structure of a vector dataset
 according to the schema definition at :source_file:`ogr/data/ogr_fields_override.schema.json`
@@ -63,5 +64,6 @@ Examples
 .. example::
    :title: Extracting the OGR_SCHEMA from the file :file:`poly.gpkg`
 
-   .. command-output:: gdal vector export-schema poly.gpkg
-      :cwd: ../../data
+   .. code-block:: bash
+
+       gdal vector export-schema poly.gpkg

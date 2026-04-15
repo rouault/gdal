@@ -60,6 +60,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set environment
         shell: pwsh
@@ -83,7 +85,7 @@ jobs:
             echo "CMAKE_ARCHITECTURE=$env:CMAKE_ARCHITECTURE" >> $env:GITHUB_ENV
 
       - name: Set compiler environment
-        shell: cmd
+        shell: cmd   # zizmor: ignore[misfeature]
         run: |
             if "%VS_VER%" == "2022" CALL "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=%ARCHITECTURE%
             echo PATH=%PATH%>> %GITHUB_ENV%

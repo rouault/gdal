@@ -342,6 +342,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "GDAL_MAX_DATASET_POOL_SIZE", // from gdal_translate_bin.cpp, gdalproxypool.cpp, gdalwarp_bin.cpp
    "GDAL_MAX_RAW_BLOCK_CACHE_SIZE", // from gtiffdataset_read.cpp
    "GDAL_MEM_ENABLE_OPEN", // from memdataset.cpp
+   "GDAL_NAME_AND_SHAME", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp
    "GDAL_NETCDF_ASSUME_LONGLAT", // from netcdfdataset.cpp
    "GDAL_NETCDF_BOTTOMUP", // from netcdfdataset.cpp
    "GDAL_NETCDF_CENTERLONG_180", // from netcdfdataset.cpp
@@ -413,6 +414,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "GDAL_SWATH_SIZE", // from gdalmultidim_array.cpp, rasterio.cpp
    "GDAL_TEMP_DRIVER_NAME", // from nearblack_lib_floodfill.cpp
    "GDAL_TERM_PROGRESS_OSC_9_4", // from cpl_progress.cpp
+   "GDAL_TEST_NAME_AND_SHAME", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp
    "GDAL_THRESHOLD_MIN_THREADS_FOR_SPAWN", // from gdalalg_raster_tile.cpp
    "GDAL_THRESHOLD_MIN_TILES_PER_JOB", // from gdalalg_raster_tile.cpp
    "GDAL_TIFF_DEFLATE_SUBCODEC", // from gtiffdataset.cpp
@@ -437,7 +439,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "GDAL_WARP_USE_AFFINE_OPTIMIZATION", // from gdalwarpkernel.cpp
    "GDAL_WARP_USE_TRANSLATION_OPTIM", // from gdalwarpoperation.cpp
    "GDAL_WMS_MAX_CONNECTIONS", // from gdalogcapidataset.cpp
-   "GDAL_XML_VALIDATION", // from ogrgmlasconf.cpp, ogrvrtdriver.cpp, pdfcreatefromcomposition.cpp
+   "GDAL_XML_VALIDATION", // from gdaltileindexdataset.cpp, ogrgmlasconf.cpp, ogrvrtdriver.cpp, pdfcreatefromcomposition.cpp
    "GDAL_ZARR_SHARD_INDEX_CACHE_MAX_BYTES", // from zarr_v3_codec_sharding.cpp
    "GDAL_ZARR_USE_OPTIMIZED_CODE_PATHS", // from zarr_array.cpp
    "GDALCUTLINE_SKIP_CONTAINMENT_TEST", // from gdalcutline.cpp
@@ -1033,7 +1035,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "SXF_RSC_FILENAME", // from ogrsxfdatasource.cpp
    "SXF_SET_VERTCS", // from ogrsxfdatasource.cpp
    "TAB_APPROX_GEOTRANSFORM", // from gdal_misc.cpp
-   "TEMP", // from cpl_path.cpp, gdal_misc.cpp, gdalwmscache.cpp, wcsutils.cpp
+   "TEMP", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp, cpl_path.cpp, gdal_misc.cpp, gdalwmscache.cpp, wcsutils.cpp
    "THRESHOLD", // from ogrct.cpp
    "TIFF_READ_STREAMING", // from gtiffdataset_read.cpp
    "TIFF_USE_OVR", // from gtiffdataset_write.cpp
@@ -1053,8 +1055,8 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "USE_SQLITE_DEBUG_MEMALLOC", // from ogrsqlitedatasource.cpp
    "USE_TEMPFILE", // from ogrgpsbabeldatasource.cpp, ogrgpsbabelwritedatasource.cpp
    "USE_TILE_AS_BLOCK", // from jp2kakdataset.cpp
-   "USER", // from gdal_misc.cpp, gdalwmscache.cpp, isis3dataset.cpp, wcsutils.cpp
-   "USERNAME", // from gdal_misc.cpp, gdalwmscache.cpp, isis3dataset.cpp, wcsutils.cpp
+   "USER", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp, gdal_misc.cpp, gdalwmscache.cpp, isis3dataset.cpp, wcsutils.cpp
+   "USERNAME", // from cpl_aws.cpp, cpl_azure.cpp, cpl_google_cloud.cpp, gdal_misc.cpp, gdalwmscache.cpp, isis3dataset.cpp, wcsutils.cpp
    "USERPROFILE", // from cpl_aws.cpp, cpl_azure.cpp, cpl_conv.cpp, cpl_google_cloud.cpp, cpl_path.cpp, gdal_misc.cpp, gdalwmscache.cpp, wcsutils.cpp
    "VRT_ALLOW_MEM_DRIVER", // from vrtrasterband.cpp
    "VRT_MIN_MAX_FROM_SOURCES", // from vrtsourcedrasterband.cpp

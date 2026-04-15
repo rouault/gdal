@@ -260,7 +260,7 @@ class OGRMySQLDataSource final : public GDALDataset
 
     int FetchSRSId(const OGRSpatialReference *poSRS);
 
-    const OGRSpatialReference *FetchSRS(int nSRSId);
+    OGRSpatialReferenceRefCountedPtr FetchSRS(int nSRSId);
 
     OGRErr InitializeMetadataTables();
     OGRErr UpdateMetadataTables(const char *pszLayerName,

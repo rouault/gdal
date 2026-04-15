@@ -17,6 +17,7 @@
 #include "gdal_priv.h"
 #include "rawdataset.h"
 #include "ogr_srs_api.h"
+#include "cpl_vsi_virtual.h"
 
 #include <algorithm>
 #include <cinttypes>
@@ -118,9 +119,11 @@ static CeosTypeCode_t QuadToTC(int a, int b, int c, int d)
 /* PALSAR-2 ALOS2 */
 // https://www.eorc.jaxa.jp/ALOS/en/alos-2/pdf/product_format_description/PALSAR-2_xx_Format_CEOS_E_g.pdf
 // Table 3.2-3 Record Type of Each Record
-#define LEADER_PLATFORM_POSITION_TC QuadToTC(18, 30, 18, 20)
-#define LEADER_PLATFORM_ATTITUDE_TC QuadToTC(18, 40, 18, 20)
-#define LEADER_PLATFORM_RADIOMETRIC_TC QuadToTC(18, 50, 18, 20)
+#define LEADER_PLATFORM_POSITION_PALSAR_TC QuadToTC(18, 30, 18, 20)
+#define LEADER_ATTITUDE_PALSAR_TC QuadToTC(18, 40, 18, 20)
+#define LEADER_RADIOMETRIC_PALSAR_TC QuadToTC(18, 50, 18, 20)
+#define LEADER_FACILITY_RELATED_PALSAR_TC QuadToTC(18, 200, 18, 70)
+#define IMAGE_PROCESSED_DATA_RECORD_PALSAR_TC QuadToTC(50, 11, 18, 20)
 
 /************************************************************************/
 /* ==================================================================== */
@@ -1194,8 +1197,9 @@ void SAR_CEOSDataset::ScanForMetadata()
     /* -------------------------------------------------------------------- */
     /*      PALSAR-2 ALOS2 Platform position data                           */
     /* -------------------------------------------------------------------- */
-    record = FindCeosRecord(sVolume.RecordList, LEADER_PLATFORM_POSITION_TC,
-                            CEOS_LEADER_FILE, -1, -1);
+    record =
+        FindCeosRecord(sVolume.RecordList, LEADER_PLATFORM_POSITION_PALSAR_TC,
+                       CEOS_LEADER_FILE, -1, -1);
     if (record && record->Length > 387)
     {
         // Table 3.3-7 Platform position data records
@@ -1291,9 +1295,9 @@ void SAR_CEOSDataset::ScanForMetadata()
     }
 
     /* -------------------------------------------------------------------- */
-    /*      PALSAR-2 ALOS2 Platform attitude data                           */
+    /*      PALSAR-2 ALOS2 Attitude data                                    */
     /* -------------------------------------------------------------------- */
-    record = FindCeosRecord(sVolume.RecordList, LEADER_PLATFORM_ATTITUDE_TC,
+    record = FindCeosRecord(sVolume.RecordList, LEADER_ATTITUDE_PALSAR_TC,
                             CEOS_LEADER_FILE, -1, -1);
     if (record)
     {
@@ -1355,32 +1359,32 @@ void SAR_CEOSDataset::ScanForMetadata()
     }
 
     /* -------------------------------------------------------------------- */
-    /*      PALSAR-2 ALOS2 Platform radiometric data                        */
+    /*      PALSAR-2 ALOS2 Radiometric data                                 */
     /* -------------------------------------------------------------------- */
-    record = FindCeosRecord(sVolume.RecordList, LEADER_PLATFORM_RADIOMETRIC_TC,
+    record = FindCeosRecord(sVolume.RecordList, LEADER_RADIOMETRIC_PALSAR_TC,
                             CEOS_LEADER_FILE, -1, -1);
     if (record)
     {
         // Table 3.3-9 Radiometric data records
         // of https://www.eorc.jaxa.jp/ALOS/en/alos-2/pdf/product_format_description/PALSAR-2_xx_Format_CEOS_E_g.pdf
         constexpr FieldDef asFieldDefs[] = {
-            {"CEOS_PLATFORM_RADIOMETRIC_CALIBRATION_FACTOR", 21, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DT_1_1_REAL", 37, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DT_1_1_IMAG", 53, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DT_1_2_REAL", 69, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DT_1_2_IMAG", 85, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DT_2_1_REAL", 101, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DT_2_1_IMAG", 117, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DT_2_2_REAL", 133, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DT_2_2_IMAG", 149, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DR_1_1_REAL", 165, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DR_1_1_IMAG", 181, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DR_1_2_REAL", 197, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DR_1_2_IMAG", 213, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DR_2_1_REAL", 229, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DR_2_1_IMAG", 245, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DR_2_2_REAL", 261, "A16"},
-            {"CEOS_PLATFORM_RADIOMETRIC_DR_2_2_IMAG", 277, "A16"},
+            {"CEOS_RADIOMETRIC_CALIBRATION_FACTOR", 21, "A16"},
+            {"CEOS_RADIOMETRIC_DT_1_1_REAL", 37, "A16"},
+            {"CEOS_RADIOMETRIC_DT_1_1_IMAG", 53, "A16"},
+            {"CEOS_RADIOMETRIC_DT_1_2_REAL", 69, "A16"},
+            {"CEOS_RADIOMETRIC_DT_1_2_IMAG", 85, "A16"},
+            {"CEOS_RADIOMETRIC_DT_2_1_REAL", 101, "A16"},
+            {"CEOS_RADIOMETRIC_DT_2_1_IMAG", 117, "A16"},
+            {"CEOS_RADIOMETRIC_DT_2_2_REAL", 133, "A16"},
+            {"CEOS_RADIOMETRIC_DT_2_2_IMAG", 149, "A16"},
+            {"CEOS_RADIOMETRIC_DR_1_1_REAL", 165, "A16"},
+            {"CEOS_RADIOMETRIC_DR_1_1_IMAG", 181, "A16"},
+            {"CEOS_RADIOMETRIC_DR_1_2_REAL", 197, "A16"},
+            {"CEOS_RADIOMETRIC_DR_1_2_IMAG", 213, "A16"},
+            {"CEOS_RADIOMETRIC_DR_2_1_REAL", 229, "A16"},
+            {"CEOS_RADIOMETRIC_DR_2_1_IMAG", 245, "A16"},
+            {"CEOS_RADIOMETRIC_DR_2_2_REAL", 261, "A16"},
+            {"CEOS_RADIOMETRIC_DR_2_2_IMAG", 277, "A16"},
         };
         for (const auto &sDef : asFieldDefs)
         {
@@ -1391,6 +1395,221 @@ void SAR_CEOSDataset::ScanForMetadata()
             {
                 SetMetadataItem(sDef.pszMetadataItemName, osField.c_str());
             }
+        }
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*      PALSAR-2 ALOS2 Facility related data                            */
+    /* -------------------------------------------------------------------- */
+    constexpr int FACILITY_RELATED_DATA_5_LAT_LONG_CONV_FACTORS = 5;
+    record = FindCeosRecord(
+        sVolume.RecordList, LEADER_FACILITY_RELATED_PALSAR_TC, CEOS_LEADER_FILE,
+        -1, FACILITY_RELATED_DATA_5_LAT_LONG_CONV_FACTORS - 1);
+    if (record && record->Length == 5000)
+    {
+        // Table 3-17 Facility related data records 5
+        // of https://www.eorc.jaxa.jp/ALOS/en/alos-2/pdf/product_format_description/PALSAR-2_xx_Format_CEOS_E_g.pdf
+
+        std::string coeffs;
+        for (int i = 0; i < 10; ++i)
+        {
+            GetCeosField(record, 17 + i * 20, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            if (!coeffs.empty())
+                coeffs += ' ';
+            coeffs += osField;
+        }
+        // 10 coefficients to convert from the map projection (E, N) to pixel (P)
+        SetMetadataItem("CEOS_FACILITY_5_XY_PROJECTED_TO_PIXEL_COEFFICIENTS",
+                        coeffs.c_str());
+
+        coeffs.clear();
+        for (int i = 0; i < 10; ++i)
+        {
+            GetCeosField(record, 17 + 10 * 20 + i * 20, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            if (!coeffs.empty())
+                coeffs += ' ';
+            coeffs += osField;
+        }
+        // 10 coefficients to convert from the map projection (E, N) to line (L)
+        SetMetadataItem("CEOS_FACILITY_5_XY_PROJECTED_TO_LINE_COEFFICIENTS",
+                        coeffs.c_str());
+
+        coeffs.clear();
+        for (int i = 0; i < 25; ++i)
+        {
+            GetCeosField(record, 1025 + i * 20, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            if (!coeffs.empty())
+                coeffs += ' ';
+            coeffs += osField;
+        }
+        // 25 coefficients of the 8th polynomial expression to convert from pixel (P) and line (L) to latitude (φ)
+        SetMetadataItem("CEOS_FACILITY_5_PIXEL_LINE_TO_LAT_COEFFICIENTS",
+                        coeffs.c_str());
+
+        coeffs.clear();
+        for (int i = 0; i < 25; ++i)
+        {
+            GetCeosField(record, 1025 + i * 20, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            if (!coeffs.empty())
+                coeffs += ' ';
+            coeffs += osField;
+        }
+        // 25 coefficients of the 8th polynomial expression to convert from pixel (P) and line (L) to longitude (λ)
+        SetMetadataItem("CEOS_FACILITY_5_PIXEL_LINE_TO_LON_COEFFICIENTS",
+                        coeffs.c_str());
+
+        {
+            GetCeosField(record, 2025, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            SetMetadataItem("CEOS_FACILITY_5_ORIGIN_PIXEL", osField.c_str());
+        }
+
+        {
+            GetCeosField(record, 2045, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            SetMetadataItem("CEOS_FACILITY_5_ORIGIN_LINE", osField.c_str());
+        }
+
+        coeffs.clear();
+        for (int i = 0; i < 25; ++i)
+        {
+            GetCeosField(record, 2065 + i * 20, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            if (!coeffs.empty())
+                coeffs += ' ';
+            coeffs += osField;
+        }
+        // 25 coefficients of the 8th polynomial expression to convert from latitude (Φ) and longitude (Λ) to pixel (p)
+        SetMetadataItem("CEOS_FACILITY_5_LAT_LON_TO_PIXEL_COEFFICIENTS",
+                        coeffs.c_str());
+
+        coeffs.clear();
+        for (int i = 0; i < 25; ++i)
+        {
+            GetCeosField(record, 2065 + 25 * 20 + i * 20, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            if (!coeffs.empty())
+                coeffs += ' ';
+            coeffs += osField;
+        }
+        // 25 coefficients of the 8th polynomial expression to convert from latitude (Φ) and longitude (Λ) to pixel (p)
+        SetMetadataItem("CEOS_FACILITY_5_LAT_LON_TO_LINE_COEFFICIENTS",
+                        coeffs.c_str());
+
+        {
+            GetCeosField(record, 3065, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            SetMetadataItem("CEOS_FACILITY_5_ORIGIN_LAT", osField.c_str());
+        }
+
+        {
+            GetCeosField(record, 3085, "A20", szField);
+            CPLString osField(szField);
+            osField.Trim();
+            SetMetadataItem("CEOS_FACILITY_5_ORIGIN_LON", osField.c_str());
+        }
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*      PALSAR Level 1.5/Level 3.1 processed record metadata            */
+    /* -------------------------------------------------------------------- */
+    record = FindCeosRecord(sVolume.RecordList,
+                            IMAGE_PROCESSED_DATA_RECORD_PALSAR_TC,
+                            CEOS_IMAGRY_OPT_FILE, -1, 2);
+    constexpr int NEEDED_SIZE_IN_PROCESSED_DATA_RECORD_PALSAR = 128;
+    if (record && record->Length >= NEEDED_SIZE_IN_PROCESSED_DATA_RECORD_PALSAR)
+    {
+        const auto ReadProcessedDataRecord =
+            [this](const CeosRecord_t *curRecord,
+                   const char *pszMDNameSuffix = "")
+        {
+            int32_t nInt32 = 0;
+
+            GetCeosField(curRecord, 65, "B4", &nInt32);
+            SetMetadataItem(CPLSPrintf("CEOS_SLANT_RANGE_FIRST_PIXEL%s_METERS",
+                                       pszMDNameSuffix),
+                            CPLSPrintf("%d", nInt32));
+
+            GetCeosField(curRecord, 69, "B4", &nInt32);
+            SetMetadataItem(CPLSPrintf("CEOS_SLANT_RANGE_MID_PIXEL%s_METERS",
+                                       pszMDNameSuffix),
+                            CPLSPrintf("%d", nInt32));
+
+            GetCeosField(curRecord, 73, "B4", &nInt32);
+            SetMetadataItem(CPLSPrintf("CEOS_SLANT_RANGE_LAST_PIXEL%s_METERS",
+                                       pszMDNameSuffix),
+                            CPLSPrintf("%d", nInt32));
+
+            GetCeosField(curRecord, 77, "B4", &nInt32);
+            SetMetadataItem(CPLSPrintf("CEOS_DOPPLER_CENTROID_FIRST_PIXEL%s_HZ",
+                                       pszMDNameSuffix),
+                            CPLSPrintf("%.3f", nInt32 / 1000.0));
+
+            GetCeosField(curRecord, 81, "B4", &nInt32);
+            SetMetadataItem(CPLSPrintf("CEOS_DOPPLER_CENTROID_MID_PIXEL%s_HZ",
+                                       pszMDNameSuffix),
+                            CPLSPrintf("%.3f", nInt32 / 1000.0));
+
+            GetCeosField(curRecord, 85, "B4", &nInt32);
+            SetMetadataItem(CPLSPrintf("CEOS_DOPPLER_CENTROID_LAST_PIXEL%s_HZ",
+                                       pszMDNameSuffix),
+                            CPLSPrintf("%.3f", nInt32 / 1000.0));
+
+            GetCeosField(curRecord, 89, "B4", &nInt32);
+            SetMetadataItem(
+                CPLSPrintf("CEOS_AZIMUTH_FM_RATE_FIRST_PIXEL%s_HZ_PER_MS",
+                           pszMDNameSuffix),
+                CPLSPrintf("%d", nInt32));
+
+            GetCeosField(curRecord, 93, "B4", &nInt32);
+            SetMetadataItem(
+                CPLSPrintf("CEOS_AZIMUTH_FM_RATE_MID_PIXEL%s_HZ_PER_MS",
+                           pszMDNameSuffix),
+                CPLSPrintf("%d", nInt32));
+
+            GetCeosField(curRecord, 97, "B4", &nInt32);
+            SetMetadataItem(
+                CPLSPrintf("CEOS_AZIMUTH_FM_RATE_LAST_PIXEL%s_HZ_PER_MS",
+                           pszMDNameSuffix),
+                CPLSPrintf("%d", nInt32));
+        };
+
+        ReadProcessedDataRecord(record);
+
+        // The above values are per-record. In practice they seem to be constant
+        // among all records, but I could not find any statement on that, so
+        // also read and report them from the last record.
+        // We cannot use FindCeosRecord() to fetch it because ProcessData() limits
+        // to 4 records for the image file (for memory and performance reasons)
+        struct CeosSARImageDesc *ImageDesc = &(sVolume.ImageDesc);
+        const vsi_l_offset nOffsetToLastRecordStart =
+            ImageDesc->FileDescriptorLength +
+            static_cast<vsi_l_offset>(ImageDesc->BytesPerRecord) *
+                (nRasterYSize - 1);
+        CeosRecord_t lastRecord;
+        memset(&lastRecord, 0, sizeof(lastRecord));
+        std::vector<GByte> abyLeader(
+            NEEDED_SIZE_IN_PROCESSED_DATA_RECORD_PALSAR);
+        if (fpImage->Seek(nOffsetToLastRecordStart, SEEK_SET) == 0 &&
+            fpImage->Read(abyLeader.data(), abyLeader.size()) ==
+                abyLeader.size())
+        {
+            lastRecord.Buffer = abyLeader.data();
+            lastRecord.Length = static_cast<int>(abyLeader.size());
+            ReadProcessedDataRecord(&lastRecord, "_LAST_LINE");
         }
     }
 }
@@ -1701,8 +1920,8 @@ GDALDataset *SAR_CEOSDataset::Open(GDALOpenInfo *poOpenInfo)
     /* -------------------------------------------------------------------- */
 
     psVolume->ImagryOptionsFile = TRUE;
-    if (ProcessData(poDS->fpImage, CEOS_IMAGRY_OPT_FILE, psVolume, 4,
-                    VSI_L_OFFSET_MAX, false) != CE_None)
+    if (ProcessData(poDS->fpImage, CEOS_IMAGRY_OPT_FILE, psVolume,
+                    /* max_records = */ 4, VSI_L_OFFSET_MAX, false) != CE_None)
     {
         return nullptr;
     }

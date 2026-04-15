@@ -11,7 +11,9 @@
 # SPDX-License-Identifier: MIT
 ###############################################################################
 
+import gdaltest
 import pytest
+import test_cli_utilities
 
 from osgeo import gdal
 
@@ -96,3 +98,106 @@ def test_gdalalg_raster_select_mask_error(tmp_vsimem):
                 out_filename,
             ],
         )
+
+
+def test_gdalalg_raster_select_exclude():
+
+    with gdal.alg.raster.select(
+        input="../gcore/data/rgbsmall.tif",
+        output="",
+        output_format="MEM",
+        exclude=True,
+        band=1,
+    ) as alg:
+        ds = alg.Output()
+        assert ds.RasterCount == 2
+        assert ds.GetRasterBand(1).GetColorInterpretation() == gdal.GCI_GreenBand
+        assert ds.GetRasterBand(2).GetColorInterpretation() == gdal.GCI_BlueBand
+
+    with pytest.raises(Exception, match="Cannot exclude all input bands"):
+        gdal.alg.raster.select(
+            input="../gcore/data/rgbsmall.tif",
+            output="",
+            output_format="MEM",
+            exclude=True,
+            band=[1, 2, 3],
+        )
+
+
+def test_gdalalg_raster_select_exclude_wrong_color():
+
+    with pytest.raises(Exception, match="Invalid band specification"):
+        gdal.alg.raster.select(
+            input="../gcore/data/rgbsmall.tif",
+            output="",
+            output_format="MEM",
+            exclude=True,
+            band="violet",
+        )
+
+
+def test_gdalalg_raster_select_by_band_color():
+
+    with gdal.alg.raster.select(
+        input="../gcore/data/rgbsmall.tif",
+        output="",
+        output_format="MEM",
+        band=["green", "blue"],
+    ) as alg:
+        ds = alg.Output()
+        assert ds.RasterCount == 2
+        assert ds.GetRasterBand(1).GetColorInterpretation() == gdal.GCI_GreenBand
+        assert ds.GetRasterBand(2).GetColorInterpretation() == gdal.GCI_BlueBand
+
+    with gdal.alg.raster.select(
+        input="../gcore/data/rgbsmall.tif",
+        output="",
+        output_format="MEM",
+        exclude=True,
+        band=["red"],
+    ) as alg:
+        ds = alg.Output()
+        assert ds.RasterCount == 2
+        assert ds.GetRasterBand(1).GetColorInterpretation() == gdal.GCI_GreenBand
+        assert ds.GetRasterBand(2).GetColorInterpretation() == gdal.GCI_BlueBand
+
+    with pytest.raises(Exception, match="Invalid band specification"):
+        gdal.alg.raster.select(
+            input="../gcore/data/rgbsmall.tif",
+            output="",
+            output_format="MEM",
+            band="invalid",
+        )
+
+    with pytest.raises(Exception, match="No band has color interpretation alpha"):
+        gdal.alg.raster.select(
+            input="../gcore/data/rgbsmall.tif",
+            output="",
+            output_format="MEM",
+            band="alpha",
+        )
+
+    with pytest.raises(Exception, match="No band has color interpretation undefined"):
+        gdal.alg.raster.select(
+            input="../gcore/data/rgbsmall.tif",
+            output="",
+            output_format="MEM",
+            band="undefined",
+        )
+
+
+def test_gdalalg_raster_select_autocomplete():
+
+    gdal_path = test_cli_utilities.get_gdal_path()
+    if gdal_path is None:
+        pytest.skip("gdal binary not available")
+
+    out = gdaltest.runexternal(
+        f"{gdal_path} completion gdal raster select ../gcore/data/byte.tif --band last_word_is_complete=true"
+    ).split(" ")
+    assert out == ["1", "mask", "gray"]
+
+    out = gdaltest.runexternal(
+        f"{gdal_path} completion gdal raster select --band last_word_is_complete=true"
+    )
+    assert "description" in out

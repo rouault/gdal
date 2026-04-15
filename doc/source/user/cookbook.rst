@@ -28,14 +28,12 @@ Raster How do I...
    :example:`gdal-raster-resize-cubic`.
 
 ... create a Cloud Optimized GeoTIFF (COG)?
-
-- :example:`gdal-raster-convert-cog`
-- :example:`raster.cog-gdalwarp`
+    - :example:`gdal-raster-convert-cog`
+    - :example:`raster.cog-gdalwarp`
 
 ... check if a GeoTIFF is a Cloud Optimized GeoTIFF (COG)?
-
-- :example:`gdal-dataset-identify-cog`
-- :example:`gdal-raster-info-cog`
+    - :example:`gdal-dataset-identify-cog`
+    - :example:`gdal-raster-info-cog`
 
 Vector How do I...
 ------------------
@@ -49,8 +47,9 @@ Vector How do I...
 ... buffer geometries using an attribute?
    :example:`gdal-pipeline-buffer-line`.
 
-... list all layers in a GeoPackage with their geometry fields and types?
-    :example:`gdal-vector-info-geom-name`
+... list all layers in a dataset?
+    - :example:`gdal-vector-info-list-layers`
+    - :example:`gdal-vector-info-geom-name`
 
 Raster and Vector How do I...
 -----------------------------
@@ -60,3 +59,6 @@ Raster and Vector How do I...
 
 ... extract pixel values from a raster and apply them to a point dataset?
    :example:`gdal-raster-pixel-info-extract`
+
+... know which :term:`CRS`\s are suitable for reprojecting my dataset?
+   :example:`gdal-bash-completion-crs`
