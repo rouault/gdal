@@ -81,7 +81,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
        libarchive-dev${APT_ARCH_SUFFIX} \
        libaec-dev${APT_ARCH_SUFFIX} \
        libavif-dev${APT_ARCH_SUFFIX} \
-       libmuparser-dev${APT_ARCH_SUFFIX}
+       libmuparser-dev${APT_ARCH_SUFFIX} \
+       libarrow-dev${APT_ARCH_SUFFIX} \
+       libarrow-acero-dev${APT_ARCH_SUFFIX} \
+       libarrow-dataset-dev${APT_ARCH_SUFFIX} \
+       libparquet-dev${APT_ARCH_SUFFIX}
 
 ARG RSYNC_REMOTE
 ARG WITH_CCACHE
@@ -205,6 +209,8 @@ COPY --link ./docker/ubuntu-full/tiledb-FindLZ4_EP.cmake.patch /buildscripts/til
 COPY --link ./docker/ubuntu-full/tiledb-FindOpenSSL_EP.cmake.patch /buildscripts/tiledb-FindOpenSSL_EP.cmake.patch
 # Commit from TileDB 2.27.
 COPY --link ./docker/ubuntu-full/tiledb-cmake-ccache.patch /buildscripts/tiledb-cmake-ccache.patch
+COPY --link ./docker/ubuntu-full/tiledb-filesystem-posix.patch /buildscripts/tiledb-filesystem-posix.patch
+COPY --link ./docker/ubuntu-full/tiledb-external-blosc-shuffle.patch /buildscripts/tiledb-external-blosc-shuffle.patch
 RUN --mount=type=cache,id=ubuntu-full-tiledb,target=$HOME/.cache \
     . /buildscripts/bh-set-envvars.sh \
     && if [ -n "${RSYNC_REMOTE:-}" ]; then \
@@ -220,6 +226,8 @@ RUN --mount=type=cache,id=ubuntu-full-tiledb,target=$HOME/.cache \
     && curl --retry 3 --retry-all-errors --retry-delay 3 -Lo - -fsS https://github.com/TileDB-Inc/TileDB/archive/${TILEDB_VERSION}.tar.gz \
         | tar xz -C tiledb --strip-components=1 \
     && cd tiledb \
+    && patch -p0 < /buildscripts/tiledb-filesystem-posix.patch \
+    && patch -p0 < /buildscripts/tiledb-external-blosc-shuffle.patch \
     && patch -p0 < /buildscripts/tiledb-FindLZ4_EP.cmake.patch \
     && patch -p0 < /buildscripts/tiledb-FindOpenSSL_EP.cmake.patch \
     && patch -p1 < /buildscripts/tiledb-cmake-ccache.patch \
@@ -424,28 +432,6 @@ RUN --mount=type=cache,id=ubuntu-full-libjxl,target=$HOME/.cache \
     && cd ../.. \
     && rm -rf libjxl
 
-# Install Arrow C++
-ARG ARROW_VERSION=23.0.1-1
-# ARROW_SOVERSION to be updated in the "Build final image" section too
-ARG ARROW_SOVERSION=2300
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    . /buildscripts/bh-set-envvars.sh \
-    && apt-get update -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V ca-certificates lsb-release \
-    && curl --retry 3 --retry-all-errors --retry-delay 3 -LO -fsS https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V libarrow${ARROW_SOVERSION}${APT_ARCH_SUFFIX} \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V libparquet${ARROW_SOVERSION}${APT_ARCH_SUFFIX} \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V libarrow-dataset${ARROW_SOVERSION}${APT_ARCH_SUFFIX} \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V libarrow-dev${APT_ARCH_SUFFIX}=${ARROW_VERSION} \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V libparquet-dev${APT_ARCH_SUFFIX}=${ARROW_VERSION} \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V libarrow-acero-dev${APT_ARCH_SUFFIX}=${ARROW_VERSION} \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V libarrow-dataset-dev${APT_ARCH_SUFFIX}=${ARROW_VERSION} \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V libarrow-compute-dev${APT_ARCH_SUFFIX}=${ARROW_VERSION} \
-    && rm apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-
 # Manually build ADBC packages to have support for BigQuery
 ARG ARROW_ADBC_VERSION=22
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -574,18 +560,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         python-is-python3 \
         # for validate_geoparquet.py (cf https://github.com/OSGeo/gdal/issues/11953)
         python3-jsonschema \
+        libarrow${ARROW_SOVERSION} \
+        libarrow-acero${ARROW_SOVERSION} \
+        libarrow-dataset${ARROW_SOVERSION} \
+        libparquet${ARROW_SOVERSION} \
     # Install JRE with --no-install-recommends, otherwise it draws default-jre, which draws systemd, which fails to install when running the arm64v8/ubuntu:24.04 image on a 64bit host
-    && apt-get install -y --no-install-recommends openjdk-"$JAVA_VERSION"-jre \
-    # Install Arrow C++
-    && apt-get install -y -V curl ca-certificates lsb-release \
-    && curl --retry 3 --retry-all-errors --retry-delay 3 -LO -fsS https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
-    && apt-get purge -y curl \
-    && apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends -V libarrow${ARROW_SOVERSION} \
-    && apt-get install -y --no-install-recommends -V libparquet${ARROW_SOVERSION} \
-    && apt-get install -y --no-install-recommends -V libarrow-dataset${ARROW_SOVERSION} \
-    && apt-get install -y --no-install-recommends -V libarrow-compute${ARROW_SOVERSION}
+    && apt-get install -y --no-install-recommends openjdk-"$JAVA_VERSION"-jre
 
 # Install libduckdb
 ARG DUCKDB_VERSION=v1.5.1
