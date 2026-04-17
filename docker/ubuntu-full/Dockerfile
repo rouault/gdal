@@ -303,7 +303,7 @@ RUN . /buildscripts/bh-set-envvars.sh \
 # Download Oracle InstantClient (proprietary) SDK if WITH_ORACLE=yes is passed
 ARG WITH_ORACLE=
 RUN . /buildscripts/bh-set-envvars.sh \
-  && if test "$(uname -p)" = "x86_64"; then \
+  && if test "$(uname -m)" = "x86_64"; then \
   if echo "$WITH_ORACLE" | grep -Eiq "^(y(es)?|1|true)$" ; then ( \
   curl --retry 3 --retry-all-errors --retry-delay 3 -LO -fsS https://download.oracle.com/otn_software/linux/instantclient/1923000/instantclient-basic-linux.x64-19.23.0.0.0dbru.zip \
   && curl --retry 3 --retry-all-errors --retry-delay 3 -LO -fsS https://download.oracle.com/otn_software/linux/instantclient/1923000/instantclient-sdk-linux.x64-19.23.0.0.0dbru.zip \
@@ -320,7 +320,7 @@ RUN . /buildscripts/bh-set-envvars.sh \
 # Download ECW (proprietary) SDK if WITH_ECW=yes is passed
 ARG WITH_ECW=
 RUN . /buildscripts/bh-set-envvars.sh \
-  && if test "$(uname -p)" = "x86_64"; then \
+  && if test "$(uname -m)" = "x86_64"; then \
   if echo "$WITH_ECW" | grep -Eiq "^(y(es)?|1|true)$" ; then ( \
   curl --retry 3 --retry-all-errors --retry-delay 3 -LO -fsS https://github.com/rouault/libecwj2-3.3-builds/releases/download/v1/install-libecwj2-3.3-ubuntu-20.04.tar.gz \
   && tar xzf install-libecwj2-3.3-ubuntu-20.04.tar.gz \
@@ -334,7 +334,7 @@ RUN . /buildscripts/bh-set-envvars.sh \
 # Download MrSID (proprietary) SDK if WITH_MRSID=yes is passed
 ARG WITH_MRSID=
 RUN . /buildscripts/bh-set-envvars.sh \
-  && if test "$(uname -p)" = "x86_64"; then \
+  && if test "$(uname -m)" = "x86_64"; then \
   if echo "$WITH_MRSID" | grep -Eiq "^(y(es)?|1|true)$" ; then ( \
     curl --retry 3 --retry-all-errors --retry-delay 3 -LO -fsS https://bin.extensis.com/download/developer/MrSID_DSDK-9.5.5.5244-rhel9.x86-64.gcc1131.zip \
     && unzip MrSID_DSDK-9.5.5.5244-rhel9.x86-64.gcc1131.zip \
@@ -574,12 +574,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get install -y --no-install-recommends curl \
-    && if test "$(uname -p)" = "x86_64"; then \
+    && if test "$(uname -m)" = "x86_64"; then \
     curl --retry 3 --retry-all-errors --retry-delay 3 -LO -fsS https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}/libduckdb-linux-amd64.zip \
     && unzip libduckdb-linux-amd64.zip libduckdb.so \
     && mv libduckdb.so /usr/lib/x86_64-linux-gnu \
     && rm -f libduckdb-linux-amd64.zip; \
-    elif test "$(uname -p)" = "aarch64"; then \
+    elif test "$(uname -m)" = "aarch64"; then \
     curl --retry 3 --retry-all-errors --retry-delay 3 -LO -fsS https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}/libduckdb-linux-arm64.zip \
     && unzip libduckdb-linux-arm64.zip libduckdb.so \
     && mv libduckdb.so /usr/lib/aarch64-linux-gnu \
@@ -590,7 +590,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 ARG WITH_ORACLE=
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  if test "$(uname -p)" = "x86_64"; then \
+  if test "$(uname -m)" = "x86_64"; then \
   if echo "$WITH_ORACLE" | grep -Eiq "^(y(es)?|1|true)$" ; then ( \
       export DEBIAN_FRONTEND=noninteractive \
       && apt-get update \
