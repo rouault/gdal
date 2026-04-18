@@ -1155,6 +1155,8 @@ extern "C++"
     {
     }
 
+    inline static bool CPL_TO_BOOL(bool x) = delete;
+
     inline static bool CPL_TO_BOOL(int x)
     {
         return x != 0;
