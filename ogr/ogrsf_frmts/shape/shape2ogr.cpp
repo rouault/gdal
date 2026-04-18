@@ -595,7 +595,7 @@ static OGRErr SHPWriteOGRObject(SHPHandle hSHP, int iShape,
         const bool bHasZ = (hSHP->nShapeType == SHPT_MULTIPOINTM ||
                             hSHP->nShapeType == SHPT_MULTIPOINTZ);
         const bool bHasM = wkbHasM(eLayerGeomType) && bHasZ;
-        const bool bIsGeomMeasured = CPL_TO_BOOL(poGeom->IsMeasured());
+        const bool bIsGeomMeasured = poGeom->IsMeasured();
 
         std::vector<double> adfX;
         std::vector<double> adfY;
@@ -719,7 +719,7 @@ static OGRErr SHPWriteOGRObject(SHPHandle hSHP, int iShape,
         const bool bHasZ =
             (hSHP->nShapeType == SHPT_ARCM || hSHP->nShapeType == SHPT_ARCZ);
         const bool bHasM = wkbHasM(eLayerGeomType) && bHasZ;
-        const bool bIsGeomMeasured = CPL_TO_BOOL(poGeom->IsMeasured());
+        const bool bIsGeomMeasured = poGeom->IsMeasured();
 
         try
         {
@@ -961,7 +961,7 @@ static OGRErr SHPWriteOGRObject(SHPHandle hSHP, int iShape,
         const bool bHasZ = (hSHP->nShapeType == SHPT_POLYGONM ||
                             hSHP->nShapeType == SHPT_POLYGONZ);
         const bool bHasM = wkbHasM(eLayerGeomType) && bHasZ;
-        const bool bIsGeomMeasured = CPL_TO_BOOL(poGeom->IsMeasured());
+        const bool bIsGeomMeasured = poGeom->IsMeasured();
 
         std::vector<int> anRingStart;
         std::vector<double> adfX;

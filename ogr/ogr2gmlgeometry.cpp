@@ -101,7 +101,7 @@ static void AppendCoordinateList(const OGRLineString *poLine, char **ppszText,
                                  const OGRWktOptions &coordOpts)
 
 {
-    const bool b3D = wkbHasZ(poLine->getGeometryType()) != FALSE;
+    const bool b3D = wkbHasZ(poLine->getGeometryType());
 
     *pnLength += strlen(*ppszText + *pnLength);
     _GrowBuffer(*pnLength + 20, ppszText, pnMaxLength);

@@ -686,7 +686,7 @@ OGRCircularString::CurveToLine(double dfMaxAngleStepSizeDegrees,
 /*                            IsValidFast()                             */
 /************************************************************************/
 
-OGRBoolean OGRCircularString::IsValidFast(std::string *posReason) const
+bool OGRCircularString::IsValidFast(std::string *posReason) const
 
 {
     if (nPointCount == 1 || nPointCount == 2 ||
@@ -713,7 +713,7 @@ OGRBoolean OGRCircularString::IsValidFast(std::string *posReason) const
 /*                              IsValid()                               */
 /************************************************************************/
 
-OGRBoolean OGRCircularString::IsValid(std::string *posReason) const
+bool OGRCircularString::IsValid(std::string *posReason) const
 
 {
     return IsValidFast(posReason) && OGRGeometry::IsValid(posReason);
@@ -723,8 +723,7 @@ OGRBoolean OGRCircularString::IsValid(std::string *posReason) const
 /*                          hasCurveGeometry()                          */
 /************************************************************************/
 
-OGRBoolean
-OGRCircularString::hasCurveGeometry(int /* bLookForNonLinear */) const
+bool OGRCircularString::hasCurveGeometry(int /* bLookForNonLinear */) const
 {
     return TRUE;
 }

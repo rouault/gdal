@@ -141,7 +141,7 @@ static bool AppendCoordinateList(const OGRLineString *poLine, char **ppszText,
 
 {
     char szCoordinate[256] = {0};
-    const bool b3D = CPL_TO_BOOL(wkbHasZ(poLine->getGeometryType()));
+    const bool b3D = wkbHasZ(poLine->getGeometryType());
 
     AppendString(ppszText, pnLength, pnMaxLength, "<coordinates>");
 

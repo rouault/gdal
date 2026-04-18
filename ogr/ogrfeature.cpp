@@ -5985,7 +5985,7 @@ OGRErr OGR_F_SetFID(OGRFeatureH hFeat, GIntBig nFID)
  * @return TRUE if they are equal, otherwise FALSE.
  */
 
-OGRBoolean OGRFeature::Equal(const OGRFeature *poFeature) const
+bool OGRFeature::Equal(const OGRFeature *poFeature) const
 
 {
     if (poFeature == this)

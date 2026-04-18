@@ -1377,7 +1377,7 @@ class CPL_DLL OGRFeature
     void Reset();
 
     OGRFeature *Clone() const CPL_WARN_UNUSED_RESULT;
-    virtual OGRBoolean Equal(const OGRFeature *poFeature) const;
+    virtual bool Equal(const OGRFeature *poFeature) const;
 
     int GetFieldCount() const
     {

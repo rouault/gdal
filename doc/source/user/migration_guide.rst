@@ -4,6 +4,14 @@
 Migration guide
 ================================================================================
 
+From GDAL 3.13 to GDAL 3.14
+---------------------------
+
+- Changes impacting C++ users:
+
+    * All methods accepting or returning ``OGRBoolean`` (aliased to ``int``)
+      have been changed to use ``bool`` instead.
+
 From GDAL 3.12 to GDAL 3.13
 ---------------------------
 

@@ -380,7 +380,7 @@ class CPL_DLL OGRGeometry
                                              int &nGeomCount,
                                              OGRwkbVariant eWkbVariant);
     OGRErr PointOnSurfaceInternal(OGRPoint *poPoint) const;
-    OGRBoolean IsSFCGALCompatible() const;
+    bool IsSFCGALCompatible() const;
 
     void HomogenizeDimensionalityWith(OGRGeometry *poOtherGeom);
     std::string wktTypeString(OGRwkbVariant variant) const;
@@ -412,38 +412,38 @@ class CPL_DLL OGRGeometry
     /** Returns if two geometries are equal. */
     bool operator==(const OGRGeometry &other) const
     {
-        return CPL_TO_BOOL(Equals(&other));
+        return Equals(&other);
     }
 
     /** Returns if two geometries are different. */
     bool operator!=(const OGRGeometry &other) const
     {
-        return !CPL_TO_BOOL(Equals(&other));
+        return !Equals(&other);
     }
 
     // Standard IGeometry.
     virtual int getDimension() const = 0;
     virtual int getCoordinateDimension() const;
     int CoordinateDimension() const;
-    virtual OGRBoolean IsEmpty() const = 0;
-    virtual OGRBoolean IsValid(std::string *posReason = nullptr) const;
+    virtual bool IsEmpty() const = 0;
+    virtual bool IsValid(std::string *posReason = nullptr) const;
     virtual OGRGeometry *MakeValid(CSLConstList papszOptions = nullptr) const;
     virtual OGRGeometry *Normalize() const;
-    virtual OGRBoolean IsSimple() const;
+    virtual bool IsSimple() const;
 
     /*! Returns whether the geometry has a Z component. */
-    OGRBoolean Is3D() const
+    bool Is3D() const
     {
         return (flags & OGR_G_3D) != 0;
     }
 
     /*! Returns whether the geometry has a M component. */
-    OGRBoolean IsMeasured() const
+    bool IsMeasured() const
     {
         return (flags & OGR_G_MEASURED) != 0;
     }
 
-    virtual OGRBoolean IsRing() const;
+    virtual bool IsRing() const;
     virtual void empty() = 0;
     virtual OGRGeometry *clone() const CPL_WARN_UNUSED_RESULT = 0;
     virtual void getEnvelope(OGREnvelope *psEnvelope) const = 0;
@@ -508,7 +508,7 @@ class CPL_DLL OGRGeometry
     GEOSGeom
     exportToGEOS(GEOSContextHandle_t hGEOSCtxt, bool bRemoveEmptyParts = false,
                  bool bAddPointsIfNeeded = false) const CPL_WARN_UNUSED_RESULT;
-    virtual OGRBoolean hasCurveGeometry(int bLookForNonLinear = FALSE) const;
+    virtual bool hasCurveGeometry(int bLookForNonLinear = FALSE) const;
     virtual OGRGeometry *getCurveGeometry(
         const char *const *papszOptions = nullptr) const CPL_WARN_UNUSED_RESULT;
     virtual OGRGeometry *getLinearGeometry(
@@ -527,8 +527,8 @@ class CPL_DLL OGRGeometry
     virtual void closeRings();
 
     virtual bool setCoordinateDimension(int nDimension);
-    virtual bool set3D(OGRBoolean bIs3D);
-    virtual bool setMeasured(OGRBoolean bIsMeasured);
+    virtual bool set3D(bool bIs3D);
+    virtual bool setMeasured(bool bIsMeasured);
 
     virtual void assignSpatialReference(const OGRSpatialReference *poSR);
 
@@ -543,14 +543,14 @@ class CPL_DLL OGRGeometry
     virtual bool segmentize(double dfMaxLength);
 
     // ISpatialRelation
-    virtual OGRBoolean Intersects(const OGRGeometry *) const;
-    virtual OGRBoolean Equals(const OGRGeometry *) const = 0;
-    OGRBoolean Disjoint(const OGRGeometry *) const;
-    OGRBoolean Touches(const OGRGeometry *) const;
-    OGRBoolean Crosses(const OGRGeometry *) const;
-    virtual OGRBoolean Within(const OGRGeometry *) const;
-    virtual OGRBoolean Contains(const OGRGeometry *) const;
-    OGRBoolean Overlaps(const OGRGeometry *) const;
+    virtual bool Intersects(const OGRGeometry *) const;
+    virtual bool Equals(const OGRGeometry *) const = 0;
+    bool Disjoint(const OGRGeometry *) const;
+    bool Touches(const OGRGeometry *) const;
+    bool Crosses(const OGRGeometry *) const;
+    virtual bool Within(const OGRGeometry *) const;
+    virtual bool Contains(const OGRGeometry *) const;
+    bool Overlaps(const OGRGeometry *) const;
 
     OGRGeometry *Boundary() const CPL_WARN_UNUSED_RESULT;
 
@@ -612,12 +612,11 @@ class CPL_DLL OGRGeometry
 
     //! @cond Doxygen_Suppress
     // backward compatibility to non-standard method names.
-    OGRBoolean Intersect(OGRGeometry *) const
+    bool Intersect(OGRGeometry *) const
         CPL_WARN_DEPRECATED("Non standard method. "
                             "Use Intersects() instead");
-    OGRBoolean Equal(OGRGeometry *) const
-        CPL_WARN_DEPRECATED("Non standard method. "
-                            "Use Equals() instead");
+    bool Equal(OGRGeometry *) const CPL_WARN_DEPRECATED("Non standard method. "
+                                                        "Use Equals() instead");
     OGRGeometry *SymmetricDifference(const OGRGeometry *) const
         CPL_WARN_DEPRECATED("Non standard method. "
                             "Use SymDifference() instead");
@@ -1156,7 +1155,7 @@ class CPL_DLL OGRPoint : public OGRGeometry
     void getEnvelope(OGREnvelope *psEnvelope) const override;
     void getEnvelope(OGREnvelope3D *psEnvelope) const override;
 
-    OGRBoolean IsEmpty() const override
+    bool IsEmpty() const override
     {
         return !(flags & OGR_G_NOT_EMPTY_POINT);
     }
@@ -1232,9 +1231,9 @@ class CPL_DLL OGRPoint : public OGRGeometry
     }
 
     // ISpatialRelation
-    OGRBoolean Equals(const OGRGeometry *) const override;
-    OGRBoolean Intersects(const OGRGeometry *) const override;
-    OGRBoolean Within(const OGRGeometry *) const override;
+    bool Equals(const OGRGeometry *) const override;
+    bool Intersects(const OGRGeometry *) const override;
+    bool Within(const OGRGeometry *) const override;
 
     // Non standard from OGRGeometry
     const char *getGeometryName() const override;
@@ -1273,7 +1272,7 @@ class CPL_DLL OGRPointIterator
 {
   public:
     virtual ~OGRPointIterator();
-    virtual OGRBoolean getNextPoint(OGRPoint *p) = 0;
+    virtual bool getNextPoint(OGRPoint *p) = 0;
 
     static void destroy(OGRPointIterator *);
 };
@@ -1361,7 +1360,7 @@ class CPL_DLL OGRCurve : public OGRGeometry
     // non standard
     virtual int getNumPoints() const = 0;
     virtual OGRPointIterator *getPointIterator() const = 0;
-    virtual OGRBoolean IsConvex() const;
+    virtual bool IsConvex() const;
     virtual double get_Area() const = 0;
     virtual double get_GeodesicArea(
         const OGRSpatialReference *poSRSOverride = nullptr) const = 0;
@@ -1612,7 +1611,7 @@ class CPL_DLL OGRSimpleCurve : public OGRCurve
     void empty() override;
     void getEnvelope(OGREnvelope *psEnvelope) const override;
     void getEnvelope(OGREnvelope3D *psEnvelope) const override;
-    OGRBoolean IsEmpty() const override;
+    bool IsEmpty() const override;
     OGRSimpleCurve *clone() const override = 0;
 
     // ICurve methods.
@@ -1645,12 +1644,12 @@ class CPL_DLL OGRSimpleCurve : public OGRCurve
     double getM(int i) const;
 
     // ISpatialRelation
-    OGRBoolean Equals(const OGRGeometry *) const override;
+    bool Equals(const OGRGeometry *) const override;
 
     // non standard.
     bool setCoordinateDimension(int nDimension) override;
-    bool set3D(OGRBoolean bIs3D) override;
-    bool setMeasured(OGRBoolean bIsMeasured) override;
+    bool set3D(bool bIs3D) override;
+    bool setMeasured(bool bIsMeasured) override;
     bool setNumPoints(int nNewPointCount, int bZeroizeNewContent = TRUE);
     bool setPoint(int, OGRPoint *);
     bool setPoint(int, double, double);
@@ -1883,10 +1882,9 @@ class CPL_DLL OGRLinearRing : public OGRLineString
     //! @endcond
 
     void closeRings() override;
-    OGRBoolean isPointInRing(const OGRPoint *pt,
-                             int bTestEnvelope = TRUE) const;
-    OGRBoolean isPointOnRingBoundary(const OGRPoint *pt,
-                                     int bTestEnvelope = TRUE) const;
+    bool isPointInRing(const OGRPoint *pt, int bTestEnvelope = TRUE) const;
+    bool isPointOnRingBoundary(const OGRPoint *pt,
+                               int bTestEnvelope = TRUE) const;
     OGRErr transform(OGRCoordinateTransformation *poCT) override;
 
     /** Return pointer of this in upper class */
@@ -1934,7 +1932,7 @@ class CPL_DLL OGRCircularString : public OGRSimpleCurve
 {
   private:
     void ExtendEnvelopeWithCircular(OGREnvelope *psEnvelope) const;
-    OGRBoolean IsValidFast(std::string *posReason = nullptr) const;
+    bool IsValidFast(std::string *posReason = nullptr) const;
     int IsFullCircle(double &cx, double &cy, double &square_R) const;
 
   protected:
@@ -1982,7 +1980,7 @@ class CPL_DLL OGRCircularString : public OGRSimpleCurve
                                     OGRErr *err = nullptr) const override;
 
     // IGeometry interface.
-    OGRBoolean IsValid(std::string *posReason = nullptr) const override;
+    bool IsValid(std::string *posReason = nullptr) const override;
     void getEnvelope(OGREnvelope *psEnvelope) const override;
     void getEnvelope(OGREnvelope3D *psEnvelope) const override;
     OGRCircularString *clone() const override;
@@ -2003,8 +2001,7 @@ class CPL_DLL OGRCircularString : public OGRSimpleCurve
     OGRwkbGeometryType getGeometryType() const override;
     const char *getGeometryName() const override;
     bool segmentize(double dfMaxLength) override;
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
     virtual OGRGeometry *
     getLinearGeometry(double dfMaxAngleStepSizeDegrees = 0,
                       const char *const *papszOptions = nullptr) const override;
@@ -2099,7 +2096,7 @@ class CPL_DLL OGRCurveCollection
     }
 
     void empty(OGRGeometry *poGeom);
-    OGRBoolean IsEmpty() const;
+    bool IsEmpty() const;
     void getEnvelope(OGREnvelope *psEnvelope) const;
     void getEnvelope(OGREnvelope3D *psEnvelope) const;
 
@@ -2122,10 +2119,10 @@ class CPL_DLL OGRCurveCollection
                             OGRErr *err) const;
     OGRErr exportToWkb(const OGRGeometry *poGeom, unsigned char *,
                        const OGRwkbExportOptions * = nullptr) const;
-    OGRBoolean Equals(const OGRCurveCollection *poOCC) const;
+    bool Equals(const OGRCurveCollection *poOCC) const;
     bool setCoordinateDimension(OGRGeometry *poGeom, int nNewDimension);
-    bool set3D(OGRGeometry *poGeom, OGRBoolean bIs3D);
-    bool setMeasured(OGRGeometry *poGeom, OGRBoolean bIsMeasured);
+    bool set3D(OGRGeometry *poGeom, bool bIs3D);
+    bool setMeasured(OGRGeometry *poGeom, bool bIsMeasured);
     void assignSpatialReference(OGRGeometry *poGeom,
                                 const OGRSpatialReference *poSR);
     int getNumCurves() const;
@@ -2144,7 +2141,7 @@ class CPL_DLL OGRCurveCollection
     void flattenTo2D(OGRGeometry *poGeom);
     bool segmentize(double dfMaxLength);
     void swapXY();
-    OGRBoolean hasCurveGeometry(int bLookForNonLinear) const;
+    bool hasCurveGeometry(int bLookForNonLinear) const;
 };
 
 //! @endcond
@@ -2260,7 +2257,7 @@ class CPL_DLL OGRCompoundCurve : public OGRCurve
     void empty() override;
     void getEnvelope(OGREnvelope *psEnvelope) const override;
     void getEnvelope(OGREnvelope3D *psEnvelope) const override;
-    OGRBoolean IsEmpty() const override;
+    bool IsEmpty() const override;
 
     // ICurve methods.
     double get_Length() const override;
@@ -2280,7 +2277,7 @@ class CPL_DLL OGRCompoundCurve : public OGRCurve
         const OGRSpatialReference *poSRSOverride = nullptr) const override;
 
     // ISpatialRelation.
-    OGRBoolean Equals(const OGRGeometry *) const override;
+    bool Equals(const OGRGeometry *) const override;
 
     // ICompoundCurve method.
     int getNumCurves() const;
@@ -2289,8 +2286,8 @@ class CPL_DLL OGRCompoundCurve : public OGRCurve
 
     // Non-standard.
     bool setCoordinateDimension(int nDimension) override;
-    bool set3D(OGRBoolean bIs3D) override;
-    bool setMeasured(OGRBoolean bIsMeasured) override;
+    bool set3D(bool bIs3D) override;
+    bool setMeasured(bool bIsMeasured) override;
 
     virtual void
     assignSpatialReference(const OGRSpatialReference *poSR) override;
@@ -2316,8 +2313,7 @@ class CPL_DLL OGRCompoundCurve : public OGRCurve
     OGRErr transform(OGRCoordinateTransformation *poCT) override;
     void flattenTo2D() override;
     bool segmentize(double dfMaxLength) override;
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
     virtual OGRGeometry *
     getLinearGeometry(double dfMaxAngleStepSizeDegrees = 0,
                       const char *const *papszOptions = nullptr) const override;
@@ -2431,8 +2427,8 @@ class CPL_DLL OGRCurvePolygon : public OGRSurface
     static OGRPolygon *CasterToPolygon(OGRSurface *poSurface);
 
   private:
-    OGRBoolean IntersectsPoint(const OGRPoint *p) const;
-    OGRBoolean ContainsPoint(const OGRPoint *p) const;
+    bool IntersectsPoint(const OGRPoint *p) const;
+    bool ContainsPoint(const OGRPoint *p) const;
 
     virtual bool isRingCorrectType(const OGRCurve *poRing) const;
 
@@ -2505,10 +2501,9 @@ class CPL_DLL OGRCurvePolygon : public OGRSurface
     void empty() override;
     OGRErr transform(OGRCoordinateTransformation *poCT) override;
     void flattenTo2D() override;
-    OGRBoolean IsEmpty() const override;
+    bool IsEmpty() const override;
     bool segmentize(double dfMaxLength) override;
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
     virtual OGRGeometry *
     getLinearGeometry(double dfMaxAngleStepSizeDegrees = 0,
                       const char *const *papszOptions = nullptr) const override;
@@ -2557,14 +2552,14 @@ class CPL_DLL OGRCurvePolygon : public OGRSurface
                     const char *const *papszOptions = nullptr) const;
 
     // ISpatialRelation
-    OGRBoolean Equals(const OGRGeometry *) const override;
-    OGRBoolean Intersects(const OGRGeometry *) const override;
-    OGRBoolean Contains(const OGRGeometry *) const override;
+    bool Equals(const OGRGeometry *) const override;
+    bool Intersects(const OGRGeometry *) const override;
+    bool Contains(const OGRGeometry *) const override;
 
     // Non standard
     bool setCoordinateDimension(int nDimension) override;
-    bool set3D(OGRBoolean bIs3D) override;
-    bool setMeasured(OGRBoolean bIsMeasured) override;
+    bool set3D(bool bIs3D) override;
+    bool setMeasured(bool bIsMeasured) override;
 
     virtual void
     assignSpatialReference(const OGRSpatialReference *poSR) override;
@@ -2717,8 +2712,7 @@ class CPL_DLL OGRPolygon : public OGRCurvePolygon
     const char *getGeometryName() const override;
     OGRwkbGeometryType getGeometryType() const override;
     OGRPolygon *clone() const override;
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
     virtual OGRGeometry *
     getCurveGeometry(const char *const *papszOptions = nullptr) const override;
     virtual OGRGeometry *
@@ -2762,7 +2756,7 @@ class CPL_DLL OGRPolygon : public OGRCurvePolygon
     OGRLinearRing *stealExteriorRing();
     virtual OGRLinearRing *stealInteriorRing(int);
 
-    OGRBoolean IsPointOnSurface(const OGRPoint *) const;
+    bool IsPointOnSurface(const OGRPoint *) const;
 
     /** Return pointer of this in upper class */
     inline OGRCurvePolygon *toUpperClass()
@@ -2928,7 +2922,7 @@ class CPL_DLL OGRGeometryCollection : public OGRGeometry
                                  int nRecLevel, OGRwkbVariant,
                                  size_t &nBytesConsumedOut);
     //! @endcond
-    virtual OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const;
+    virtual bool isCompatibleSubType(OGRwkbGeometryType) const;
 
   public:
     /** Create an empty geometry collection. */
@@ -2977,10 +2971,9 @@ class CPL_DLL OGRGeometryCollection : public OGRGeometry
     void empty() override;
     OGRErr transform(OGRCoordinateTransformation *poCT) override;
     void flattenTo2D() override;
-    OGRBoolean IsEmpty() const override;
+    bool IsEmpty() const override;
     bool segmentize(double dfMaxLength) override;
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
     virtual OGRGeometry *
     getCurveGeometry(const char *const *papszOptions = nullptr) const override;
     virtual OGRGeometry *
@@ -3029,12 +3022,12 @@ class CPL_DLL OGRGeometryCollection : public OGRGeometry
     const OGRGeometry *getGeometryRef(int) const;
 
     // ISpatialRelation
-    OGRBoolean Equals(const OGRGeometry *) const override;
+    bool Equals(const OGRGeometry *) const override;
 
     // Non standard
     bool setCoordinateDimension(int nDimension) override;
-    bool set3D(OGRBoolean bIs3D) override;
-    bool setMeasured(OGRBoolean bIsMeasured) override;
+    bool set3D(bool bIs3D) override;
+    bool setMeasured(bool bIsMeasured) override;
     virtual OGRErr addGeometry(const OGRGeometry *);
     virtual OGRErr addGeometryDirectly(OGRGeometry *);
     OGRErr addGeometry(std::unique_ptr<OGRGeometry> geom);
@@ -3112,7 +3105,7 @@ inline OGRGeometryCollection::ChildType **end(OGRGeometryCollection *poGeom)
 class CPL_DLL OGRMultiSurface : public OGRGeometryCollection
 {
   protected:
-    OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const override;
+    bool isCompatibleSubType(OGRwkbGeometryType) const override;
 
   public:
     /** Create an empty multi surface collection. */
@@ -3198,8 +3191,7 @@ class CPL_DLL OGRMultiSurface : public OGRGeometryCollection
     }
 
     // Non standard
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
 
     /** Return pointer of this in upper class */
     inline OGRGeometryCollection *toUpperClass()
@@ -3272,7 +3264,7 @@ inline OGRMultiSurface::ChildType **end(OGRMultiSurface *poGeom)
 class CPL_DLL OGRMultiPolygon : public OGRMultiSurface
 {
   protected:
-    OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const override;
+    bool isCompatibleSubType(OGRwkbGeometryType) const override;
     friend class OGRPolyhedralSurface;
     friend class OGRTriangulatedSurface;
 
@@ -3359,8 +3351,7 @@ class CPL_DLL OGRMultiPolygon : public OGRMultiSurface
                                     OGRErr *err = nullptr) const override;
 
     // Non standard
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
 
     /** Return pointer of this in upper class */
     inline OGRGeometryCollection *toUpperClass()
@@ -3437,7 +3428,7 @@ class CPL_DLL OGRPolyhedralSurface : public OGRSurface
     OGRSurfaceCasterToPolygon GetCasterToPolygon() const override;
     virtual OGRSurfaceCasterToCurvePolygon
     GetCasterToCurvePolygon() const override;
-    virtual OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const;
+    virtual bool isCompatibleSubType(OGRwkbGeometryType) const;
     virtual const char *getSubGeometryName() const;
     virtual OGRwkbGeometryType getSubGeometryType() const;
     std::string exportToWktInternal(const OGRWktOptions &opts,
@@ -3526,7 +3517,7 @@ class CPL_DLL OGRPolyhedralSurface : public OGRSurface
 
     void flattenTo2D() override;
     OGRErr transform(OGRCoordinateTransformation *) override;
-    OGRBoolean Equals(const OGRGeometry *) const override;
+    bool Equals(const OGRGeometry *) const override;
     double get_Area() const override;
     virtual double get_GeodesicArea(
         const OGRSpatialReference *poSRSOverride = nullptr) const override;
@@ -3537,8 +3528,7 @@ class CPL_DLL OGRPolyhedralSurface : public OGRSurface
     OGRErr PointOnSurface(OGRPoint *) const override;
 
     static OGRMultiPolygon *CastToMultiPolygon(OGRPolyhedralSurface *poPS);
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
     virtual OGRErr addGeometry(const OGRGeometry *);
     OGRErr addGeometryDirectly(OGRGeometry *poNewGeom);
     OGRErr addGeometry(std::unique_ptr<OGRGeometry> poNewGeom);
@@ -3547,10 +3537,10 @@ class CPL_DLL OGRPolyhedralSurface : public OGRSurface
     OGRPolygon *getGeometryRef(int i);
     const OGRPolygon *getGeometryRef(int i) const;
 
-    OGRBoolean IsEmpty() const override;
+    bool IsEmpty() const override;
     bool setCoordinateDimension(int nDimension) override;
-    bool set3D(OGRBoolean bIs3D) override;
-    bool setMeasured(OGRBoolean bIsMeasured) override;
+    bool set3D(bool bIs3D) override;
+    bool setMeasured(bool bIsMeasured) override;
     void swapXY() override;
     OGRErr removeGeometry(int iIndex, int bDelete = TRUE);
 
@@ -3616,7 +3606,7 @@ class CPL_DLL OGRTriangulatedSurface : public OGRPolyhedralSurface
 {
   protected:
     //! @cond Doxygen_Suppress
-    OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const override;
+    bool isCompatibleSubType(OGRwkbGeometryType) const override;
     const char *getSubGeometryName() const override;
     OGRwkbGeometryType getSubGeometryType() const override;
 
@@ -3761,7 +3751,7 @@ class CPL_DLL OGRMultiPoint : public OGRGeometryCollection
     OGRErr importFromWkt_Bracketed(const char **, int bHasM, int bHasZ);
 
   protected:
-    OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const override;
+    bool isCompatibleSubType(OGRwkbGeometryType) const override;
 
   public:
     /** Create an empty multi point collection. */
@@ -3866,8 +3856,7 @@ class CPL_DLL OGRMultiPoint : public OGRGeometryCollection
     }
 
     // Non-standard.
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
 
     OGR_ALLOW_CAST_TO_THIS(MultiPoint)
     OGR_ALLOW_UPCAST_TO(GeometryCollection)
@@ -3920,7 +3909,7 @@ class CPL_DLL OGRMultiCurve : public OGRGeometryCollection
     static OGRErr addCurveDirectlyFromWkt(OGRGeometry *poSelf,
                                           OGRCurve *poCurve);
     //! @endcond
-    OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const override;
+    bool isCompatibleSubType(OGRwkbGeometryType) const override;
 
   public:
     /** Create an empty multi curve collection. */
@@ -4003,8 +3992,7 @@ class CPL_DLL OGRMultiCurve : public OGRGeometryCollection
     int getDimension() const override;
 
     // Non-standard.
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
 
     /** Return pointer of this in upper class */
     inline OGRGeometryCollection *toUpperClass()
@@ -4075,7 +4063,7 @@ inline OGRMultiCurve::ChildType **end(OGRMultiCurve *poGeom)
 class CPL_DLL OGRMultiLineString : public OGRMultiCurve
 {
   protected:
-    OGRBoolean isCompatibleSubType(OGRwkbGeometryType) const override;
+    bool isCompatibleSubType(OGRwkbGeometryType) const override;
 
   public:
     /** Create an empty multi line string collection. */
@@ -4152,8 +4140,7 @@ class CPL_DLL OGRMultiLineString : public OGRMultiCurve
                                     OGRErr *err = nullptr) const override;
 
     // Non standard
-    virtual OGRBoolean
-    hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
+    bool hasCurveGeometry(int bLookForNonLinear = FALSE) const override;
 
     /** Return pointer of this in upper class */
     inline OGRGeometryCollection *toUpperClass()

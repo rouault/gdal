@@ -271,7 +271,7 @@ template <class T> void testCopyEquals()
 
     T value2(*poOrigin);
 
-    ASSERT_TRUE(CPL_TO_BOOL(poOrigin->Equals(&value2)))
+    ASSERT_TRUE(poOrigin->Equals(&value2))
         << poOrigin->getGeometryName() << ": copy constructor changed a value";
 
     T value3;
@@ -288,7 +288,7 @@ template <class T> void testCopyEquals()
     CPLFree(wkt1);
     CPLFree(wkt2);
 #endif
-    ASSERT_TRUE(CPL_TO_BOOL(poOrigin->Equals(&value3)))
+    ASSERT_TRUE(poOrigin->Equals(&value3))
         << poOrigin->getGeometryName()
         << ": assignment operator changed a value";
 
@@ -389,7 +389,7 @@ template <class T> void testMove()
         T fromMoved(std::move(*poOrigin));
         EXPECT_EQ(poSRS->GetReferenceCount(), refCountBefore);
 
-        ASSERT_TRUE(CPL_TO_BOOL(fromMoved.Equals(&valueCopy)))
+        ASSERT_TRUE(fromMoved.Equals(&valueCopy))
             << valueCopy.getGeometryName()
             << ": move constructor changed a value";
         EXPECT_EQ(fromMoved.getSpatialReference(), poSRS);
@@ -401,7 +401,7 @@ template <class T> void testMove()
         value3 = std::move(valueCopy);
         EXPECT_EQ(poSRS->GetReferenceCount(), refCountBefore2);
 
-        ASSERT_TRUE(CPL_TO_BOOL(value3.Equals(&valueCopy2)))
+        ASSERT_TRUE(value3.Equals(&valueCopy2))
             << valueCopy2.getGeometryName()
             << ": move assignment operator changed a value";
         EXPECT_EQ(value3.getSpatialReference(), poSRS);

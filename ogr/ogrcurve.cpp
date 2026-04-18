@@ -80,8 +80,7 @@ int OGRCurve::get_IsClosed() const
     }
 
     // one of the points is 3D
-    else if (((oStartPoint.Is3D() & oEndPoint.Is3D()) == 0) &&
-             ((oStartPoint.Is3D() | oEndPoint.Is3D()) == 1))
+    else if (oStartPoint.Is3D() != oEndPoint.Is3D())
     {
         return FALSE;
     }
@@ -302,7 +301,7 @@ int OGRCurve::get_IsClosed() const
  *
  */
 
-OGRBoolean OGRCurve::IsConvex() const
+bool OGRCurve::IsConvex() const
 {
     bool bRet = true;
     OGRPointIterator *poPointIter = getPointIterator();
@@ -448,7 +447,7 @@ int OGRCurve::IntersectsPoint(CPL_UNUSED const OGRPoint *p) const
 OGRPointIterator::~OGRPointIterator() = default;
 
 /**
- * \fn OGRBoolean OGRPointIterator::getNextPoint(OGRPoint* p);
+ * \fn bool OGRPointIterator::getNextPoint(OGRPoint* p);
  *
  * \brief Returns the next point followed by the iterator.
  *

@@ -1448,7 +1448,7 @@ OGRGeometryFactory::removeLowerDimensionSubGeoms(const OGRGeometry *poGeom)
     }
     const OGRGeometryCollection *poGC = poGeom->toGeometryCollection();
     int nMaxDim = 0;
-    OGRBoolean bHasCurve = FALSE;
+    bool bHasCurve = false;
     for (const auto poSubGeom : *poGC)
     {
         nMaxDim = std::max(nMaxDim, poSubGeom->getDimension());
@@ -3793,10 +3793,10 @@ static bool ContainsPole(const OGRGeometry *poGeom, const OGRPoint *poPole)
                 const auto poRing = poPoly->getExteriorRingCurve();
                 OGRPolygon oPolygon;
                 oPolygon.addRing(poRing);
-                return CPL_TO_BOOL(oPolygon.Contains(poPole));
+                return oPolygon.Contains(poPole);
             }
 
-            return CPL_TO_BOOL(poGeom->Contains(poPole));
+            return poGeom->Contains(poPole);
         }
 
         case wkbMultiPolygon:
@@ -3814,7 +3814,7 @@ static bool ContainsPole(const OGRGeometry *poGeom, const OGRPoint *poPole)
         default:
             break;
     }
-    return CPL_TO_BOOL(poGeom->Contains(poPole));
+    return poGeom->Contains(poPole);
 }
 
 /************************************************************************/
@@ -3847,7 +3847,7 @@ static std::unique_ptr<OGRGeometry> TransformBeforePolarToGeographic(
     OGRPoint oNearPoleAntimeridian(dfNearPoleAntiMeridianX,
                                    dfNearPoleAntiMeridianY);
     const bool bContainsNearPoleAntimeridian =
-        CPL_TO_BOOL(poDstGeom->Contains(&oNearPoleAntimeridian));
+        poDstGeom->Contains(&oNearPoleAntimeridian);
 
     // Does the geometry intersects the antimeridian ?
     OGRLineString oAntiMeridianLine;
@@ -3856,12 +3856,12 @@ static std::unique_ptr<OGRGeometry> TransformBeforePolarToGeographic(
     oAntiMeridianLine.transform(poRevCT);
     const bool bIntersectsAntimeridian =
         bContainsNearPoleAntimeridian ||
-        CPL_TO_BOOL(poDstGeom->Intersects(&oAntiMeridianLine));
+        poDstGeom->Intersects(&oAntiMeridianLine);
 
     // Does the geometry touches the pole (but not intersect the antimeridian) ?
     const bool bRegularTouchesPole =
         !bContainsPole && !bContainsNearPoleAntimeridian &&
-        !bIntersectsAntimeridian && CPL_TO_BOOL(poDstGeom->Touches(&oPole));
+        !bIntersectsAntimeridian && poDstGeom->Touches(&oPole);
 
     // Create a polygon of nearly a full hemisphere, but excluding the anti
     // meridian and the pole.
@@ -5176,8 +5176,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         if (poRet)
         {
             poRet->assignSpatialReference(poGeom->getSpatialReference());
-            poRet->set3D(OGR_GT_HasZ(eTargetType));
-            poRet->setMeasured(OGR_GT_HasM(eTargetType));
+            poRet->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+            poRet->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         }
         return poRet;
     }
@@ -5191,16 +5191,16 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
             forceTo(std::move(poGeom), eTargetTypeFlat, papszOptions);
         if (poGeomNew)
         {
-            poGeomNew->set3D(OGR_GT_HasZ(eTargetType));
-            poGeomNew->setMeasured(OGR_GT_HasM(eTargetType));
+            poGeomNew->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+            poGeomNew->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         }
         return poGeomNew;
     }
 
     if (eTypeFlat == eTargetTypeFlat)
     {
-        poGeom->set3D(OGR_GT_HasZ(eTargetType));
-        poGeom->setMeasured(OGR_GT_HasM(eTargetType));
+        poGeom->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poGeom->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poGeom;
     }
 
@@ -5225,8 +5225,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         OGRGeometryCollection *poGC = poGeom.release()->toGeometryCollection();
         auto poRet = std::unique_ptr<OGRGeometry>(
             OGRGeometryCollection::CastToGeometryCollection(poGC));
-        poRet->set3D(OGR_GT_HasZ(eTargetType));
-        poRet->setMeasured(OGR_GT_HasM(eTargetType));
+        poRet->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poRet->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poRet;
     }
 
@@ -5235,8 +5235,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         auto poPS = std::make_unique<OGRPolyhedralSurface>();
         poPS->assignSpatialReference(poGeom->getSpatialReference());
         poPS->addGeometryDirectly(OGRTriangle::CastToPolygon(poGeom.release()));
-        poPS->set3D(OGR_GT_HasZ(eTargetType));
-        poPS->setMeasured(OGR_GT_HasM(eTargetType));
+        poPS->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poPS->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poPS;
     }
     else if (eType == wkbPolygon && eTargetTypeFlat == wkbPolyhedralSurface)
@@ -5244,8 +5244,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         auto poPS = std::make_unique<OGRPolyhedralSurface>();
         poPS->assignSpatialReference(poGeom->getSpatialReference());
         poPS->addGeometry(std::move(poGeom));
-        poPS->set3D(OGR_GT_HasZ(eTargetType));
-        poPS->setMeasured(OGR_GT_HasM(eTargetType));
+        poPS->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poPS->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poPS;
     }
     else if (eType == wkbMultiPolygon &&
@@ -5257,8 +5257,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         {
             poPS->addGeometry(poPoly);
         }
-        poPS->set3D(OGR_GT_HasZ(eTargetType));
-        poPS->setMeasured(OGR_GT_HasM(eTargetType));
+        poPS->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poPS->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poPS;
     }
     else if (eType == wkbTIN && eTargetTypeFlat == wkbPolyhedralSurface)
@@ -5294,8 +5294,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         auto poTS = std::make_unique<OGRTriangulatedSurface>();
         poTS->assignSpatialReference(poGeom->getSpatialReference());
         poTS->addGeometry(std::move(poGeom));
-        poTS->set3D(OGR_GT_HasZ(eTargetType));
-        poTS->setMeasured(OGR_GT_HasM(eTargetType));
+        poTS->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poTS->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poTS;
     }
     else if (eType == wkbPolygon && eTargetTypeFlat == wkbTIN)
@@ -5312,8 +5312,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         auto poTS = std::make_unique<OGRTriangulatedSurface>();
         poTS->assignSpatialReference(poGeom->getSpatialReference());
         poTS->addGeometry(std::move(poTriangle));
-        poTS->set3D(OGR_GT_HasZ(eTargetType));
-        poTS->setMeasured(OGR_GT_HasM(eTargetType));
+        poTS->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poTS->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poTS;
     }
     else if (eType == wkbMultiPolygon && eTargetTypeFlat == wkbTIN)
@@ -5335,8 +5335,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
             OGRErr eErr = OGRERR_NONE;
             poTS->addGeometry(std::make_unique<OGRTriangle>(*poPoly, eErr));
         }
-        poTS->set3D(OGR_GT_HasZ(eTargetType));
-        poTS->setMeasured(OGR_GT_HasM(eTargetType));
+        poTS->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poTS->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poTS;
     }
     else if (eType == wkbPolyhedralSurface && eTargetTypeFlat == wkbTIN)
@@ -5348,8 +5348,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
             if (!(poLR != nullptr && poLR->getNumPoints() == 4 &&
                   poPoly->getNumInteriorRings() == 0))
             {
-                poGeom->set3D(OGR_GT_HasZ(eTargetType));
-                poGeom->setMeasured(OGR_GT_HasM(eTargetType));
+                poGeom->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+                poGeom->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
                 return poGeom;
             }
         }
@@ -5360,8 +5360,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
             OGRErr eErr = OGRERR_NONE;
             poTS->addGeometry(std::make_unique<OGRTriangle>(*poPoly, eErr));
         }
-        poTS->set3D(OGR_GT_HasZ(eTargetType));
-        poTS->setMeasured(OGR_GT_HasM(eTargetType));
+        poTS->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poTS->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poTS;
     }
 
@@ -5372,14 +5372,14 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         if (!(poLR != nullptr && poLR->getNumPoints() == 4 &&
               poPoly->getNumInteriorRings() == 0))
         {
-            poGeom->set3D(OGR_GT_HasZ(eTargetType));
-            poGeom->setMeasured(OGR_GT_HasM(eTargetType));
+            poGeom->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+            poGeom->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
             return poGeom;
         }
         OGRErr eErr = OGRERR_NONE;
         auto poTriangle = std::make_unique<OGRTriangle>(*poPoly, eErr);
-        poTriangle->set3D(OGR_GT_HasZ(eTargetType));
-        poTriangle->setMeasured(OGR_GT_HasM(eTargetType));
+        poTriangle->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poTriangle->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poTriangle;
     }
 
@@ -5403,8 +5403,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         auto poGC = std::make_unique<OGRGeometryCollection>();
         poGC->assignSpatialReference(poGeom->getSpatialReference());
         poGC->addGeometry(std::move(poGeom));
-        poGC->set3D(OGR_GT_HasZ(eTargetType));
-        poGC->setMeasured(OGR_GT_HasM(eTargetType));
+        poGC->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poGC->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poGC;
     }
 
@@ -5422,8 +5422,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
             poGeom.reset(
                 OGRCurve::CastToLineString(poGeom.release()->toCurve()));
         poRet->toGeometryCollection()->addGeometry(std::move(poGeom));
-        poRet->set3D(OGR_GT_HasZ(eTargetType));
-        poRet->setMeasured(OGR_GT_HasM(eTargetType));
+        poRet->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poRet->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poRet;
     }
 
@@ -5434,8 +5434,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
             OGRCurve::CastToCompoundCurve(poGeom.release()->toCurve()));
         if (poRet)
         {
-            poRet->set3D(OGR_GT_HasZ(eTargetType));
-            poRet->setMeasured(OGR_GT_HasM(eTargetType));
+            poRet->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+            poRet->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         }
         return poRet;
     }
@@ -5448,8 +5448,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
             if (poCP->addRing(std::move(poCurve)) == OGRERR_NONE)
             {
                 poCP->assignSpatialReference(poGeom->getSpatialReference());
-                poCP->set3D(OGR_GT_HasZ(eTargetType));
-                poCP->setMeasured(OGR_GT_HasM(eTargetType));
+                poCP->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+                poCP->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
                 return poCP;
             }
         }
@@ -5481,16 +5481,16 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         auto poRet =
             std::unique_ptr<OGRGeometry>(OGRSurface::CastToCurvePolygon(
                 OGRTriangle::CastToPolygon(poGeom.release())->toSurface()));
-        poRet->set3D(OGR_GT_HasZ(eTargetType));
-        poRet->setMeasured(OGR_GT_HasM(eTargetType));
+        poRet->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poRet->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poRet;
     }
     else if (eType == wkbPolygon && eTargetTypeFlat == wkbCurvePolygon)
     {
         auto poRet = std::unique_ptr<OGRGeometry>(
             OGRSurface::CastToCurvePolygon(poGeom.release()->toPolygon()));
-        poRet->set3D(OGR_GT_HasZ(eTargetType));
-        poRet->setMeasured(OGR_GT_HasM(eTargetType));
+        poRet->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poRet->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poRet;
     }
     else if (OGR_GT_IsSubClassOf(eType, wkbCurvePolygon) &&
@@ -5511,8 +5511,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         auto poRet =
             std::unique_ptr<OGRGeometry>(OGRMultiPolygon::CastToMultiSurface(
                 poGeom.release()->toMultiPolygon()));
-        poRet->set3D(OGR_GT_HasZ(eTargetType));
-        poRet->setMeasured(OGR_GT_HasM(eTargetType));
+        poRet->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poRet->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poRet;
     }
     else if (eType == wkbMultiLineString && eTargetTypeFlat == wkbMultiCurve)
@@ -5520,8 +5520,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
         auto poRet =
             std::unique_ptr<OGRGeometry>(OGRMultiLineString::CastToMultiCurve(
                 poGeom.release()->toMultiLineString()));
-        poRet->set3D(OGR_GT_HasZ(eTargetType));
-        poRet->setMeasured(OGR_GT_HasM(eTargetType));
+        poRet->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poRet->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         return poRet;
     }
     else if (OGR_GT_IsSubClassOf(eType, wkbGeometryCollection))
@@ -5573,8 +5573,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
     {
         auto poNewGeom =
             std::unique_ptr<OGRGeometry>(forceToLineString(poGeom.release()));
-        poNewGeom->set3D(OGR_GT_HasZ(eTargetType));
-        poNewGeom->setMeasured(OGR_GT_HasM(eTargetType));
+        poNewGeom->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poNewGeom->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         poGeom = std::move(poNewGeom);
     }
     else if (eTargetTypeFlat == wkbPolygon)
@@ -5583,8 +5583,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
             std::unique_ptr<OGRGeometry>(forceToPolygon(poGeom.release()));
         if (poNewGeom)
         {
-            poNewGeom->set3D(OGR_GT_HasZ(eTargetType));
-            poNewGeom->setMeasured(OGR_GT_HasM(eTargetType));
+            poNewGeom->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+            poNewGeom->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         }
         poGeom = std::move(poNewGeom);
     }
@@ -5594,8 +5594,8 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
             std::unique_ptr<OGRGeometry>(forceToMultiPolygon(poGeom.release()));
         if (poNewGeom)
         {
-            poNewGeom->set3D(OGR_GT_HasZ(eTargetType));
-            poNewGeom->setMeasured(OGR_GT_HasM(eTargetType));
+            poNewGeom->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+            poNewGeom->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         }
         poGeom = std::move(poNewGeom);
     }
@@ -5603,16 +5603,16 @@ OGRGeometryFactory::forceTo(std::unique_ptr<OGRGeometry> poGeom,
     {
         auto poNewGeom = std::unique_ptr<OGRGeometry>(
             forceToMultiLineString(poGeom.release()));
-        poNewGeom->set3D(OGR_GT_HasZ(eTargetType));
-        poNewGeom->setMeasured(OGR_GT_HasM(eTargetType));
+        poNewGeom->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poNewGeom->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         poGeom = std::move(poNewGeom);
     }
     else if (eTargetTypeFlat == wkbMultiPoint)
     {
         auto poNewGeom =
             std::unique_ptr<OGRGeometry>(forceToMultiPoint(poGeom.release()));
-        poNewGeom->set3D(OGR_GT_HasZ(eTargetType));
-        poNewGeom->setMeasured(OGR_GT_HasM(eTargetType));
+        poNewGeom->set3D(CPL_TO_BOOL(OGR_GT_HasZ(eTargetType)));
+        poNewGeom->setMeasured(CPL_TO_BOOL(OGR_GT_HasM(eTargetType)));
         poGeom = std::move(poNewGeom);
     }
 

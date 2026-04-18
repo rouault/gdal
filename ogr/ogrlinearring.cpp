@@ -449,8 +449,8 @@ void OGRLinearRing::closeRings()
  *                      ring envelope must be checked first.
  * @return TRUE or FALSE.
  */
-OGRBoolean OGRLinearRing::isPointInRing(const OGRPoint *poPoint,
-                                        int bTestEnvelope) const
+bool OGRLinearRing::isPointInRing(const OGRPoint *poPoint,
+                                  int bTestEnvelope) const
 {
     if (nullptr == poPoint)
     {
@@ -517,7 +517,7 @@ OGRBoolean OGRLinearRing::isPointInRing(const OGRPoint *poPoint,
 
     // If iNumCrossings number is even, given point is outside the ring,
     // when the crossings number is odd, the point is inside the ring.
-    return iNumCrossings % 2;  // OGRBoolean
+    return (iNumCrossings % 2) != 0;
 }
 
 /************************************************************************/
@@ -530,8 +530,8 @@ OGRBoolean OGRLinearRing::isPointInRing(const OGRPoint *poPoint,
  *                      ring envelope must be checked first.
  * @return TRUE or FALSE.
  */
-OGRBoolean OGRLinearRing::isPointOnRingBoundary(const OGRPoint *poPoint,
-                                                int bTestEnvelope) const
+bool OGRLinearRing::isPointOnRingBoundary(const OGRPoint *poPoint,
+                                          int bTestEnvelope) const
 {
     if (nullptr == poPoint)
     {

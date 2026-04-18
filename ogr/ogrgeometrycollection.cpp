@@ -1138,7 +1138,7 @@ void OGRGeometryCollection::getEnvelope(OGREnvelope3D *psEnvelope) const
 /*                               Equals()                               */
 /************************************************************************/
 
-OGRBoolean OGRGeometryCollection::Equals(const OGRGeometry *poOther) const
+bool OGRGeometryCollection::Equals(const OGRGeometry *poOther) const
 
 {
     if (poOther == this)
@@ -1232,7 +1232,7 @@ bool OGRGeometryCollection::setCoordinateDimension(int nNewDimension)
     return OGRGeometry::setCoordinateDimension(nNewDimension);
 }
 
-bool OGRGeometryCollection::set3D(OGRBoolean bIs3D)
+bool OGRGeometryCollection::set3D(bool bIs3D)
 {
     for (auto &poSubGeom : *this)
     {
@@ -1243,7 +1243,7 @@ bool OGRGeometryCollection::set3D(OGRBoolean bIs3D)
     return OGRGeometry::set3D(bIs3D);
 }
 
-bool OGRGeometryCollection::setMeasured(OGRBoolean bIsMeasured)
+bool OGRGeometryCollection::setMeasured(bool bIsMeasured)
 {
     for (auto &poSubGeom : *this)
     {
@@ -1491,7 +1491,7 @@ double OGRGeometryCollection::get_GeodesicLength(
 /*                              IsEmpty()                               */
 /************************************************************************/
 
-OGRBoolean OGRGeometryCollection::IsEmpty() const
+bool OGRGeometryCollection::IsEmpty() const
 {
     for (const auto &poSubGeom : *this)
     {
@@ -1552,7 +1552,7 @@ void OGRGeometryCollection::swapXY()
  * @return TRUE or FALSE
  */
 
-OGRBoolean OGRGeometryCollection::isCompatibleSubType(
+bool OGRGeometryCollection::isCompatibleSubType(
     CPL_UNUSED OGRwkbGeometryType eSubType) const
 {
     // Accept all geometries as sub-geometries.
@@ -1563,7 +1563,7 @@ OGRBoolean OGRGeometryCollection::isCompatibleSubType(
 /*                          hasCurveGeometry()                          */
 /************************************************************************/
 
-OGRBoolean OGRGeometryCollection::hasCurveGeometry(int bLookForNonLinear) const
+bool OGRGeometryCollection::hasCurveGeometry(int bLookForNonLinear) const
 {
     for (const auto &poSubGeom : *this)
     {
