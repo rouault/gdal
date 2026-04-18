@@ -525,8 +525,7 @@ inline bool GTiffDataset::IsFirstPixelEqualToNoData(const void *pBuffer)
     if (m_nBitsPerSample == 32 && eDT == GDT_Float32)
     {
         if (std::isnan(m_dfNoDataValue))
-            return CPL_TO_BOOL(
-                std::isnan(*(static_cast<const float *>(pBuffer))));
+            return std::isnan(*(static_cast<const float *>(pBuffer)));
         return GDALIsValueInRange<float>(dfEffectiveNoData) &&
                *(static_cast<const float *>(pBuffer)) ==
                    static_cast<float>(dfEffectiveNoData);
@@ -534,8 +533,7 @@ inline bool GTiffDataset::IsFirstPixelEqualToNoData(const void *pBuffer)
     if (m_nBitsPerSample == 64 && eDT == GDT_Float64)
     {
         if (std::isnan(dfEffectiveNoData))
-            return CPL_TO_BOOL(
-                std::isnan(*(static_cast<const double *>(pBuffer))));
+            return std::isnan(*(static_cast<const double *>(pBuffer)));
         return *(static_cast<const double *>(pBuffer)) == dfEffectiveNoData;
     }
     return false;

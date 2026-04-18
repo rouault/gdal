@@ -2635,8 +2635,7 @@ CPLErr VRTDataset::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
         }
     }
 
-    bool bLocalCompatibleForDatasetIO =
-        CPL_TO_BOOL(CheckCompatibleForDatasetIO());
+    bool bLocalCompatibleForDatasetIO = CheckCompatibleForDatasetIO();
     if (bLocalCompatibleForDatasetIO && eRWFlag == GF_Read &&
         (nBufXSize < nXSize || nBufYSize < nYSize) && m_apoOverviews.empty())
     {

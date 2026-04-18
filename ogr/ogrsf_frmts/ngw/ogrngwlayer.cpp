@@ -1070,7 +1070,7 @@ GIntBig OGRNGWLayer::GetFeatureCount(int bForce)
 OGRErr OGRNGWLayer::IGetExtent(int /* iGeomField */, OGREnvelope *psExtent,
                                bool bForce)
 {
-    if (!stExtent.IsInit() || CPL_TO_BOOL(bForce))
+    if (!stExtent.IsInit() || bForce)
     {
         auto aosHTTPOptions = poDS->GetHeaders(false);
         bool bResult = NGWAPI::GetExtent(poDS->GetUrl(), osResourceId,

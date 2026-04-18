@@ -2079,7 +2079,7 @@ int GTIFSetFromOGISDefnEx(GTIF *psGTIF, OGRSpatialReferenceH hSRS,
         {
             OGRSpatialReference oSRSTmp(*poSRS);
             oSRSTmp.StripVertical();
-            bHasEllipsoid = CPL_TO_BOOL(!oSRSTmp.IsLocal());
+            bHasEllipsoid = !oSRSTmp.IsLocal();
         }
         if (bHasEllipsoid)
         {

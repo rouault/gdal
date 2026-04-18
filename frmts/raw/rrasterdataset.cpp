@@ -1150,11 +1150,11 @@ GDALDataset *RRASTERDataset::Open(GDALOpenInfo *poOpenInfo)
     bool bNativeOrder = true;
     if (EQUAL(osByteOrder, "little"))
     {
-        bNativeOrder = CPL_TO_BOOL(CPL_IS_LSB);
+        bNativeOrder = CPL_IS_LSB;
     }
     else if (EQUAL(osByteOrder, "big"))
     {
-        bNativeOrder = CPL_TO_BOOL(!CPL_IS_LSB);
+        bNativeOrder = !CPL_IS_LSB;
     }
     else if (!EQUAL(osByteOrder, ""))
     {

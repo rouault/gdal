@@ -4629,8 +4629,7 @@ SetupTargetLayer::Setup(OGRLayer *poSrcLayer, const char *pszNewLayerName,
                 eGType = wkbNone;
             }
 
-            bool bHasZ =
-                CPL_TO_BOOL(wkbHasZ(static_cast<OGRwkbGeometryType>(eGType)));
+            const bool bHasZ = wkbHasZ(static_cast<OGRwkbGeometryType>(eGType));
             eGType = ConvertType(m_eGeomTypeConversion,
                                  static_cast<OGRwkbGeometryType>(eGType));
 

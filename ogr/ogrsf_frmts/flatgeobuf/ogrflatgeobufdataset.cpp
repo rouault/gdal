@@ -229,11 +229,11 @@ GDALDataset *OGRFlatGeobufDataset::Open(GDALOpenInfo *poOpenInfo)
     if (OGRFlatGeobufDriverIdentify(poOpenInfo) == FALSE)
         return nullptr;
 
-    const auto bVerifyBuffers =
+    const bool bVerifyBuffers =
         CPLFetchBool(poOpenInfo->papszOpenOptions, "VERIFY_BUFFERS", true);
 
-    auto isDir = CPL_TO_BOOL(poOpenInfo->bIsDirectory);
-    auto bUpdate = poOpenInfo->eAccess == GA_Update;
+    const bool isDir = poOpenInfo->bIsDirectory;
+    const bool bUpdate = poOpenInfo->eAccess == GA_Update;
 
     if (isDir && bUpdate)
     {

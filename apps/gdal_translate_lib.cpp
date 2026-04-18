@@ -2032,11 +2032,11 @@ GDALDatasetH GDALTranslate(const char *pszDest, GDALDatasetH hSrcDataset,
                 pszMin != nullptr && pszMax != nullptr)
             {
                 const bool bSrcIsInteger =
-                    CPL_TO_BOOL(GDALDataTypeIsInteger(eSrcBandType) &&
-                                !GDALDataTypeIsComplex(eSrcBandType));
+                    CPL_TO_BOOL(GDALDataTypeIsInteger(eSrcBandType)) &&
+                    !CPL_TO_BOOL(GDALDataTypeIsComplex(eSrcBandType));
                 const bool bDstIsInteger =
-                    CPL_TO_BOOL(GDALDataTypeIsInteger(eBandType) &&
-                                !GDALDataTypeIsComplex(eBandType));
+                    CPL_TO_BOOL(GDALDataTypeIsInteger(eBandType)) &&
+                    !CPL_TO_BOOL(GDALDataTypeIsComplex(eBandType));
                 if (bSrcIsInteger && bDstIsInteger)
                 {
                     std::int64_t nDstMin = 0;

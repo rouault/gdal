@@ -1238,7 +1238,7 @@ GDALResampleChunk_AverageOrRMS_T(const GDALOverviewResampleArgs &args,
     const GDALColorTable *const poColorTable =
         !bQuadraticMean &&
                 // AVERAGE_BIT2GRAYSCALE
-                CPL_TO_BOOL(STARTS_WITH_CI(pszResampling, "AVERAGE_BIT2G"))
+                STARTS_WITH_CI(pszResampling, "AVERAGE_BIT2G")
             ? nullptr
             : args.poColorTable;
     const bool bPropagateNoData = args.bPropagateNoData;

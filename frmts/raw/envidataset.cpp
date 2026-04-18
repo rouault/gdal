@@ -2270,7 +2270,7 @@ ENVIDataset *ENVIDataset::Open(GDALOpenInfo *poOpenInfo, bool bFileSizeCheck)
     const char *pszMapInfo = poDS->m_aosHeader["map_info"];
     if (pszMapInfo != nullptr)
     {
-        poDS->bFoundMapinfo = CPL_TO_BOOL(poDS->ProcessMapinfo(pszMapInfo));
+        poDS->bFoundMapinfo = poDS->ProcessMapinfo(pszMapInfo);
     }
 
     // Look for RPC.

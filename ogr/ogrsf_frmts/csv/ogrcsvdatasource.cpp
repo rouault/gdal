@@ -504,7 +504,7 @@ bool OGRCSVDataSource::Open(const char *pszFilename, bool bUpdateIn,
 
 {
     pszName = CPLStrdup(pszFilename);
-    bUpdate = CPL_TO_BOOL(bUpdateIn);
+    bUpdate = bUpdateIn;
 
     if (bUpdate && bForceOpen && EQUAL(pszFilename, "/vsistdout/"))
         return TRUE;

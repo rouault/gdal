@@ -35,7 +35,10 @@
 
 static inline bool OGRWKBNeedSwap(GByte b)
 {
-    return b != CPL_IS_LSB;
+    if constexpr (CPL_IS_LSB)
+        return b != 1;
+    else
+        return b != 0;
 }
 
 /************************************************************************/

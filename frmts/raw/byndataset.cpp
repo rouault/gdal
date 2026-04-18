@@ -334,7 +334,7 @@ GDALDataset *BYNDataset::Open(GDALOpenInfo *poOpenInfo)
 
     const int nDTSize = GDALGetDataTypeSizeBytes(eDT);
 
-    int bIsLSB = poDS->hHeader.nByteOrder == 1 ? 1 : 0;
+    const bool bIsLSB = poDS->hHeader.nByteOrder == 1;
 
     auto poBand = std::make_unique<BYNRasterBand>(
         poDS.get(), 1, poDS->fpImage, BYN_HDR_SZ, nDTSize,

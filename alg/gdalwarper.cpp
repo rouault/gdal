@@ -392,7 +392,7 @@ CPLErr GDALWarpNoDataMasker(void *pMaskFuncArg, int nBandCount,
         {
             const float fNoData = static_cast<float>(padfNoData[0]);
             const float *pafData = reinterpret_cast<float *>(*ppImageData);
-            const bool bIsNoDataNan = CPL_TO_BOOL(std::isnan(fNoData));
+            const bool bIsNoDataNan = std::isnan(fNoData);
 
             // Nothing to do if value is out of range.
             if (padfNoData[1] != 0.0)
@@ -420,7 +420,7 @@ CPLErr GDALWarpNoDataMasker(void *pMaskFuncArg, int nBandCount,
         {
             const double dfNoData = padfNoData[0];
             const double *padfData = reinterpret_cast<double *>(*ppImageData);
-            const bool bIsNoDataNan = CPL_TO_BOOL(std::isnan(dfNoData));
+            const bool bIsNoDataNan = std::isnan(dfNoData);
 
             // Nothing to do if value is out of range.
             if (padfNoData[1] != 0.0)
@@ -448,8 +448,7 @@ CPLErr GDALWarpNoDataMasker(void *pMaskFuncArg, int nBandCount,
         {
             const int nWordSize = GDALGetDataTypeSizeBytes(eType);
 
-            const bool bIsNoDataRealNan =
-                CPL_TO_BOOL(std::isnan(padfNoData[0]));
+            const bool bIsNoDataRealNan = std::isnan(padfNoData[0]);
 
             eErr = CE_Failure;
             double *padfWrk = static_cast<double *>(

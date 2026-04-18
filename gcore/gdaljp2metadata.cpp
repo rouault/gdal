@@ -140,8 +140,8 @@ int GDALJP2Metadata::ReadAndParse(const char *pszFilename, int nGEOJP2Index,
          !m_bHaveGeoTransform))
     {
         m_bHaveGeoTransform =
-            CPL_TO_BOOL(GDALReadWorldFile(pszFilename, nullptr, m_gt.data()) ||
-                        GDALReadWorldFile(pszFilename, ".wld", m_gt.data()));
+            CPL_TO_BOOL(GDALReadWorldFile(pszFilename, nullptr, m_gt.data())) ||
+            CPL_TO_BOOL(GDALReadWorldFile(pszFilename, ".wld", m_gt.data()));
         bRet |= m_bHaveGeoTransform;
     }
 

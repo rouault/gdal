@@ -228,7 +228,7 @@ bool OGRShapeDataSource::Open(GDALOpenInfo *poOpenInfo, bool bTestOpen,
 
     eAccess = poOpenInfo->eAccess;
 
-    m_bSingleFileDataSource = CPL_TO_BOOL(bForceSingleFileDataSource);
+    m_bSingleFileDataSource = bForceSingleFileDataSource;
 
     /* -------------------------------------------------------------------- */
     /*      If m_bSingleFileDataSource is TRUE we don't try to do anything  */
