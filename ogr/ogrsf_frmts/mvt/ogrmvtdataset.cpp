@@ -1036,7 +1036,7 @@ OGRMVTLayer::ParseGeometry(unsigned int nGeomType,
         {
             std::unique_ptr<OGRMultiPolygon> poMultiPoly;
             std::unique_ptr<OGRPolygon> poPoly;
-            int externalIsClockwise = 0;
+            bool externalIsClockwise = false;
             int nX = 0;
             int nY = 0;
             OGREnvelope sExteriorRingEnvelope;

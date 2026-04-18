@@ -1366,7 +1366,7 @@ class CPL_DLL OGRCurve : public OGRGeometry
         const OGRSpatialReference *poSRSOverride = nullptr) const = 0;
     virtual double get_GeodesicLength(
         const OGRSpatialReference *poSRSOverride = nullptr) const = 0;
-    virtual int isClockwise() const;
+    virtual bool isClockwise() const;
     virtual void reversePoints() = 0;
 
     /** Down-cast to OGRSimpleCurve*.
@@ -1776,7 +1776,7 @@ class CPL_DLL OGRLineString : public OGRSimpleCurve
     // Non-standard from OGRGeometry.
     OGRwkbGeometryType getGeometryType() const override;
     const char *getGeometryName() const override;
-    int isClockwise() const override;
+    bool isClockwise() const override;
 
     /** Return pointer of this in upper class */
     inline OGRSimpleCurve *toUpperClass()

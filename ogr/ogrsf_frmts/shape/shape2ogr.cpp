@@ -994,8 +994,8 @@ static OGRErr SHPWriteOGRObject(SHPHandle hSHP, int iShape,
             const int nNumPoints = poRing->getNumPoints();
             // Exterior ring must be clockwise oriented in shapefiles
             const bool bInvertOrder =
-                !bRewind && CPL_TO_BOOL(bIsOuterRing ? !poRing->isClockwise()
-                                                     : poRing->isClockwise());
+                !bRewind &&
+                (bIsOuterRing ? !poRing->isClockwise() : poRing->isClockwise());
             for (int i = 0; i < nNumPoints; i++)
             {
                 const int iPoint = bInvertOrder ? nNumPoints - 1 - i : i;

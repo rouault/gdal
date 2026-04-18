@@ -711,7 +711,7 @@ OGRCurve::ConstIterator OGRCurve::end() const
  * @return TRUE if clockwise otherwise FALSE.
  */
 
-int OGRCurve::isClockwise() const
+bool OGRCurve::isClockwise() const
 
 {
     // WARNING: keep in sync OGRLineString::isClockwise(),
@@ -719,7 +719,7 @@ int OGRCurve::isClockwise() const
 
     const int nPointCount = getNumPoints();
     if (nPointCount < 3)
-        return TRUE;
+        return true;
 
     bool bUseFallback = false;
 
@@ -811,9 +811,9 @@ int OGRCurve::isClockwise() const
     if (!bUseFallback)
     {
         if (crossproduct > 0)  // CCW
-            return FALSE;
+            return false;
         else if (crossproduct < 0)  // CW
-            return TRUE;
+            return true;
     }
 
     // This is a degenerate case: the extent of the polygon is less than EPSILON

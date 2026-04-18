@@ -2066,7 +2066,7 @@ std::unique_ptr<OGRGeometry> OGRGeometryFactory::organizePolygons(
                 sPolyEx.dfArea = sPolyEx.poCurvePolygon->get_Area();
             const auto *poExteriorRing =
                 sPolyEx.poCurvePolygon->getExteriorRingCurve();
-            sPolyEx.bIsCW = CPL_TO_BOOL(poExteriorRing->isClockwise());
+            sPolyEx.bIsCW = poExteriorRing->isClockwise();
             poExteriorRing->StartPoint(&sPolyEx.sPoint);
             if (sPolyEx.bIsCW)
             {

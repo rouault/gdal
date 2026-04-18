@@ -1134,9 +1134,7 @@ void OGRMapMLWriterLayer::writePolygon(CPLXMLNode *psContainer,
     bool bFirstRing = true;
     for (const auto poRing : *poPoly)
     {
-        const bool bReversePointOrder =
-            (bFirstRing && CPL_TO_BOOL(poRing->isClockwise())) ||
-            (!bFirstRing && !CPL_TO_BOOL(poRing->isClockwise()));
+        const bool bReversePointOrder = bFirstRing == poRing->isClockwise();
         bFirstRing = false;
         CPLXMLNode *psCoordinates =
             CPLCreateXMLNode(psPolygon, CXT_Element, "map-coordinates");

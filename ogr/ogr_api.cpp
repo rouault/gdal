@@ -1953,7 +1953,7 @@ bool OGR_G_IsClockwise(OGRGeometryH hGeom)
     const OGRwkbGeometryType eGType = wkbFlatten(poGeom->getGeometryType());
     if (OGR_GT_IsCurve(eGType))
     {
-        return CPL_TO_BOOL(poGeom->toCurve()->isClockwise());
+        return poGeom->toCurve()->isClockwise();
     }
     else
     {
