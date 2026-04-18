@@ -57,7 +57,7 @@ int OGRCurve::getDimension() const
  * @return TRUE if closed, else FALSE.
  */
 
-int OGRCurve::get_IsClosed() const
+bool OGRCurve::get_IsClosed() const
 
 {
     OGRPoint oStartPoint;
@@ -69,30 +69,22 @@ int OGRCurve::get_IsClosed() const
     if (oStartPoint.Is3D() && oEndPoint.Is3D())
     {
         // XYZ type
-        if (oStartPoint.getX() == oEndPoint.getX() &&
-            oStartPoint.getY() == oEndPoint.getY() &&
-            oStartPoint.getZ() == oEndPoint.getZ())
-        {
-            return TRUE;
-        }
-        else
-            return FALSE;
+        return (oStartPoint.getX() == oEndPoint.getX() &&
+                oStartPoint.getY() == oEndPoint.getY() &&
+                oStartPoint.getZ() == oEndPoint.getZ());
     }
 
     // one of the points is 3D
     else if (oStartPoint.Is3D() != oEndPoint.Is3D())
     {
-        return FALSE;
+        return false;
     }
 
     else
     {
         // XY type
-        if (oStartPoint.getX() == oEndPoint.getX() &&
-            oStartPoint.getY() == oEndPoint.getY())
-            return TRUE;
-        else
-            return FALSE;
+        return (oStartPoint.getX() == oEndPoint.getX() &&
+                oStartPoint.getY() == oEndPoint.getY());
     }
 }
 

@@ -612,7 +612,7 @@ bool OGRLinearRing::isPointOnRingBoundary(const OGRPoint *poPoint,
 OGRErr OGRLinearRing::transform(OGRCoordinateTransformation *poCT)
 
 {
-    const bool bIsClosed = getNumPoints() > 2 && CPL_TO_BOOL(get_IsClosed());
+    const bool bIsClosed = getNumPoints() > 2 && get_IsClosed();
     OGRErr eErr = OGRLineString::transform(poCT);
     if (bIsClosed && eErr == OGRERR_NONE && !get_IsClosed())
     {

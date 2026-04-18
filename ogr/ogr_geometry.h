@@ -1350,7 +1350,7 @@ class CPL_DLL OGRCurve : public OGRGeometry
     virtual double get_Length() const = 0;
     virtual void StartPoint(OGRPoint *) const = 0;
     virtual void EndPoint(OGRPoint *) const = 0;
-    virtual int get_IsClosed() const;
+    virtual bool get_IsClosed() const;
     virtual void Value(double, OGRPoint *) const = 0;
     virtual OGRLineString *
     CurveToLine(double dfMaxAngleStepSizeDegrees = 0,
