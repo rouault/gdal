@@ -4818,7 +4818,7 @@ bool IVSIS3LikeFSHandler::Sync(const char *pszSource, const char *pszTarget,
                 osTarget = CPLFormFilenameSafe(
                     osTarget.c_str(), CPLGetFilename(pszSource), nullptr);
                 bTargetIsFile = VSIStatL(osTarget.c_str(), &sTarget) == 0 &&
-                                !CPL_TO_BOOL(VSI_ISDIR(sTarget.st_mode));
+                                !VSI_ISDIR(sTarget.st_mode);
             }
         }
 

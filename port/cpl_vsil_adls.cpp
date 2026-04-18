@@ -449,7 +449,7 @@ bool VSIDIRADLS::AnalysePathList(const std::string &osBaseURL,
             prop.eExists = EXIST_YES;
             prop.bHasComputedFileSize = true;
             prop.fileSize = entry->nSize;
-            prop.bIsDirectory = CPL_TO_BOOL(VSI_ISDIR(entry->nMode));
+            prop.bIsDirectory = VSI_ISDIR(entry->nMode);
             prop.nMode = entry->nMode;
             prop.mTime = static_cast<time_t>(entry->nMTime);
             prop.ETag = std::move(ETag);
