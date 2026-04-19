@@ -698,6 +698,8 @@ void CPL_DLL RegisterOGRShape();
 void CPL_DLL RegisterOGRNTF();
 void CPL_DLL RegisterOGRTiger();
 void CPL_DLL RegisterOGRS57();
+void CPL_DLL RegisterOGRS101();
+void DeclareDeferredOGRS101Plugin();
 void CPL_DLL RegisterOGRTAB();
 void CPL_DLL RegisterOGRMIF();
 void CPL_DLL RegisterOGRODBC();

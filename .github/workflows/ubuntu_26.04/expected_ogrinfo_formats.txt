@@ -18,6 +18,7 @@ Supported Formats: (ro:read-only, rw:read-write, +:write from scratch, u:update,
   UK .NTF -vector- (rov): UK .NTF
   LVBAG -vector- (rov): Kadaster LV BAG Extract 2.0 (*.xml)
   S57 -vector- (rw+v): IHO S-57 (ENC) (*.000)
+  S101 -vector- (rov): IHO S-101 (ENC) (*.000)
   DGN -vector- (rw+v): Microstation DGN (*.dgn)
   OGR_VRT -vector- (rov): VRT - Virtual Datasource (*.vrt)
   CSV -vector- (rw+uv): Comma Separated Value (.csv) (*.csv, *.tsv, *.psv)

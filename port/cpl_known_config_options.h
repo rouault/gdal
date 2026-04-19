@@ -404,6 +404,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "GDAL_READDIR_LIMIT_ON_OPEN", // from gdalopeninfo.cpp, gtiffdataset_read.cpp, tiledbdense.cpp
    "GDAL_REPORT_DIRTY_BLOCK_FLUSHING", // from gdalabstractbandblockcache.cpp
    "GDAL_RPC_DEM_OPTIM", // from gdal_rpc.cpp
+   "GDAL_S101_FEATURE_CATALOG", // from ogrs101featurecatalog.cpp
    "GDAL_SHARED_FILE", // from cpl_vsil_win32.cpp
    "GDAL_SIMUL_MEM_ALLOC_FAILURE_NODATA_MASK_BAND", // from gdalnodatamaskband.cpp
    "GDAL_SKIP", // from gdaldrivermanager.cpp

@@ -47,6 +47,9 @@ void OGRRegisterAllInternal()
 #ifdef S57_ENABLED
     RegisterOGRS57();
 #endif
+#ifdef S101_ENABLED
+    RegisterOGRS101();
+#endif
 #ifdef DGN_ENABLED
     RegisterOGRDGN();
 #endif

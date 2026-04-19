@@ -309,6 +309,9 @@ void CPL_STDCALL GDALAllRegister()
 #if defined(DEFERRED_ADBC_DRIVER)
     DeclareDeferredOGRADBCPlugin();
 #endif
+#if defined(DEFERRED_S101_DRIVER)
+    DeclareDeferredOGRS101Plugin();
+#endif
 
     // AutoLoadDrivers is a no-op if compiled with GDAL_NO_AUTOLOAD defined.
     poDriverManager->AutoLoadDrivers();
