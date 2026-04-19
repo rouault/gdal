@@ -37,12 +37,12 @@ typedef enum
 /*      mostly conveniences.                                            */
 /************************************************************************/
 
-int CPL_ODLL DDFScanInt(const char *pszString, int nMaxChars);
-int CPL_ODLL DDFScanVariable(const char *pszString, int nMaxChars,
-                             int nDelimChar);
-std::string CPL_ODLL DDFFetchVariable(const char *pszString, int nMaxChars,
-                                      int nDelimChar1, int nDelimChar2,
-                                      int *pnConsumedChars);
+int CPL_DLL DDFScanInt(const char *pszString, int nMaxChars);
+int CPL_DLL DDFScanVariable(const char *pszString, int nMaxChars,
+                            int nDelimChar);
+std::string CPL_DLL DDFFetchVariable(const char *pszString, int nMaxChars,
+                                     int nDelimChar1, int nDelimChar2,
+                                     int *pnConsumedChars);
 
 #define DDF_FIELD_TERMINATOR 30
 #define DDF_UNIT_TERMINATOR 31
@@ -66,13 +66,14 @@ class DDFField;
   from the file.
 */
 
-class CPL_ODLL DDFModule
+class CPL_DLL DDFModule
 {
   public:
     DDFModule();
     ~DDFModule();
 
-    int Open(const char *pszFilename, int bFailQuietly = FALSE);
+    int Open(const char *pszFilename, int bFailQuietly = FALSE,
+             VSILFILE *fpDDFIn = nullptr);
     int Create(const char *pszFilename);
     void Close();
 
@@ -103,6 +104,12 @@ class CPL_ODLL DDFModule
     int GetFieldCount() const
     {
         return static_cast<int>(apoFieldDefns.size());
+    }
+
+    /** Return all field definitions */
+    const std::vector<std::unique_ptr<DDFFieldDefn>> &GetFieldDefns() const
+    {
+        return apoFieldDefns;
     }
 
     DDFFieldDefn *GetField(int);
@@ -228,7 +235,7 @@ typedef enum
  * as containers of the DDFSubfieldDefns.
  */
 
-class CPL_ODLL DDFFieldDefn
+class CPL_DLL DDFFieldDefn
 {
   public:
     DDFFieldDefn();
@@ -386,7 +393,7 @@ class CPL_ODLL DDFFieldDefn
  * data (as instances within a record).
  */
 
-class CPL_ODLL DDFSubfieldDefn
+class CPL_DLL DDFSubfieldDefn
 {
   public:
     DDFSubfieldDefn();
@@ -507,7 +514,7 @@ class CPL_ODLL DDFSubfieldDefn
  * then use ExtractIntData(), ExtractFloatData() or ExtractStringData().
  */
 
-class CPL_ODLL DDFField
+class CPL_DLL DDFField
 {
   public:
     DDFField() = default;
@@ -586,7 +593,7 @@ class CPL_ODLL DDFField
  * as a list of DDFField instances partitioning the raw data into fields.
  */
 
-class CPL_ODLL DDFRecord
+class CPL_DLL DDFRecord
 {
   public:
     explicit DDFRecord(DDFModule *);
@@ -612,6 +619,11 @@ class CPL_ODLL DDFRecord
     }
 
     const DDFField *GetField(int) const;
+
+    const std::vector<DDFField> &GetFields() const
+    {
+        return aoFields;
+    }
 
     DDFField *GetField(int i)
     {

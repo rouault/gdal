@@ -91,12 +91,15 @@ void DDFModule::Close()
  * @param pszFilename   The name of the file to open.
  * @param bFailQuietly If FALSE a CPL Error is issued for non-8211 files,
  * otherwise quietly return NULL.
+ * @param fpDDFIn The open file, or nullptr. Ownership is transferred to the
+ * DDFModule.
  *
  * @return FALSE if the open fails or TRUE if it succeeds.  Errors messages
  * are issued internally with CPLError().
  */
 
-int DDFModule::Open(const char *pszFilename, int bFailQuietly)
+int DDFModule::Open(const char *pszFilename, int bFailQuietly,
+                    VSILFILE *fpDDFIn)
 
 {
     constexpr int nLeaderSize = 24;
@@ -111,15 +114,23 @@ int DDFModule::Open(const char *pszFilename, int bFailQuietly)
     /*      Open the file.                                                  */
     /* -------------------------------------------------------------------- */
     VSIStatBufL sStat;
-    if (VSIStatL(pszFilename, &sStat) == 0 && !VSI_ISDIR(sStat.st_mode))
-        fpDDF = VSIFOpenL(pszFilename, "rb");
-
-    if (fpDDF == nullptr)
+    if (fpDDFIn)
     {
-        if (!bFailQuietly)
-            CPLError(CE_Failure, CPLE_OpenFailed,
-                     "Unable to open DDF file `%s'.", pszFilename);
-        return FALSE;
+        fpDDF = fpDDFIn;
+        CPL_IGNORE_RET_VAL(VSIFSeekL(fpDDF, 0, SEEK_SET));
+    }
+    else
+    {
+        if (VSIStatL(pszFilename, &sStat) == 0 && !VSI_ISDIR(sStat.st_mode))
+            fpDDF = VSIFOpenL(pszFilename, "rb");
+
+        if (fpDDF == nullptr)
+        {
+            if (!bFailQuietly)
+                CPLError(CE_Failure, CPLE_OpenFailed,
+                         "Unable to open DDF file `%s'.", pszFilename);
+            return FALSE;
+        }
     }
 
     /* -------------------------------------------------------------------- */
