@@ -1125,6 +1125,12 @@ class CPL_DLL OGRPoint : public OGRGeometry
     /** Move assignment operator */
     OGRPoint &operator=(OGRPoint &&other) = default;
 
+    /** Corresponding 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbPoint;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRMultiPoint;
+
     // IWks Interface
     size_t WkbSize() const override;
     OGRErr importFromWkb(const unsigned char *, size_t, OGRwkbVariant,
@@ -1330,8 +1336,14 @@ class CPL_DLL OGRCurve : public OGRGeometry
     OGRCurve &operator=(OGRCurve &&other) = default;
     //! @endcond
 
-    /** Type of child elements. */
-    typedef OGRPoint ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRPoint;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbCurve;
+
+    /**  C++ type for corresponding collection. */
+    using MultiType = OGRMultiCurve;
 
     /** Return begin of a point iterator.
      *
@@ -1559,8 +1571,8 @@ class CPL_DLL OGRSimpleCurve : public OGRCurve
 
     OGRSimpleCurve &operator=(OGRSimpleCurve &&other);
 
-    /** Type of child elements. */
-    typedef OGRPoint ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRPoint;
 
     /** Return begin of point iterator.
      *
@@ -1762,6 +1774,12 @@ class CPL_DLL OGRLineString : public OGRSimpleCurve
     OGRLineString &operator=(const OGRLineString &other);
     OGRLineString &operator=(OGRLineString &&other);
 
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbLineString;
+
+    /**  C++ type for corresponding collection. */
+    using MultiType = OGRMultiLineString;
+
     OGRLineString *clone() const override;
     virtual OGRLineString *
     CurveToLine(double dfMaxAngleStepSizeDegrees = 0,
@@ -1958,6 +1976,12 @@ class CPL_DLL OGRCircularString : public OGRSimpleCurve
     /** Move assignment operator */
     OGRCircularString &operator=(OGRCircularString &&other) = default;
 
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbCircularString;
+
+    /**  C++ type for corresponding collection. */
+    using MultiType = OGRMultiCurve;
+
     // IWks Interface.
     virtual OGRErr importFromWkb(const unsigned char *, size_t, OGRwkbVariant,
                                  size_t &nBytesConsumedOut) override;
@@ -2069,8 +2093,8 @@ class CPL_DLL OGRCurveCollection
     OGRCurveCollection &operator=(const OGRCurveCollection &other);
     OGRCurveCollection &operator=(OGRCurveCollection &&other);
 
-    /** Type of child elements. */
-    typedef OGRCurve ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRCurve;
 
     /** Return begin of curve iterator.
      */
@@ -2202,8 +2226,14 @@ class CPL_DLL OGRCompoundCurve : public OGRCurve
     /** Move assignment operator */
     OGRCompoundCurve &operator=(OGRCompoundCurve &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRCurve ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRCurve;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbCompoundCurve;
+
+    /**  C++ type for corresponding collection. */
+    using MultiType = OGRMultiCurve;
 
     /** Return begin of curve iterator.
      */
@@ -2388,6 +2418,12 @@ class CPL_DLL OGRSurface : public OGRGeometry
     //! @endcond
 
   public:
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbSurface;
+
+    /**  C++ type for corresponding collection. */
+    using MultiType = OGRMultiSurface;
+
     virtual double get_Area() const = 0;
     virtual double get_GeodesicArea(
         const OGRSpatialReference *poSRSOverride = nullptr) const = 0;
@@ -2469,8 +2505,14 @@ class CPL_DLL OGRCurvePolygon : public OGRSurface
     /** Move assignment operator */
     OGRCurvePolygon &operator=(OGRCurvePolygon &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRCurve ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRCurve;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbCurvePolygon;
+
+    /**  C++ type for corresponding collection. */
+    using MultiType = OGRMultiSurface;
 
     /** Return begin of curve iterator.
      */
@@ -2684,8 +2726,14 @@ class CPL_DLL OGRPolygon : public OGRCurvePolygon
     /** Move assignment operator */
     OGRPolygon &operator=(OGRPolygon &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRLinearRing ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRLinearRing;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbPolygon;
+
+    /**  C++ type for corresponding collection. */
+    using MultiType = OGRMultiPolygon;
 
     /** Return begin of iterator.
      */
@@ -2856,6 +2904,12 @@ class CPL_DLL OGRTriangle : public OGRPolygon
     /** Move assignment operator */
     OGRTriangle &operator=(OGRTriangle &&other) = default;
 
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbTriangle;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRTriangulatedSurface;
+
     const char *getGeometryName() const override;
     OGRwkbGeometryType getGeometryType() const override;
     OGRTriangle *clone() const override;
@@ -2941,8 +2995,14 @@ class CPL_DLL OGRGeometryCollection : public OGRGeometry
     OGRGeometryCollection &operator=(const OGRGeometryCollection &other);
     OGRGeometryCollection &operator=(OGRGeometryCollection &&other);
 
-    /** Type of child elements. */
-    typedef OGRGeometry ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRGeometry;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbGeometryCollection;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRGeometryCollection;
 
     /** Return begin of sub-geometry iterator.
      */
@@ -3126,8 +3186,14 @@ class CPL_DLL OGRMultiSurface : public OGRGeometryCollection
     /** Move assignment operator */
     OGRMultiSurface &operator=(OGRMultiSurface &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRSurface ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRSurface;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbMultiSurface;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRGeometryCollection;
 
     /** Return begin of iterator.
      */
@@ -3296,8 +3362,14 @@ class CPL_DLL OGRMultiPolygon : public OGRMultiSurface
     /** Move assignment operator */
     OGRMultiPolygon &operator=(OGRMultiPolygon &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRPolygon ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRPolygon;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbMultiPolygon;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRGeometryCollection;
 
     /** Return begin of iterator.
      */
@@ -3460,8 +3532,14 @@ class CPL_DLL OGRPolyhedralSurface : public OGRSurface
     /** Move assignment operator */
     OGRPolyhedralSurface &operator=(OGRPolyhedralSurface &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRPolygon ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRPolygon;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbPolyhedralSurface;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRGeometryCollection;
 
     /** Return begin of iterator.
      */
@@ -3637,8 +3715,14 @@ class CPL_DLL OGRTriangulatedSurface : public OGRPolyhedralSurface
     /** Move assignment operator */
     OGRTriangulatedSurface &operator=(OGRTriangulatedSurface &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRTriangle ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRTriangle;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbTIN;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRGeometryCollection;
 
     /** Return begin of iterator.
      */
@@ -3775,8 +3859,14 @@ class CPL_DLL OGRMultiPoint : public OGRGeometryCollection
     /** Move assignment operator */
     OGRMultiPoint &operator=(OGRMultiPoint &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRPoint ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRPoint;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbMultiPoint;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRGeometryCollection;
 
     /** Return begin of iterator.
      */
@@ -3934,8 +4024,14 @@ class CPL_DLL OGRMultiCurve : public OGRGeometryCollection
     /** Move assignment operator */
     OGRMultiCurve &operator=(OGRMultiCurve &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRCurve ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRCurve;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbMultiCurve;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRGeometryCollection;
 
     /** Return begin of iterator.
      */
@@ -4089,8 +4185,14 @@ class CPL_DLL OGRMultiLineString : public OGRMultiCurve
     /** Move assignment operator */
     OGRMultiLineString &operator=(OGRMultiLineString &&other) = default;
 
-    /** Type of child elements. */
-    typedef OGRLineString ChildType;
+    /** C++ type of child elements. */
+    using ChildType = OGRLineString;
+
+    /** 2D OGRwkbGeometryType constant. */
+    static constexpr OGRwkbGeometryType EnumType2D = wkbMultiLineString;
+
+    /** C++ type for corresponding collection. */
+    using MultiType = OGRGeometryCollection;
 
     /** Return begin of iterator.
      */
