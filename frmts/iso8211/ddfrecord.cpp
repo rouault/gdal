@@ -44,6 +44,26 @@ DDFRecord::~DDFRecord()
 }
 
 /************************************************************************/
+/*                             GetFields()                              */
+/************************************************************************/
+
+/**
+ * Return all fields of the specified name.
+ */
+
+std::vector<const DDFField *>
+DDFRecord::GetFields(const char *pszFieldName) const
+{
+    std::vector<const DDFField *> res;
+    for (auto &field : aoFields)
+    {
+        if (strcmp(field.GetFieldDefn()->GetName(), pszFieldName) == 0)
+            res.push_back(&field);
+    }
+    return res;
+}
+
+/************************************************************************/
 /*                                Dump()                                */
 /************************************************************************/
 

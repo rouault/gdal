@@ -620,6 +620,8 @@ class CPL_DLL DDFRecord
 
     const DDFField *GetField(int) const;
 
+    std::vector<const DDFField *> GetFields(const char *pszFieldName) const;
+
     const std::vector<DDFField> &GetFields() const
     {
         return aoFields;
