@@ -3851,13 +3851,14 @@ static int TestLayerSQL(GDALDataset *poDS, OGRLayer *poLayer)
                     {
                         OGRGeomFieldDefn *poGFldDefn =
                             poLayer->GetLayerDefn()->GetGeomFieldDefn(i);
+                        const char *pszSrcName = poGFldDefn->GetNameRef();
                         iOtherI = poSQLLyr->GetLayerDefn()->GetGeomFieldIndex(
-                            poGFldDefn->GetNameRef());
+                            pszSrcName[0] ? pszSrcName : "_ogr_geometry_");
                         if (iOtherI == -1)
                         {
                             printf("ERROR: Cannot find geom field in SQL "
                                    "matching %s.\n",
-                                   poGFldDefn->GetNameRef());
+                                   pszSrcName);
                             break;
                         }
                     }
