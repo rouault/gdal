@@ -633,10 +633,14 @@ class CPL_DLL DDFRecord
             const_cast<const DDFRecord *>(this)->GetField(i));
     }
 
+    int GetIntSubfield(const DDFField *, const char *, int,
+                       int * = nullptr) const;
     int GetIntSubfield(const char *, int, const char *, int,
                        int * = nullptr) const;
     double GetFloatSubfield(const char *, int, const char *, int,
                             int * = nullptr) const;
+    const char *GetStringSubfield(const DDFField *, const char *, int,
+                                  int * = nullptr) const;
     const char *GetStringSubfield(const char *, int, const char *, int,
                                   int * = nullptr) const;
 
@@ -725,6 +729,10 @@ class CPL_DLL DDFRecord
 
   private:
     int ReadHeader();
+
+    static std::tuple<const DDFField *, const DDFSubfieldDefn *>
+    FindSubfieldDefn(const DDFField *poField, const char *pszSubfield,
+                     bool bEmitError = true);
 
     std::tuple<const DDFField *, const DDFField *, const DDFSubfieldDefn *>
     FindSubfieldDefn(const char *pszField, int iFieldIndex,
