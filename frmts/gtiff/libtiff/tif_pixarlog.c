@@ -1619,6 +1619,15 @@ static const TIFFField pixarlogFields[] = {
     {TIFFTAG_PIXARLOGQUALITY, 0, 0, TIFF_ANY, 0, TIFF_SETGET_INT, FIELD_PSEUDO,
      FALSE, FALSE, "", NULL}};
 
+static uint64_t PixarLogGetMaxCompressionRatio(TIFF *tif)
+{
+    (void)tif;
+    /* cf https://zlib.net/zlib_tech.html */
+    const uint64_t MAX_DEFLATE_RATIO = 1032;
+
+    /* security margin as I don't understand what this codec does */
+    return MAX_DEFLATE_RATIO * (uint64_t)4;
+}
 int TIFFInitPixarLog(TIFF *tif, int scheme)
 {
     static const char module[] = "TIFFInitPixarLog";
@@ -1666,6 +1675,7 @@ int TIFFInitPixarLog(TIFF *tif, int scheme)
     tif->tif_encodetile = PixarLogEncode;
     tif->tif_close = PixarLogClose;
     tif->tif_cleanup = PixarLogCleanup;
+    tif->tif_getmaxcompressionratio = PixarLogGetMaxCompressionRatio;
 
     /* Override SetField so we can handle our private pseudo-tag */
     sp->vgetparent = tif->tif_tagmethods.vgetfield;

@@ -1399,6 +1399,17 @@ static void LZWCleanup(TIFF *tif)
     _TIFFSetDefaultCompressionState(tif);
 }
 
+static uint64_t LZWGetMaxCompressionRatio(TIFF *tif)
+{
+    (void)tif;
+    /* 1024x1024: 562 */
+    /* 4096x4096: 1243 */
+    /* 16383x16383: 1353 */
+    /* 65536x65536: 1362 */
+
+    return 1400;
+}
+
 int TIFFInitLZW(TIFF *tif, int scheme)
 {
     static const char module[] = "TIFFInitLZW";
@@ -1432,6 +1443,7 @@ int TIFFInitLZW(TIFF *tif, int scheme)
     tif->tif_encodestrip = LZWEncode;
     tif->tif_encodetile = LZWEncode;
 #endif
+    tif->tif_getmaxcompressionratio = LZWGetMaxCompressionRatio;
     tif->tif_cleanup = LZWCleanup;
     /*
      * Setup predictor setup.

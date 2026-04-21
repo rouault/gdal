@@ -847,6 +847,14 @@ static const TIFFField TWebPFields[] = {
      FIELD_PSEUDO, TRUE, FALSE, "WEBP exact lossless", NULL},
 };
 
+static uint64_t TWebPGetMaxCompressionRatio(TIFF *tif)
+{
+    /* lossy compression: */
+    /* return (tif->tif_dir.td_samplesperpixel == 4) ? 2199 : 1685; */
+    /* lossless compression: */
+    return (tif->tif_dir.td_samplesperpixel == 4) ? 104194 : 78146;
+}
+
 int TIFFInitWebP(TIFF *tif, int scheme)
 {
     static const char module[] = "TIFFInitWebP";
@@ -910,6 +918,7 @@ int TIFFInitWebP(TIFF *tif, int scheme)
     tif->tif_encodestrip = TWebPEncode;
     tif->tif_encodetile = TWebPEncode;
     tif->tif_cleanup = TWebPCleanup;
+    tif->tif_getmaxcompressionratio = TWebPGetMaxCompressionRatio;
 
     return 1;
 bad:

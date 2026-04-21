@@ -95,6 +95,7 @@ typedef int (*TIFFSeekMethod)(TIFF *, uint32_t);
 typedef void (*TIFFPostMethod)(TIFF *tif, uint8_t *buf, tmsize_t size);
 typedef uint32_t (*TIFFStripMethod)(TIFF *, uint32_t);
 typedef void (*TIFFTileMethod)(TIFF *, uint32_t *, uint32_t *);
+typedef uint64_t (*TIFFGetMaxCompressionRatioMethod)(TIFF *);
 
 struct TIFFOffsetAndDirNumber
 {
@@ -216,7 +217,9 @@ struct tiff
     TIFFVoidMethod tif_cleanup;       /* cleanup state routine */
     TIFFStripMethod tif_defstripsize; /* calculate/constrain strip size */
     TIFFTileMethod tif_deftilesize;   /* calculate/constrain tile size */
-    uint8_t *tif_data;                /* compression scheme private data */
+    /* returns maximum compression ratio for current compression method */
+    TIFFGetMaxCompressionRatioMethod tif_getmaxcompressionratio;
+    uint8_t *tif_data; /* compression scheme private data */
     /* input/output buffering */
     uint8_t *tif_rawdata;       /* raw data buffer */
     tmsize_t tif_rawdatasize;   /* # of bytes in raw data buffer */

@@ -1488,6 +1488,16 @@ static int LERCVGetField(TIFF *tif, uint32_t tag, va_list ap)
     return 1;
 }
 
+static uint64_t LERCGetMaxCompressionRatio(TIFF *tif)
+{
+    (void)tif;
+
+    /* LERC compression ratio can grow to several millions */
+    /* eg. 5703725 for Lerc deflate on 16383x16383 array */
+    /* or 3829644 for regular Lerc */
+    return 0;
+}
+
 int TIFFInitLERC(TIFF *tif, int scheme)
 {
     static const char module[] = "TIFFInitLERC";
@@ -1538,6 +1548,7 @@ int TIFFInitLERC(TIFF *tif, int scheme)
     tif->tif_encodestrip = LERCEncode;
     tif->tif_encodetile = LERCEncode;
 #endif
+    tif->tif_getmaxcompressionratio = LERCGetMaxCompressionRatio;
     tif->tif_cleanup = LERCCleanup;
 
     /* Default values for codec-specific fields */
