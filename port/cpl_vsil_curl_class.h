@@ -618,6 +618,10 @@ class IVSIS3LikeFSHandler /* non final */
     virtual IVSIS3LikeHandleHelper *CreateHandleHelper(const char *pszURI,
                                                        bool bAllowNoObject) = 0;
 
+    virtual IVSIS3LikeHandleHelper *
+    CreateHandleHelperForSignedURL(const char *pszURI,
+                                   CSLConstList papszOptions);
+
     virtual int CopyObject(const char *oldpath, const char *newpath,
                            CSLConstList papszMetadata);
 
@@ -656,6 +660,9 @@ class IVSIS3LikeFSHandler /* non final */
 
     VSIDIR *OpenDir(const char *pszPath, int nRecurseDepth,
                     const char *const *papszOptions) override;
+
+    char *GetSignedURL(const char *pszFilename,
+                       CSLConstList papszOptions) override;
 };
 
 /************************************************************************/

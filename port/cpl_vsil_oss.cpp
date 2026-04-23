@@ -63,6 +63,10 @@ class VSIOSSFSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
     IVSIS3LikeHandleHelper *CreateHandleHelper(const char *pszURI,
                                                bool bAllowNoObject) override;
 
+    IVSIS3LikeHandleHelper *
+    CreateHandleHelperForSignedURL(const char *pszURI,
+                                   CSLConstList papszOptions) override;
+
     std::string GetFSPrefix() const override
     {
         return "/vsioss/";
@@ -79,9 +83,6 @@ class VSIOSSFSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
     ~VSIOSSFSHandler() override;
 
     const char *GetOptions() override;
-
-    char *GetSignedURL(const char *pszFilename,
-                       CSLConstList papszOptions) override;
 
     std::string
     GetStreamingFilename(const std::string &osFilename) const override
@@ -180,27 +181,14 @@ const char *VSIOSSFSHandler::GetOptions()
 }
 
 /************************************************************************/
-/*                            GetSignedURL()                            */
+/*                   CreateHandleHelperForSignedURL()                   */
 /************************************************************************/
 
-char *VSIOSSFSHandler::GetSignedURL(const char *pszFilename,
-                                    CSLConstList papszOptions)
+IVSIS3LikeHandleHelper *VSIOSSFSHandler::CreateHandleHelperForSignedURL(
+    const char *pszURI, CSLConstList papszOptions)
 {
-    if (!STARTS_WITH_CI(pszFilename, GetFSPrefix().c_str()))
-        return nullptr;
-
-    VSIOSSHandleHelper *poHandleHelper = VSIOSSHandleHelper::BuildFromURI(
-        pszFilename + GetFSPrefix().size(), GetFSPrefix().c_str(), false,
-        papszOptions);
-    if (poHandleHelper == nullptr)
-    {
-        return nullptr;
-    }
-
-    std::string osRet(poHandleHelper->GetSignedURL(papszOptions));
-
-    delete poHandleHelper;
-    return CPLStrdup(osRet.c_str());
+    return VSIOSSHandleHelper::BuildFromURI(pszURI, GetFSPrefix().c_str(),
+                                            false, papszOptions);
 }
 
 /************************************************************************/
