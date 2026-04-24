@@ -133,7 +133,7 @@ int32 SWattach(int32, const char *);
 int32 SWdiminfo(int32, const char *);
 intn SWmapinfo(int32, const char *, const char *, int32 *, int32 *);
 int32 SWidxmapinfo(int32, const char *, const char *, int32 []);
-intn SWfieldinfo(int32, const char *, int32 *, int32 [], int32 *, char *);
+intn SWfieldinfo(int32, const char *, int32 *, int32 [], int32 *, char *, size_t);
 intn SWcompinfo(int32, const char *, int32 *, intn []);
 intn SWreadattr(int32, const char *, VOIDP);
 intn SWattrinfo(int32, const char *, int32 *, int32 *);

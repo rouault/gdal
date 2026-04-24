@@ -2181,7 +2181,7 @@ int HDF4ImageDataset::ProcessSwathGeolocation(int32 hSW, char **papszDimList)
             continue;
 
         if (SWfieldinfo(hSW, papszGeolocations[i], &l_iRank, l_aiDimSizes,
-                        &iWrkNumType, szGeoDimList) < 0)
+                        &iWrkNumType, szGeoDimList, sizeof(szGeoDimList)) < 0)
         {
 
             CPLDebug("HDF4Image",
@@ -2286,7 +2286,7 @@ int HDF4ImageDataset::ProcessSwathGeolocation(int32 hSW, char **papszDimList)
     int32 iLatticeDataSize = 0;
     char pszLatticePoint[] = "LatticePoint";
     if (SWfieldinfo(hSW, pszLatticePoint, &l_iRank, l_aiDimSizes, &iLatticeType,
-                    szGeoDimList) == 0 &&
+                    szGeoDimList, sizeof(szGeoDimList)) == 0 &&
         l_iRank == 3 && nXPoints == l_aiDimSizes[1] &&
         nYPoints == l_aiDimSizes[0] && l_aiDimSizes[2] == 2)
     {
@@ -2862,7 +2862,7 @@ GDALDataset *HDF4ImageDataset::Open(GDALOpenInfo *poOpenInfo)
                         static_cast<char *>(CPLMalloc(nStrBufSize + 1));
                     if (SWfieldinfo(hSW, poDS->pszFieldName, &poDS->iRank,
                                     poDS->aiDimSizes, &poDS->iNumType,
-                                    pszDimList) < 0)
+                                    pszDimList, nStrBufSize + 1) < 0)
                     {
                         CPLDebug("HDF4Image", "Can't read dimension maps.");
                         CPLFree(pszDimList);
