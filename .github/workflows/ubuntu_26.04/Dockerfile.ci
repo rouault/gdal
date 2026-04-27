@@ -252,6 +252,9 @@ RUN wget -q https://github.com/rouault/pdfium_build_gdal_3_13/releases/download/
   && mv install/include/* /usr/include/ \
   && rm -rf install-ubuntu2404-rev7724.tar.gz install
 
+# Install exprtk
+RUN wget -q -P /usr/local/include https://raw.githubusercontent.com/ArashPartow/exprtk/refs/heads/release/exprtk.hpp
+
 # Build python nanoarrow
 
 RUN PYTHON_CMD=python3 && $PYTHON_CMD -m pip install --break-system-packages "git+https://github.com/apache/arrow-nanoarrow.git#egg=nanoarrow&subdirectory=python"
