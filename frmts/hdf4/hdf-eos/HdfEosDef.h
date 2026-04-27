@@ -183,7 +183,7 @@ intn GDsdid(int32, const char *, int32 *);
 /* EH Utility Prototypes */
 int32 EHnumstr(const char *);
 float64 EHconvAng(float64, intn);
-int32 EHparsestr(const char *, const char, char *[], int32 []);
+int32 EHparsestr(const char *, const char, char *[], size_t, int32 [], size_t);
 int32 EHstrwithin(const char *, const char *, const char);
 intn EHchkODL(const char *);
 intn EHloadliststr(char *[], int32, char *, char);
@@ -210,6 +210,9 @@ int32 VgetnameSafe(int32 vkey, char *vgname, size_t vgnamesize);
 }
 #endif
 
+#ifndef CPL_ARRAYSIZE
+#define CPL_ARRAYSIZE(array) (sizeof(array) / sizeof(array[0]))
+#endif
 
 #endif  /* #ifndef HDFEOSDEF_H_ */
 

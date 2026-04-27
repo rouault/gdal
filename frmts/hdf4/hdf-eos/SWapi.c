@@ -1309,7 +1309,14 @@ SWfinfo(int32 swathID, const char *fieldtype, const char *fieldname,
 	    }
 
 	    /* Parse trimmed DimList string and get rank */
-	    ndims = EHparsestr(utlstr, ',', ptr, slen);
+	    ndims = EHparsestr(utlstr, ',', ptr, CPL_ARRAYSIZE(ptr), slen, CPL_ARRAYSIZE(slen));
+        if (ndims < 0)
+        {
+            free(utlstr);
+            free(metabuf);
+            HEpush(DFE_NOSPACE, "SWfinfo", __FILE__, __LINE__);
+            return -1;
+        }
 	    *rank = ndims;
 	}
 	else
@@ -2460,7 +2467,13 @@ SWinqfields(int32 swathID, const char *fieldtype, char *fieldlist, int32 rank[],
 		    if (rank != NULL)
 		    {
 			EHgetmetavalue(metaptrs, "DimList", utlstr);
-			rank[nFld] = EHparsestr(utlstr, ',', ptr, slen);
+			rank[nFld] = EHparsestr(utlstr, ',', ptr, CPL_ARRAYSIZE(ptr), slen, CPL_ARRAYSIZE(slen));
+            if (rank[nFld] < 0)
+            {
+                HEpush(DFE_NOSPACE, "SWinqfields", __FILE__, __LINE__);
+                status = -1;
+                break;
+            }
 		    }
 		    /* Increment number of fields */
 		    nFld++;
@@ -3525,7 +3538,7 @@ SWwrrdfield(int32 swathID, const char *fieldname, const char *code,
 		    /* ---------------------------------------------- */
 		    VSgetfields(vdataID, fieldlist);
 		    dum = EHstrwithin(fieldname, fieldlist, ',');
-		    nflds = EHparsestr(fieldlist, ',', ptr, NULL);
+		    nflds = EHparsestr(fieldlist, ',', ptr, CPL_ARRAYSIZE(ptr), NULL, 0);
 
 
 		    /* Get Merged Field Offset (if any) */
