@@ -2760,8 +2760,7 @@ SWnentries(int32 swathID, int32 entrycode, int32 * strbufsize)
             while (metaptrs[0])
             {
                 /* Search for first string */
-                strcpy(utlstr, &valName[0][0]);
-                strcat(utlstr, "=");
+                snprintf(utlstr, UTLSTR_MAX_SIZE, "%s=", &valName[0][0]);
                 metaptrs[0] = strstr(metaptrs[0], utlstr);
 
                 /* If found within relevant metadata section ... */
