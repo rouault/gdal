@@ -438,7 +438,8 @@ GDattach(int32 fid, const char *gridname)
 		    /* -------------------- */
 		    status = GDchkgdid(gridID, "GDattach", &dum,
 				       &sdInterfaceID, &dum);
-
+            if( status < 0)
+                return -1;
 
 		    /* Get # of entries within Data Vgroup & search for SDS */
 		    /* ---------------------------------------------------- */
@@ -1677,8 +1678,8 @@ GDfieldinfo(int32 gridID, const char *fieldname, int32 * rank, int32 dims[],
     int32           ndims = 0;	    /* Number of dimensions */
     int32           slen[8];	    /* Length of each entry in parsed string */
     int32           dum;	    /* Dummy variable */
-    int32           xdim;	    /* X dim size */
-    int32           ydim;	    /* Y dim size */
+    int32           xdim = 0;	    /* X dim size */
+    int32           ydim = 0;	    /* Y dim size */
     int32           sdid;	    /* SDS id */
 
     char           *metabuf;	    /* Pointer to structural metadata (SM) */
@@ -1781,6 +1782,7 @@ GDfieldinfo(int32 gridID, const char *fieldname, int32 * rank, int32 dims[],
 	    {
 		status = GDgridinfo(gridID, &xdim, &ydim, NULL, NULL);
 
+        dims[0] = -1;
 		for (i = 0; i < ndims; i++)
 		{
 		    memcpy(dimstr, ptr[i] + 1, slen[i] - 2);
@@ -2139,24 +2141,25 @@ GDwrrdfield(int32 gridID, const char *fieldname, const char *code,
     int32           rankSDS;	/* Rank of SDS */
     int32           rankFld;	/* Rank of field */
 
-    int32           offset[8];	/* I/O offset (start) */
+    int32           offset[8] = {0};	/* I/O offset (start) */
     int32           incr[8];	/* I/O increment (stride) */
     int32           count[8];	/* I/O count (edge) */
     int32           dims[8];	/* Field/SDS dimensions */
-    int32           mrgOffset;	/* Merged field offset */
+    int32           mrgOffset = 0;	/* Merged field offset */
     int32           strideOne;	/* Strides = 1 flag */
 
+    for (i = 0; i < 8; ++i)
+        incr[i] = 1;
 
     /* Check for valid grid ID */
     /* ----------------------- */
     status = GDchkgdid(gridID, "GDwrrdfield", &fid, &sdInterfaceID, &dum);
+    if (status < 0)
+        return -1;
 
-
-    if (status == 0)
-    {
-	/* Check that field exists */
-	/* ----------------------- */
-	status = GDfieldinfo(gridID, fieldname, &rankSDS, dims, &dum, NULL);
+    /* Check that field exists */
+    /* ----------------------- */
+    status = GDfieldinfo(gridID, fieldname, &rankSDS, dims, &dum, NULL);
 
 
 	if (status != 0)
@@ -2168,187 +2171,188 @@ GDwrrdfield(int32 gridID, const char *fieldname, const char *code,
 	}
 
 
-	if (status == 0)
-	{
-	    status = GDSDfldsrch(gridID, sdInterfaceID, fieldname, &sdid,
-				 &rankSDS, &rankFld, &mrgOffset, dims, &dum);
+    if (status == 0)
+    {
+        status = GDSDfldsrch(gridID, sdInterfaceID, fieldname, &sdid,
+                             &rankSDS, &rankFld, &mrgOffset, dims, &dum);
+        if (status < 0)
+            return -1;
 
 
-	    /* Set I/O offset Section */
-	    /* ---------------------- */
+        /* Set I/O offset Section */
+        /* ---------------------- */
 
-	    /*
-	     * If start == NULL (default) set I/O offset of 0th field to
-	     * offset within merged field (if any) and the rest to 0
-	     */
-	    if (start == NULL)
-	    {
-		for (i = 0; i < rankSDS; i++)
-		{
-		    offset[i] = 0;
-		}
-		offset[0] = mrgOffset;
-	    }
-	    else
-	    {
-		/*
-		 * ... otherwise set I/O offset to user values, adjusting the
-		 * 0th field with the merged field offset (if any)
-		 */
-		if (rankFld == rankSDS)
-		{
-		    for (i = 0; i < rankSDS; i++)
-		    {
-			offset[i] = start[i];
-		    }
-		    offset[0] += mrgOffset;
-		}
-		else
-		{
-		    /*
-		     * If field really 2-dim merged in 3-dim field then set
-		     * 0th field offset to merge offset and then next two to
-		     * the user values
-		     */
-		    for (i = 0; i < rankFld; i++)
-		    {
-			offset[i + 1] = start[i];
-		    }
-		    offset[0] = mrgOffset;
-		}
-	    }
-
-
-
-	    /* Set I/O stride Section */
-	    /* ---------------------- */
-
-	    /*
-	     * If stride == NULL (default) set I/O stride to 1
-	     */
-	    if (stride == NULL)
-	    {
-		for (i = 0; i < rankSDS; i++)
-		{
-		    incr[i] = 1;
-		}
-	    }
-	    else
-	    {
-		/*
-		 * ... otherwise set I/O stride to user values
-		 */
-		if (rankFld == rankSDS)
-		{
-		    for (i = 0; i < rankSDS; i++)
-		    {
-			incr[i] = stride[i];
-		    }
-		}
-		else
-		{
-		    /*
-		     * If field really 2-dim merged in 3-dim field then set
-		     * 0th field stride to 1 and then next two to the user
-		     * values.
-		     */
-		    for (i = 0; i < rankFld; i++)
-		    {
-			incr[i + 1] = stride[i];
-		    }
-		    incr[0] = 1;
-		}
-	    }
+        /*
+         * If start == NULL (default) set I/O offset of 0th field to
+         * offset within merged field (if any) and the rest to 0
+         */
+        if (start == NULL)
+        {
+            for (i = 0; i < rankSDS; i++)
+            {
+                offset[i] = 0;
+            }
+            offset[0] = mrgOffset;
+        }
+        else
+        {
+            /*
+             * ... otherwise set I/O offset to user values, adjusting the
+             * 0th field with the merged field offset (if any)
+             */
+            if (rankFld == rankSDS)
+            {
+                for (i = 0; i < rankSDS; i++)
+                {
+                offset[i] = start[i];
+                }
+                offset[0] += mrgOffset;
+            }
+            else
+            {
+                /*
+                 * If field really 2-dim merged in 3-dim field then set
+                 * 0th field offset to merge offset and then next two to
+                 * the user values
+                 */
+                for (i = 0; i < rankFld; i++)
+                {
+                    offset[i + 1] = start[i];
+                }
+                offset[0] = mrgOffset;
+            }
+            }
 
 
 
-	    /* Set I/O count Section */
-	    /* --------------------- */
+            /* Set I/O stride Section */
+            /* ---------------------- */
 
-	    /*
-	     * If edge == NULL (default) set I/O count to number of remaining
-	     * entries (dims - start) / increment.  Note that 0th field
-	     * offset corrected for merged field offset (if any).
-	     */
-	    if (edge == NULL)
-	    {
-		for (i = 1; i < rankSDS; i++)
-		{
-		    count[i] = (dims[i] - offset[i]) / incr[i];
-		}
-		count[0] = (dims[0] - (offset[0] - mrgOffset)) / incr[0];
-	    }
-	    else
-	    {
-		/*
-		 * ... otherwise set I/O count to user values
-		 */
-		if (rankFld == rankSDS)
-		{
-		    for (i = 0; i < rankSDS; i++)
-		    {
-			count[i] = edge[i];
-		    }
-		}
-		else
-		{
-		    /*
-		     * If field really 2-dim merged in 3-dim field then set
-		     * 0th field count to 1 and then next two to the user
-		     * values.
-		     */
-		    for (i = 0; i < rankFld; i++)
-		    {
-			count[i + 1] = edge[i];
-		    }
-		    count[0] = 1;
-		}
-	    }
+            /*
+             * If stride == NULL (default) set I/O stride to 1
+             */
+            if (stride == NULL)
+            {
+            for (i = 0; i < rankSDS; i++)
+            {
+                incr[i] = 1;
+            }
+            }
+            else
+            {
+            /*
+             * ... otherwise set I/O stride to user values
+             */
+            if (rankFld == rankSDS)
+            {
+                for (i = 0; i < rankSDS; i++)
+                {
+                incr[i] = stride[i];
+                }
+            }
+            else
+            {
+                /*
+                 * If field really 2-dim merged in 3-dim field then set
+                 * 0th field stride to 1 and then next two to the user
+                 * values.
+                 */
+                for (i = 0; i < rankFld; i++)
+                {
+                incr[i + 1] = stride[i];
+                }
+                incr[0] = 1;
+            }
+            }
 
 
-	    /* Perform I/O with relevant HDF I/O routine */
-	    /* ----------------------------------------- */
-	    if (strcmp(code, "w") == 0)
-	    {
-		/* Set strideOne to true (1) */
-		/* ------------------------- */
-		strideOne = 1;
+
+            /* Set I/O count Section */
+            /* --------------------- */
+
+            /*
+             * If edge == NULL (default) set I/O count to number of remaining
+             * entries (dims - start) / increment.  Note that 0th field
+             * offset corrected for merged field offset (if any).
+             */
+            if (edge == NULL)
+            {
+            for (i = 1; i < rankSDS; i++)
+            {
+                count[i] = (dims[i] - offset[i]) / incr[i];
+            }
+            count[0] = (dims[0] - (offset[0] - mrgOffset)) / incr[0];
+            }
+            else
+            {
+            /*
+             * ... otherwise set I/O count to user values
+             */
+            if (rankFld == rankSDS)
+            {
+                for (i = 0; i < rankSDS; i++)
+                {
+                count[i] = edge[i];
+                }
+            }
+            else
+            {
+                /*
+                 * If field really 2-dim merged in 3-dim field then set
+                 * 0th field count to 1 and then next two to the user
+                 * values.
+                 */
+                for (i = 0; i < rankFld; i++)
+                {
+                count[i + 1] = edge[i];
+                }
+                count[0] = 1;
+            }
+            }
 
 
-		/* If incr[i] != 1 set strideOne to false (0) */
-		/* ------------------------------------------ */
-		for (i = 0; i < rankSDS; i++)
-		{
-		    if (incr[i] != 1)
-		    {
-			strideOne = 0;
-			break;
-		    }
-		}
+            /* Perform I/O with relevant HDF I/O routine */
+            /* ----------------------------------------- */
+            if (strcmp(code, "w") == 0)
+            {
+            /* Set strideOne to true (1) */
+            /* ------------------------- */
+            strideOne = 1;
 
 
-		/*
-		 * If strideOne is true use NULL parameter for stride. This
-		 * is a work-around to HDF compression problem
-		 */
-		if (strideOne == 1)
-		{
-		    status = SDwritedata(sdid, offset, NULL, count,
-					 (VOIDP) datbuf);
-		}
-		else
-		{
-		    status = SDwritedata(sdid, offset, incr, count,
-					 (VOIDP) datbuf);
-		}
-	    }
-	    else
-	    {
-		status = SDreaddata(sdid, offset, incr, count,
-				    (VOIDP) datbuf);
-	    }
-	}
-    }
+            /* If incr[i] != 1 set strideOne to false (0) */
+            /* ------------------------------------------ */
+            for (i = 0; i < rankSDS; i++)
+            {
+                if (incr[i] != 1)
+                {
+                strideOne = 0;
+                break;
+                }
+            }
+
+
+            /*
+             * If strideOne is true use NULL parameter for stride. This
+             * is a work-around to HDF compression problem
+             */
+            if (strideOne == 1)
+            {
+                status = SDwritedata(sdid, offset, NULL, count,
+                         (VOIDP) datbuf);
+            }
+            else
+            {
+                status = SDwritedata(sdid, offset, incr, count,
+                         (VOIDP) datbuf);
+            }
+            }
+            else
+            {
+            status = SDreaddata(sdid, offset, incr, count,
+                        (VOIDP) datbuf);
+            }
+        }
 
     return (status);
 }
@@ -2551,12 +2555,14 @@ GDattrinfo(int32 gridID, const char *attrname, int32 * numbertype, int32 * count
 {
     intn            status = 0;	/* routine return status variable */
 
-    int32           fid;	/* HDF-EOS file ID */
+    int32           fid = 0;	/* HDF-EOS file ID */
     int32           attrVgrpID;	/* Grid attribute ID */
     int32           dum;	/* dummy variable */
     int32           idOffset = GDIDOFFSET;	/* Grid ID offset */
 
     status = GDchkgdid(gridID, "GDattrinfo", &fid, &dum, &dum);
+    if (status < 0)
+        return -1;
 
     int gID = gridID % idOffset;
     if (gID >= NGRID)
@@ -3937,12 +3943,12 @@ GDgetdefaults(int32 projcode, int32 zonecode, float64 projparm[],
 
 	if (plon <= 0.0)
 	{
-	    tlon = 180.0 + plon;
+	    //tlon = 180.0 + plon;
 	    pplon = plon + 360.0;
 	}
 	else
 	{
-	    tlon = plon - 180.0;
+	    //tlon = plon - 180.0;
 	    pplon = plon;
 	}
 
@@ -3960,7 +3966,7 @@ GDgetdefaults(int32 projcode, int32 zonecode, float64 projparm[],
 
 	/* Convert all four longitudes from decimal degrees to radians */
 	plon = EHconvAng(plon, HDFE_DEG_RAD);
-	tlon = EHconvAng(tlon, HDFE_DEG_RAD);
+	//tlon = EHconvAng(tlon, HDFE_DEG_RAD);
 	llon = EHconvAng(llon, HDFE_DEG_RAD);
 	rlon = EHconvAng(rlon, HDFE_DEG_RAD);
 
@@ -4331,13 +4337,13 @@ GDgetpixels(int32 gridID, int32 nLonLat, float64 lonVal[], float64 latVal[],
     int32           sdInterfaceID;	/* HDF SDS interface ID */
     int32           gdVgrpID;	/* Grid root Vgroup ID */
 
-    int32           xdimsize;	/* Size of "XDim" */
-    int32           ydimsize;	/* Size of "YDim" */
-    int32           projcode;	/* GCTP projection code */
-    int32           zonecode;	/* Zone code */
-    int32           spherecode;	/* Sphere code */
-    int32           origincode;	/* Origin code */
-    int32           pixregcode;	/* Pixel registration code */
+    int32           xdimsize = 0;	/* Size of "XDim" */
+    int32           ydimsize = 0;	/* Size of "YDim" */
+    int32           projcode = 0;	/* GCTP projection code */
+    int32           zonecode = 0;	/* Zone code */
+    int32           spherecode = 0;	/* Sphere code */
+    int32           origincode = 0;	/* Origin code */
+    int32           pixregcode = 0;	/* Pixel registration code */
 
     float64         upleftpt[2];/* Upper left point */
     float64         lowrightpt[2];	/* Lower right point */
@@ -4349,56 +4355,66 @@ GDgetpixels(int32 gridID, int32 nLonLat, float64 lonVal[], float64 latVal[],
     /* Check for valid grid ID */
     /* ----------------------- */
     status = GDchkgdid(gridID, "GDgetpixels", &fid, &sdInterfaceID, &gdVgrpID);
+    if (status < 0)
+        return -1;
 
-    if (status == 0)
+    /* Get grid info */
+    /* ------------- */
+    status = GDgridinfo(gridID, &xdimsize, &ydimsize,
+                        upleftpt, lowrightpt);
+    if (status < 0)
+        return -1;
+
+
+    /* Get projection info */
+    /* ------------------- */
+    status = GDprojinfo(gridID, &projcode, &zonecode,
+                        &spherecode, projparm);
+    if (status < 0)
+        return -1;
+
+
+    /* Get explicit upleftpt & lowrightpt if defaults are used */
+    /* ------------------------------------------------------- */
+    status = GDgetdefaults(projcode, zonecode, projparm, spherecode,
+                           upleftpt, lowrightpt);
+    if (status < 0)
+        return -1;
+
+
+    /* Get pixel registration and origin info */
+    /* -------------------------------------- */
+    status = GDorigininfo(gridID, &origincode);
+    if (status < 0)
+        return -1;
+    status = GDpixreginfo(gridID, &pixregcode);
+    if (status < 0)
+        return -1;
+
+
+    /* Allocate space for x & y locations */
+    /* ---------------------------------- */
+    xVal = (float64 *) calloc(nLonLat, sizeof(float64));
+    if(xVal == NULL)
     {
-	/* Get grid info */
-	/* ------------- */
-	status = GDgridinfo(gridID, &xdimsize, &ydimsize,
-			    upleftpt, lowrightpt);
+        HEpush(DFE_NOSPACE,"GDgetpixels", __FILE__, __LINE__);
+        return(-1);
+    }
+    yVal = (float64 *) calloc(nLonLat, sizeof(float64));
+    if(yVal == NULL)
+    {
+        HEpush(DFE_NOSPACE,"GDgetpixels", __FILE__, __LINE__);
+        free(xVal);
+        return(-1);
+    }
 
 
-	/* Get projection info */
-	/* ------------------- */
-	status = GDprojinfo(gridID, &projcode, &zonecode,
-			    &spherecode, projparm);
-
-
-	/* Get explicit upleftpt & lowrightpt if defaults are used */
-	/* ------------------------------------------------------- */
-	status = GDgetdefaults(projcode, zonecode, projparm, spherecode,
-			       upleftpt, lowrightpt);
-
-
-	/* Get pixel registration and origin info */
-	/* -------------------------------------- */
-	status = GDorigininfo(gridID, &origincode);
-	status = GDpixreginfo(gridID, &pixregcode);
-
-
-	/* Allocate space for x & y locations */
-	/* ---------------------------------- */
-	xVal = (float64 *) calloc(nLonLat, sizeof(float64));
-	if(xVal == NULL)
-	{
-	    HEpush(DFE_NOSPACE,"GDgetpixels", __FILE__, __LINE__);
-	    return(-1);
-	}
-	yVal = (float64 *) calloc(nLonLat, sizeof(float64));
-	if(yVal == NULL)
-	{
-	    HEpush(DFE_NOSPACE,"GDgetpixels", __FILE__, __LINE__);
-	    free(xVal);
-	    return(-1);
-	}
-
-
-	/* Get pixRow, pixCol, xVal, & yVal */
-	/* -------------------------------- */
-	status = GDll2ij(projcode, zonecode, projparm, spherecode,
-			 xdimsize, ydimsize, upleftpt, lowrightpt,
-			 nLonLat, lonVal, latVal, pixRow, pixCol,
-			 xVal, yVal);
+    /* Get pixRow, pixCol, xVal, & yVal */
+    /* -------------------------------- */
+    status = GDll2ij(projcode, zonecode, projparm, spherecode,
+             xdimsize, ydimsize, upleftpt, lowrightpt,
+             nLonLat, lonVal, latVal, pixRow, pixCol,
+             xVal, yVal);
 
 
 
@@ -4472,7 +4488,7 @@ GDgetpixels(int32 gridID, int32 nLonLat, float64 lonVal[], float64 latVal[],
 	}
 	free(xVal);
 	free(yVal);
-    }
+
     return (status);
 }
 
@@ -4535,18 +4551,18 @@ GDgetpixvalues(int32 gridID, int32 nPixels, int32 pixRow[], int32 pixCol[],
     int32           xdum = 0;	/* Location of "XDim" within field list */
     int32           ydum = 0;	/* Location of "YDim" within field list */
     int32           ntype;	/* Field number type */
-    int32           origincode;	/* Origin code */
+    int32           origincode = 0;	/* Origin code */
     int32           bufOffset;	/* Data buffer offset */
     int32           size = 0;	/* Size of returned data buffer for each
 				 * value in bytes */
-    int32           offset[8];	/* I/O offset (start) */
+    int32           offset[8] = {0};	/* I/O offset (start) */
     int32           incr[8];	/* I/O increment (stride) */
     int32           count[8];	/* I/O count (edge) */
     int32           sdid;	/* SDS ID */
     int32           rankSDS;	/* Rank of SDS */
     int32           rankFld;	/* Rank of field */
     int32           dum;	/* Dummy variable */
-    int32           mrgOffset;	/* Merged field offset */
+    int32           mrgOffset = 0;	/* Merged field offset */
 
     char           *dimlist;	/* Dimension list */
 
@@ -4610,18 +4626,20 @@ GDgetpixvalues(int32 gridID, int32 nPixels, int32 pixRow[], int32 pixCol[],
 	if (status == 0)
 	{
 
-	    /* Get origin order info */
-	    /* --------------------- */
-	    status = GDorigininfo(gridID, &origincode);
+        /* Get origin order info */
+        /* --------------------- */
+        status = GDorigininfo(gridID, &origincode);
+        if (status < 0)
+            return -1;
 
 
-	    /* Initialize start & edge arrays */
-	    /* ------------------------------ */
-	    for (i = 0; i < rank; i++)
-	    {
-		start[i] = 0;
-		edge[i] = dims[i];
-	    }
+        /* Initialize start & edge arrays */
+        /* ------------------------------ */
+        for (i = 0; i < rank; i++)
+        {
+            start[i] = 0;
+            edge[i] = dims[i];
+        }
 
 
 	    /* Compute size of data buffer for each pixel */
@@ -4794,28 +4812,29 @@ GDwrrdtile(int32 gridID, const char *fieldname, const char *code, int32 start[],
 	if (status == 0)
 	{
 
-	    /* Check whether fieldname is in SDS (multi-dim field) */
-	    /* --------------------------------------------------- */
-	    status = GDSDfldsrch(gridID, sdInterfaceID, fieldname, &sdid,
-				 &rankSDS, &dum, &dum, dims, &dum);
+        /* Check whether fieldname is in SDS (multi-dim field) */
+        /* --------------------------------------------------- */
+        status = GDSDfldsrch(gridID, sdInterfaceID, fieldname, &sdid,
+                 &rankSDS, &dum, &dum, dims, &dum);
+        if (status < 0)
+            return -1;
 
 
+        /*
+         * Check for errors in parameters passed to GDwritetile or
+         * GDreadtile
+         */
 
-	    /*
-	     * Check for errors in parameters passed to GDwritetile or
-	     * GDreadtile
-	     */
+        /* Check if untiled field */
+        status = SDgetchunkinfo(sdid, &tileDef, &tileFlags);
+        if (tileFlags == HDF_NONE)
+        {
+            HEpush(DFE_GENAPP, "GDwrrdtile", __FILE__, __LINE__);
+            HEreport("Field \"%s\" is not tiled.\n", fieldname);
+            status = -1;
+            return (status);
 
-	    /* Check if untiled field */
-	    status = SDgetchunkinfo(sdid, &tileDef, &tileFlags);
-	    if (tileFlags == HDF_NONE)
-	    {
-		HEpush(DFE_GENAPP, "GDwrrdtile", __FILE__, __LINE__);
-		HEreport("Field \"%s\" is not tiled.\n", fieldname);
-		status = -1;
-		return (status);
-
-	    }
+        }
 
 	    /*
 	     * Check if rd/wr tilecoords are within the extent of the field
@@ -4915,15 +4934,15 @@ GDtileinfo(int32 gridID, const char *fieldname, int32 * tilecode, int32 * tilera
 	if (status == 0)
 	{
 
-	    /* Check whether fieldname is in SDS (multi-dim field) */
-	    /* --------------------------------------------------- */
-	    status = GDSDfldsrch(gridID, sdInterfaceID, fieldname, &sdid,
-				 &rankSDS, &dum, &dum, dims, &dum);
+        /* Check whether fieldname is in SDS (multi-dim field) */
+        /* --------------------------------------------------- */
+        status = GDSDfldsrch(gridID, sdInterfaceID, fieldname, &sdid,
+                 &rankSDS, &dum, &dum, dims, &dum);
+        if (status < 0)
+            return -1;
 
-
-
-	    /* Query field for tiling information */
-	    status = SDgetchunkinfo(sdid, &tileDef, &tileFlags);
+        /* Query field for tiling information */
+        status = SDgetchunkinfo(sdid, &tileDef, &tileFlags);
 
 	    /* If field is untiled, return untiled flag */
 	    if (tileFlags == HDF_NONE)

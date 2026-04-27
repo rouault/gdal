@@ -363,7 +363,8 @@ SWattach(int32 fid, const char *swathname)
 		    /* -------------------- */
 		    status = SWchkswid(swathID, "SWattach", &dum,
 				       &sdInterfaceID, &dum);
-
+            if (status < 0)
+                return -1;
 
 		    /* Access swath "Geolocation" SDS */
 		    /* ------------------------------ */
@@ -1204,8 +1205,8 @@ SWfinfo(int32 swathID, const char *fieldtype, const char *fieldname,
     intn            status;	/* routine return status variable */
     intn            statmeta = 0;	/* EHgetmetavalue return status */
 
-    int32           fid;	/* HDF-EOS file ID */
-    int32           sdInterfaceID;	/* HDF SDS interface ID */
+    int32           fid = 0;	/* HDF-EOS file ID */
+    int32           sdInterfaceID = 0;	/* HDF SDS interface ID */
     int32           idOffset = SWIDOFFSET;	/* Swath ID offset */
     int32           fsize;	/* field size in bytes */
     int32           ndims = 0;	/* Number of dimensions */
@@ -1338,6 +1339,7 @@ SWfinfo(int32 swathID, const char *fieldtype, const char *fieldname,
 	 * list
 	 */
     size_t dimlistlen = 0;
+    dims[0] = 0;
     for (i = 0; i < ndims; i++)
     {
         if (slen[i] >= 2)
@@ -3278,11 +3280,11 @@ SWwrrdfield(int32 swathID, const char *fieldname, const char *code,
     int32           fldsize;	/* Field size */
     int32           nrec;	/* Number of records in Vdata */
 
-    int32           offset[8];	/* I/O offset (start) */
+    int32           offset[8] = {0};	/* I/O offset (start) */
     int32           incr[8];	/* I/O increment (stride) */
     int32           count[8];	/* I/O count (edge) */
     int32           dims[8];	/* Field/SDS dimensions */
-    int32           mrgOffset;	/* Merged field offset */
+    int32           mrgOffset = 0;	/* Merged field offset */
     int32           nflds;	/* Number of fields in Vdata */
     int32           strideOne;	/* Strides = 1 flag */
 
@@ -3293,6 +3295,8 @@ SWwrrdfield(int32 swathID, const char *fieldname, const char *code,
     char           *ptr[64];	/* String pointer array */
     char            fieldlist[256];	/* Vdata field list */
 
+    for (i = 0; i < 8; ++i)
+        incr[i] = 1;
 
     /* Check for valid swath ID */
     /* ------------------------ */
@@ -3623,6 +3627,7 @@ SWwrrdfield(int32 swathID, const char *fieldname, const char *code,
 		    /* --------------------- */
 		    nrec = VSwrite(vdataID, buf, count[0] * incr[0],
 				   FULL_INTERLACE);
+            (void)nrec; // FIXME
 
 		    free(fillbuf);
                     if (status > 0)
@@ -3917,7 +3922,7 @@ SWdetach(int32 swathID)
 	{
 	    if (SWX1dcomb[3 * i + 1] == SWXSwath[sID].IDTable)
 	    {
-		memcpy(&SWX1dcomb[3 * i],
+		memmove(&SWX1dcomb[3 * i],
 		       &SWX1dcomb[3 * (i + 1)],
 		       (512 - i - 1) * 3 * 4);
 	    }
@@ -4085,7 +4090,6 @@ SWgeomapinfo(int32 swathID, const char *geodim)
 	free(utlstrr);
 	return(-1);
     }
-    status = -1;
 
     /* Check for valid swath id */
     status = SWchkswid(swathID, "SWgeomapinfo", &fid, &sdInterfaceID, &swVgrpID);
