@@ -1761,7 +1761,12 @@ GDfieldinfo(int32 gridID, const char *fieldname, int32 * rank, int32 dims[],
 		}
 
 		/* Parse trimmed DimList string and get rank */
-		ndims = EHparsestr(utlstr, ',', ptr, slen);
+		ndims = EHparsestr(utlstr, ',', ptr, CPL_ARRAYSIZE(ptr), slen, CPL_ARRAYSIZE(slen));
+        if (ndims < 0)
+        {
+            status = -1;
+            HEpush(DFE_NOSPACE, "GDfieldinfo", __FILE__, __LINE__);
+        }
 		*rank = ndims;
 	    }
 	    else
@@ -2973,7 +2978,12 @@ GDinqfields(int32 gridID, char *fieldlist, int32 rank[],
 		    if (rank != NULL)
 		    {
 			EHgetmetavalue(metaptrs, "DimList", utlstr);
-			rank[nFld] = EHparsestr(utlstr, ',', ptr, slen);
+			rank[nFld] = EHparsestr(utlstr, ',', ptr, CPL_ARRAYSIZE(ptr), slen, CPL_ARRAYSIZE(slen));
+            if (rank[nFld] < 0)
+            {
+                status = -1;
+                break;
+            }
 		    }
 		    /* Increment number of fields */
 		    nFld++;

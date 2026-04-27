@@ -938,7 +938,7 @@ GDALDataset *HDF4Dataset::Open(GDALOpenInfo *poOpenInfo)
                 for (int32 j = 0; j < nFields; j++)
                 {
                     SWfieldinfo(hSW, papszFields[j], &iRank, aiDimSizes,
-                                &iNumType, nullptr);
+                                &iNumType, nullptr, 0);
 
                     if (iRank < 2)
                         continue;

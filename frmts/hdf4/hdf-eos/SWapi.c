@@ -146,7 +146,7 @@ static struct swathRegion *SWXRegion[NSWATHREGN];
 /* Swath Prototypes (internal routines) */
 static intn SWchkswid(int32, const char *, int32 *, int32 *, int32 *);
 static int32 SWfinfo(int32, const char *, const char *, int32 *,
-                     int32 [], int32 *, char *);
+                     int32 [], int32 *, char *, size_t dimlistsize);
 static intn SWwrrdattr(int32, const char *, int32, int32, const char *, VOIDP);
 static intn SW1dfldsrch(int32, int32, const char *, const char *, int32 *,
                         int32 *, int32 *);
@@ -1196,7 +1196,7 @@ SWcompinfo(int32 swathID, const char *fieldname, int32 * compcode, intn compparm
 -----------------------------------------------------------------------------*/
 static int32
 SWfinfo(int32 swathID, const char *fieldtype, const char *fieldname,
-        int32 *rank, int32 dims[], int32 *numbertype, char *dimlist)
+        int32 *rank, int32 dims[], int32 *numbertype, char *dimlist, size_t dimlistsize)
 
 {
     intn            i;		/* Loop index */
@@ -1309,7 +1309,14 @@ SWfinfo(int32 swathID, const char *fieldtype, const char *fieldname,
 	    }
 
 	    /* Parse trimmed DimList string and get rank */
-	    ndims = EHparsestr(utlstr, ',', ptr, slen);
+	    ndims = EHparsestr(utlstr, ',', ptr, CPL_ARRAYSIZE(ptr), slen, CPL_ARRAYSIZE(slen));
+        if (ndims < 0)
+        {
+            free(utlstr);
+            free(metabuf);
+            HEpush(DFE_NOSPACE, "SWfinfo", __FILE__, __LINE__);
+            return -1;
+        }
 	    *rank = ndims;
 	}
 	else
@@ -1330,21 +1337,43 @@ SWfinfo(int32 swathID, const char *fieldtype, const char *fieldname,
 	 * Get dimension sizes and concatenate dimension names to dimension
 	 * list
 	 */
-	for (i = 0; i < ndims; i++)
-	{
-	    memcpy(dimstr, ptr[i] + 1, slen[i] - 2);
-	    dimstr[slen[i] - 2] = 0;
-	    dims[i] = SWdiminfo(swathID, dimstr);
-	    if (dimlist != NULL)
-	    {
-		if (i > 0)
-		{
-		    strcat(dimlist, ",");
-		}
-		strcat(dimlist, dimstr);
-	    }
-
-	}
+    size_t dimlistlen = 0;
+    for (i = 0; i < ndims; i++)
+    {
+        if (slen[i] >= 2)
+        {
+            if ((size_t)(slen[i] - 2) >= sizeof(dimstr))
+            {
+                HEpush(DFE_GENAPP, "SWfinfo", __FILE__, __LINE__);
+                HEreport("Size of dimstr variable too short.\n");
+                return -1;
+            }
+            memcpy(dimstr, ptr[i] + 1, slen[i] - 2);
+            dimstr[slen[i] - 2] = 0;
+        }
+        else
+        {
+            dimstr[0] = 0;
+        }
+        dims[i] = SWdiminfo(swathID, dimstr);
+        if (dimlist != NULL)
+        {
+            const int spaceForComma = ((i > 0) ? 1 : 0);
+            if (dimlistlen + spaceForComma + strlen(dimstr) >= dimlistsize)
+            {
+                HEpush(DFE_GENAPP, "SWfinfo", __FILE__, __LINE__);
+                HEreport("Size of dimlist variable too short.\n");
+                return -1;
+            }
+            if (i > 0)
+            {
+                strcpy(dimlist + dimlistlen, ",");
+                ++dimlistlen;
+            }
+            strcpy(dimlist + dimlistlen, dimstr);
+            dimlistlen += strlen(dimstr);
+        }
+    }
 
 
 	/* Appendable Field Section */
@@ -1458,7 +1487,7 @@ SWfinfo(int32 swathID, const char *fieldtype, const char *fieldname,
 -----------------------------------------------------------------------------*/
 intn
 SWfieldinfo(int32 swathID, const char *fieldname, int32 * rank, int32 dims[],
-	    int32 * numbertype, char *dimlist)
+	    int32 * numbertype, char *dimlist, size_t dimlistsize)
 
 {
     intn            status;	/* routine return status variable */
@@ -1475,13 +1504,13 @@ SWfieldinfo(int32 swathID, const char *fieldname, int32 * rank, int32 dims[],
     {
 	/* Check for field within Geolocatation Fields */
 	status = SWfinfo(swathID, "Geolocation Fields", fieldname,
-			 rank, dims, numbertype, dimlist);
+			 rank, dims, numbertype, dimlist, dimlistsize);
 
 	/* If not there then check within Data Fields */
 	if (status == -1)
 	{
 	    status = SWfinfo(swathID, "Data Fields", fieldname,
-			     rank, dims, numbertype, dimlist);
+			     rank, dims, numbertype, dimlist, dimlistsize);
 	}
 
 	/* If not there either then can't be found */
@@ -2444,7 +2473,13 @@ SWinqfields(int32 swathID, const char *fieldtype, char *fieldlist, int32 rank[],
 		    if (rank != NULL)
 		    {
 			EHgetmetavalue(metaptrs, "DimList", utlstr);
-			rank[nFld] = EHparsestr(utlstr, ',', ptr, slen);
+			rank[nFld] = EHparsestr(utlstr, ',', ptr, CPL_ARRAYSIZE(ptr), slen, CPL_ARRAYSIZE(slen));
+            if (rank[nFld] < 0)
+            {
+                HEpush(DFE_NOSPACE, "SWinqfields", __FILE__, __LINE__);
+                status = -1;
+                break;
+            }
 		    }
 		    /* Increment number of fields */
 		    nFld++;
@@ -3508,7 +3543,7 @@ SWwrrdfield(int32 swathID, const char *fieldname, const char *code,
 		    /* ---------------------------------------------- */
 		    VSgetfields(vdataID, fieldlist);
 		    dum = EHstrwithin(fieldname, fieldlist, ',');
-		    nflds = EHparsestr(fieldlist, ',', ptr, NULL);
+		    nflds = EHparsestr(fieldlist, ',', ptr, CPL_ARRAYSIZE(ptr), NULL, 0);
 
 
 		    /* Get Merged Field Offset (if any) */
@@ -3734,7 +3769,7 @@ SWgetfillvalue(int32 swathID, const char *fieldname, VOIDP fillval)
     if (status == 0)
     {
 	/* Get field info */
-	status = SWfieldinfo(swathID, fieldname, &dum, dims, &nt, NULL);
+	status = SWfieldinfo(swathID, fieldname, &dum, dims, &nt, NULL, 0);
 
 	if (status == 0)
 	{
