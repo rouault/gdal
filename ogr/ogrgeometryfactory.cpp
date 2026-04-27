@@ -2258,7 +2258,7 @@ std::unique_ptr<OGRGeometry> OGRGeometryFactory::organizePolygons(
        no full geometry intersection or inclusion test is done
     */
 
-    if (!bMixedUpGeometries)
+    if (!bMixedUpGeometries && !asPolyEx.empty())
     {
         // STEP 1: Sort polygons by descending area.
         std::sort(asPolyEx.begin(), asPolyEx.end(),
