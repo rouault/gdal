@@ -1342,6 +1342,12 @@ SWfinfo(int32 swathID, const char *fieldtype, const char *fieldname,
     {
         if (slen[i] >= 2)
         {
+            if ((size_t)(slen[i] - 2) >= sizeof(dimstr))
+            {
+                HEpush(DFE_GENAPP, "SWfinfo", __FILE__, __LINE__);
+                HEreport("Size of dimstr variable too short.\n");
+                return -1;
+            }
             memcpy(dimstr, ptr[i] + 1, slen[i] - 2);
             dimstr[slen[i] - 2] = 0;
         }
