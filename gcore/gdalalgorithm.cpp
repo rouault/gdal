@@ -7461,6 +7461,36 @@ void GDALAlgorithm::ExtractLastOptionAndValue(std::vector<std::string> &args,
     }
 }
 
+/************************************************************************/
+/*                 GDALAlgorithm::GetArgDependencies()                  */
+/************************************************************************/
+
+std::vector<std::string>
+GDALAlgorithm::GetArgDependencies(const std::string &osName) const
+{
+    const auto arg = GetArg(osName, false);
+    if (!arg)
+    {
+        ReportError(CE_Failure, CPLE_AppDefined, "Argument '%s' does not exist",
+                    osName.c_str());
+        return {};
+    }
+    std::vector<std::string> dependencies = arg->GetDirectDependencies();
+    if (const auto &mutualDependencyGroup = arg->GetMutualDependencyGroup();
+        !mutualDependencyGroup.empty())
+    {
+        for (const auto &otherArg : m_args)
+        {
+            if (otherArg.get() == arg ||
+                mutualDependencyGroup.compare(
+                    otherArg->GetMutualDependencyGroup()) != 0)
+                continue;
+            dependencies.push_back(otherArg->GetName());
+        }
+    }
+    return dependencies;
+}
+
 //! @cond Doxygen_Suppress
 
 /************************************************************************/

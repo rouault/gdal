@@ -2559,30 +2559,8 @@ class CPL_DLL GDALAlgorithmRegistry
 
     /** Return a possibly empty list of names the specified argument
      *  depends on, this includes both direct and mutual dependencies */
-    std::vector<std::string> GetArgDependencies(const std::string &osName) const
-    {
-        const auto arg = GetArg(osName, false);
-        if (!arg)
-        {
-            ReportError(CE_Failure, CPLE_AppDefined,
-                        "Argument '%s' does not exist", osName.c_str());
-            return {};
-        }
-        std::vector<std::string> dependencies = arg->GetDirectDependencies();
-        if (const auto mutualDependencyGroup = arg->GetMutualDependencyGroup();
-            !mutualDependencyGroup.empty())
-        {
-            for (const auto &otherArg : m_args)
-            {
-                if (otherArg.get() == arg ||
-                    mutualDependencyGroup.compare(
-                        otherArg->GetMutualDependencyGroup()) != 0)
-                    continue;
-                dependencies.push_back(otherArg->GetName());
-            }
-        }
-        return dependencies;
-    }
+    std::vector<std::string>
+    GetArgDependencies(const std::string &osName) const;
 
     /** Set the calling path to this algorithm.
      *
