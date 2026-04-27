@@ -3519,7 +3519,8 @@ static void NITFLoadAttributeSection(NITFImage *psImage)
 
                 const char *pszName = psAttr->pszGDALMetadataItem;
                 const int nLength = psAttr->nLength;
-                if (nLength != 0 && nAttrOffset + nLength <= nASSSize)
+                if (nLength != 0 && (GUInt32)nLength <= nASSSize &&
+                    nAttrOffset <= nASSSize - nLength)
                 {
                     memcpy(abyBuffer, pabyAttributeSubsection + nAttrOffset,
                            nLength);
