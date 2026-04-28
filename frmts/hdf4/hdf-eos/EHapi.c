@@ -623,7 +623,8 @@ EHgetversion(int32 fid, char *version)
     /* Get SDS interface ID */
     /* -------------------- */
     status = EHchkfid(fid, "EHgetversion", &dum, &sdInterfaceID, &access);
-
+    if (status < 0)
+        return -1;
 
     /* Get attribute index number */
     /* -------------------------- */
@@ -1506,7 +1507,6 @@ EHmetagroup(int32 sdInterfaceID, const char *structname, const char *structcode,
 
     int32           attrIndex;	/* Structural metadata attribute index */
     int32           nmeta;	/* Number of UTLSTRSIZE byte metadata sections */
-    int32           metalen;	/* Length of structural metadata */
 
     char           *metabuf;	/* Pointer (handle) to structural metadata */
     char           *endptr = NULL;	/* Pointer to end of metadata section */
@@ -1572,15 +1572,9 @@ EHmetagroup(int32 sdInterfaceID, const char *structname, const char *structcode,
     {
 	snprintf(utlstr, UTLSTR_MAX_SIZE, "%s%d", "StructMetadata.", i);
 	attrIndex = SDfindattr(sdInterfaceID, utlstr);
-	metalen = (int)strlen(metabuf);
+	int metalen = (int)strlen(metabuf);
 	SDreadattr(sdInterfaceID, attrIndex, metabuf + metalen);
     }
-
-    /* Determine length (# of characters) of metadata */
-    /* ---------------------------------------------- */
-    metalen = (int)strlen(metabuf);
-
-
 
     /* Find HDF-EOS structure "root" group in metadata */
     /* ----------------------------------------------- */
@@ -1630,7 +1624,7 @@ EHmetagroup(int32 sdInterfaceID, const char *structname, const char *structcode,
      * If not found then return to previous position in metadata and look for
      * "new-style" (ODL) metadata string
      */
-    if (metaptr == NULL)
+    if (metaptr == NULL && prevmetaptr)
     {
 	snprintf(utlstr, UTLSTR_MAX_SIZE, "%s%s", "GROUP=\"", structname);
 	metaptr = strstr(prevmetaptr, utlstr);
@@ -2155,8 +2149,10 @@ EHclose(int32 fid)
 	/* "Close" SD interface, Vgroup interface, and HDF file */
 	/* ---------------------------------------------------- */
 	status = SDend(sdInterfaceID);
-	status = Vend(HDFfid);
-	status = Hclose(HDFfid);
+	if (Vend(HDFfid) < 0)
+        status = -1;
+	if (Hclose(HDFfid) < 0)
+        status = -1;
 
 	/* Clear out external array entries */
 	/* -------------------------------- */
