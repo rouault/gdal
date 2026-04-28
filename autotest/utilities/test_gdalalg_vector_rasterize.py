@@ -806,3 +806,18 @@ def test_gdalalg_vector_rasterize_invalid_attribute_value():
             output_format="MEM",
             size=[100, 100],
         )
+
+
+def test_gdalalg_vector_rasterize_tap_depends_resolution():
+
+    with pytest.raises(
+        Exception,
+        match="Argument 'target-aligned-pixels' depends on argument 'resolution' that has not been specified",
+    ):
+        gdal.alg.vector.rasterize(
+            input="../ogr/data/poly.shp",
+            burn=1,
+            output="",
+            output_format="MEM",
+            tap=True,
+        )
