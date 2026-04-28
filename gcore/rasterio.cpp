@@ -442,9 +442,9 @@ CPLErr GDALRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
         const int nLBlockXStart = nXOff / nBlockXSize;
         const int nXSpanEnd = nBufXSize + nXOff;
 
-        int nYInc = 0;
-        for (int iBufYOff = 0, iSrcY = nYOff; iBufYOff < nBufYSize;
-             iBufYOff += nYInc, iSrcY += nYInc)
+        int iBufYOff = 0;
+        int iSrcY = nYOff;
+        while (true)
         {
             GPtrDiff_t iBufOffset = static_cast<GPtrDiff_t>(iBufYOff) *
                                     static_cast<GPtrDiff_t>(nLineSpace);
@@ -586,7 +586,7 @@ CPLErr GDALRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
             }
 
             /* Compute the increment to go on a block boundary */
-            nYInc = nBlockYSize - (iSrcY % nBlockYSize);
+            const int nYInc = nBlockYSize - (iSrcY % nBlockYSize);
 
             if (psExtraArg->pfnProgress != nullptr &&
                 !psExtraArg->pfnProgress(
@@ -595,6 +595,13 @@ CPLErr GDALRasterBand::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
             {
                 return CE_Failure;
             }
+
+            iBufYOff += nYInc;
+            if (iBufYOff >= nBufYSize)
+                break;
+            // Only increment iSrcY after above loop end check, to avoid
+            // potential int overflow.
+            iSrcY += nYInc;
         }
 
         return CE_None;
