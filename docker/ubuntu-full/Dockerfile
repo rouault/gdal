@@ -568,7 +568,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get install -y --no-install-recommends openjdk-"$JAVA_VERSION"-jre
 
 # Install libduckdb
-ARG DUCKDB_VERSION=v1.5.1
+ARG DUCKDB_VERSION=v1.5.2
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     export DEBIAN_FRONTEND=noninteractive \
