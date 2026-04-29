@@ -41,9 +41,11 @@ fi
         ccache -M 1G
     fi
 
-    export CFLAGS="-DPROJ_RENAME_SYMBOLS -O2 -g"
+    # -fzero-init-padding-bits=unions: restore GCC < 15 behavior with respect
+    # to union initialization.
+    export CFLAGS="-DPROJ_RENAME_SYMBOLS -O2 -g -fzero-init-padding-bits=unions"
     # -Wno-psabi avoid 'note: parameter passing for argument of type 'std::pair<double, double>' when C++17 is enabled changed to match C++14 in GCC 10.1' on arm64
-    export CXXFLAGS="-DPROJ_RENAME_SYMBOLS -DPROJ_INTERNAL_CPP_NAMESPACE -O2 -g -Wno-psabi"
+    export CXXFLAGS="-DPROJ_RENAME_SYMBOLS -DPROJ_INTERNAL_CPP_NAMESPACE -O2 -g -Wno-psabi -fzero-init-padding-bits=unions"
     export LDFLAGS="-Wl,-rpath=${PROJ_INSTALL_PREFIX}/lib"
 
     mkdir build

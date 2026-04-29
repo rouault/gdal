@@ -106,7 +106,7 @@ RUN --mount=type=cache,id=ubuntu-small-proj,target=$HOME/.cache \
         export PROJ_DB_CACHE_PARAM="-DPROJ_DB_CACHE_DIR=$HOME/.cache"; \
         ccache -M 100M; \
     fi \
-    && CFLAGS='-DPROJ_RENAME_SYMBOLS -O2' CXXFLAGS='-DPROJ_RENAME_SYMBOLS -DPROJ_INTERNAL_CPP_NAMESPACE -O2' \
+    && CFLAGS='-DPROJ_RENAME_SYMBOLS -O2 -fzero-init-padding-bits=unions' CXXFLAGS='-DPROJ_RENAME_SYMBOLS -DPROJ_INTERNAL_CPP_NAMESPACE -O2 -fzero-init-padding-bits=unions' \
         cmake . \
 	-G Ninja \
         -DPROJ_OUTPUT_NAME=internalproj \
@@ -185,7 +185,9 @@ RUN --mount=type=cache,id=ubuntu-small-gdal,target=$HOME/.cache \
     && mkdir build \
     && cd build \
     # -Wno-psabi avoid 'note: parameter passing for argument of type 'std::pair<double, double>' when C++17 is enabled changed to match C++14 in GCC 10.1' on arm64
-    && CFLAGS='-DPROJ_RENAME_SYMBOLS -O2' CXXFLAGS='-DPROJ_RENAME_SYMBOLS -DPROJ_INTERNAL_CPP_NAMESPACE -O2 -Wno-psabi' LDFLAGS="-Wl,-rpath=${PROJ_INSTALL_PREFIX}/lib" \
+    # -fzero-init-padding-bits=unions: restore GCC < 15 behavior with respect
+    # to union initialization.
+    && CFLAGS='-DPROJ_RENAME_SYMBOLS -O2 -fzero-init-padding-bits=unions' CXXFLAGS='-DPROJ_RENAME_SYMBOLS -DPROJ_INTERNAL_CPP_NAMESPACE -O2 -Wno-psabi -fzero-init-padding-bits=unions' LDFLAGS="-Wl,-rpath=${PROJ_INSTALL_PREFIX}/lib" \
        cmake .. \
         -G Ninja \
         -DCMAKE_INSTALL_PREFIX=/usr \
