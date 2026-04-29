@@ -308,6 +308,18 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(const CPLString &os_Color_Paleta_DBF)
         return CE_Failure;
     }
 
+    if (oColorTable.BytesPerRecord == UINT32_MAX)
+    {
+        CPLError(CE_Failure, CPLE_AssertionFailed,
+                 "Invalid color table:"
+                 "\"%s\".",
+                 osColorTableFileName.c_str());
+
+        VSIFCloseL(oColorTable.pfDataBase);
+        MM_ReleaseMainFields(&oColorTable);
+        return CE_Failure;
+    }
+
     // Guessing or reading the number of colors of the palette.
     MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = oColorTable.BytesPerRecord + 1;
     char *pzsRecord = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
