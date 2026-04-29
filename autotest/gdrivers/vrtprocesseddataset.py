@@ -556,6 +556,24 @@ def test_vrtprocesseddataset_lut_errors(tmp_vsimem):
         </VRTDataset>
             """)
 
+    with pytest.raises(
+        Exception,
+        match=r"input band count \(2\) is different from output band count \(1\)",
+    ):
+        gdal.Open(f"""<VRTDataset subclass='VRTProcessedDataset'>
+            <VRTRasterBand dataType="Float64" band="1" subClass="VRTProcessedRasterBand"/>
+            <Input>
+                <SourceFilename>{src_filename}</SourceFilename>
+            </Input>
+            <ProcessingSteps>
+            <Step>
+                <Algorithm>LUT</Algorithm>
+                <Argument name="lut_1">1.5:10,2.5:20</Argument>
+            </Step>
+            </ProcessingSteps>
+            </VRTDataset>
+            """)
+
 
 ###############################################################################
 # Test nominal case of LocalScaleOffset algorithm
@@ -890,6 +908,32 @@ def test_vrtprocesseddataset_dehazing_error(tmp_vsimem):
         </VRTDataset>
             """)
 
+    rgb_filename = str(tmp_vsimem / "rgb.tif")
+    src_ds = gdal.GetDriverByName("GTiff").Create(rgb_filename, 3, 1, 3)
+    src_ds.SetGeoTransform([0, 1, 0, 0, 0, 1])
+    src_ds.Close()
+
+    with pytest.raises(
+        Exception,
+        match=r"input band count \(3\) is different from output band count \(1\)",
+    ):
+        gdal.Open(f"""<VRTDataset subclass='VRTProcessedDataset'>
+            <VRTRasterBand dataType="Float64" band="1" subClass="VRTProcessedRasterBand"/>
+            <Input>
+                <SourceFilename>{rgb_filename}</SourceFilename>
+            </Input>
+            <ProcessingSteps>
+                <Step>
+                    <Algorithm>LocalScaleOffset</Algorithm>
+                    <Argument name="gain_dataset_filename_1">{src_filename}</Argument>
+                    <Argument name="gain_dataset_band_1">1</Argument>
+                    <Argument name="offset_dataset_filename_1">{src_filename}</Argument>
+                    <Argument name="offset_dataset_band_1">1</Argument>
+                </Step>
+            </ProcessingSteps>
+            </VRTDataset>
+            """)
+
 
 ###############################################################################
 # Test nominal cases of Trimming algorithm
@@ -1121,6 +1165,27 @@ def test_vrtprocesseddataset_trimming_errors(tmp_vsimem):
             <Step>
                 <Algorithm>Trimming</Algorithm>
                 <Argument name="trimming_dataset_filename">{trimming_two_bands_filename}</Argument>
+                <Argument name="top_rgb">200</Argument>
+                <Argument name="tone_ceil">190</Argument>
+                <Argument name="top_margin">0.1</Argument>
+            </Step>
+        </ProcessingSteps>
+        </VRTDataset>
+            """)
+
+    with pytest.raises(
+        Exception,
+        match=r"input band count \(4\) is different from output band count \(1\)",
+    ):
+        gdal.Open(f"""<VRTDataset subclass='VRTProcessedDataset'>
+        <VRTRasterBand dataType="Float64" band="1" subClass="VRTProcessedRasterBand"/>
+        <Input>
+            <SourceFilename>{src_filename}</SourceFilename>
+        </Input>
+        <ProcessingSteps>
+            <Step>
+                <Algorithm>Trimming</Algorithm>
+                <Argument name="trimming_dataset_filename">{trimming_filename}</Argument>
                 <Argument name="top_rgb">200</Argument>
                 <Argument name="tone_ceil">190</Argument>
                 <Argument name="top_margin">0.1</Argument>

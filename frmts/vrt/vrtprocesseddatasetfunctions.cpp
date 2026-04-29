@@ -458,7 +458,18 @@ static CPLErr LUTInit(const char * /*pszFuncName*/, void * /*pUserData*/,
     *peOutDT = eInDT;
     *ppWorkingData = nullptr;
 
-    if (!bIsFinalStep)
+    if (bIsFinalStep)
+    {
+        if (*pnOutBands != nInBands)
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "LUT step: input band count (%d) is different from output "
+                     "band count (%d)",
+                     nInBands, *pnOutBands);
+            return CE_Failure;
+        }
+    }
+    else
     {
         *pnOutBands = nInBands;
     }
@@ -694,7 +705,18 @@ LocalScaleOffsetInit(const char * /*pszFuncName*/, void * /*pUserData*/,
     *peOutDT = eInDT;
     *ppWorkingData = nullptr;
 
-    if (!bIsFinalStep)
+    if (bIsFinalStep)
+    {
+        if (*pnOutBands != nInBands)
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "LocalScaleOffset step: input band count (%d) is "
+                     "different from output band count (%d)",
+                     nInBands, *pnOutBands);
+            return CE_Failure;
+        }
+    }
+    else
     {
         *pnOutBands = nInBands;
     }
@@ -1162,7 +1184,18 @@ static CPLErr TrimmingInit(const char * /*pszFuncName*/, void * /*pUserData*/,
     *peOutDT = eInDT;
     *ppWorkingData = nullptr;
 
-    if (!bIsFinalStep)
+    if (bIsFinalStep)
+    {
+        if (*pnOutBands != nInBands)
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "Trimming step: input band count (%d) is different from "
+                     "output band count (%d)",
+                     nInBands, *pnOutBands);
+            return CE_Failure;
+        }
+    }
+    else
     {
         *pnOutBands = nInBands;
     }
