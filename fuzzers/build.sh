@@ -180,6 +180,10 @@ curl -L http://download.osgeo.org/libtiff/tiff-4.7.1.tar.gz > tiff-4.7.1.tar.gz 
 rm -rf libaec
 git clone --depth 1 https://github.com/Deutsches-Klimarechenzentrum/libaec
 
+rm -rf hdf4
+#git clone --depth 1 https://github.com/hdfgroup/hdf4
+git clone --depth 1 --branch ossfuzz_fixes https://github.com/rouault/hdf4
+
 # libxerces-c-dev${ARCH_SUFFIX}
 # libsqlite3-dev${ARCH_SUFFIX}
 PACKAGES="zlib1g-dev${ARCH_SUFFIX} libexpat-dev${ARCH_SUFFIX} liblzma-dev${ARCH_SUFFIX} \
@@ -361,6 +365,17 @@ if [ "$ARCHITECTURE" = "x86_64" ]; then
   cd ../..
 fi
 
+# build HDF4
+cd hdf4
+rm -rf build
+mkdir build
+cd build
+CFLAGS=$NON_FUZZING_CFLAGS CXXFLAGS=$NON_FUZZING_CXXFLAGS \
+  cmake .. -DBUILD_STATIC_LIBS=ON -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=$SRC/install
+make -j$(nproc) -s
+make install
+cd ../..
+
 # build gdal
 
 if [ "$SANITIZER" = "undefined" ]; then
@@ -404,6 +419,8 @@ if [ "$ARCHITECTURE" = "x86_64" ]; then
   # netCDF related
   export EXTRA_LIBS="$EXTRA_LIBS -L$SRC/install/lib -lnetcdf -lhdf5_serial_hl -lhdf5_serial -lsz -laec -lz"
 fi
+# HDF4 related
+export EXTRA_LIBS="$EXTRA_LIBS -L$SRC/install/lib -lmfhdf -lhdf -lz"
 # poppler related
 export EXTRA_LIBS="$EXTRA_LIBS -L$SRC/install/lib -lpoppler -ljpeg -lfreetype -lfontconfig -lpng"
 export EXTRA_LIBS="$EXTRA_LIBS -lbz2 -lz"

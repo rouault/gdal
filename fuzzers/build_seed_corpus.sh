@@ -668,5 +668,11 @@ rm -f $OUT/gdal_algorithm_fuzzer_seed_corpus.zip
 zip -r $OUT/gdal_algorithm_fuzzer_seed_corpus.zip test*.tar >/dev/null
 rm test*.tar
 
+echo "Building hdf4_fuzzer_seed_corpus"
+cd $(dirname $0)/../autotest/gcore/data/hdf4
+rm -f $OUT/hdf4_fuzzer_seed_corpus.zip
+zip -r $OUT/hdf4_fuzzer_seed_corpus.zip *.h* >/dev/null
+cd $OLDPWD
+
 echo "Copying data to $OUT"
 cp $(dirname $0)/../data/* $OUT

@@ -119,6 +119,8 @@ build_gdal_specialized_fuzzer zarr GDALRegister_Zarr "/vsimem/test.tar" "/vsitar
 build_gdal_specialized_fuzzer dimap "GDALRegister_DIMAP();GDALRegister_GTiff" "/vsimem/test.tar" "/vsitar//vsimem/test.tar"
 build_gdal_specialized_fuzzer gdal_miramon "GDALRegister_MiraMon" "/vsimem/test.tar" "/vsitar//vsimem/test.tar/byte_2x3_6_categs_RLEI.rel"
 
+build_fuzzer hdf4_fuzzer $(dirname $0)/gdal_fuzzer.cpp -DREGISTER_FUNC=GDALRegister_HDF4 -DUSE_FILESYSTEM
+
 build_fuzzer gdal_filesystem_fuzzer $(dirname $0)/gdal_fuzzer.cpp -DUSE_FILESYSTEM
 build_fuzzer ogr_filesystem_fuzzer $(dirname $0)/ogr_fuzzer.cpp -DUSE_FILESYSTEM
 
