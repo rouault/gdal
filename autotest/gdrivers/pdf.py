@@ -1342,6 +1342,7 @@ def test_pdf_write_ogr(poppler_or_pdfium):
             )
             cs = ds.GetRasterBand(1).Checksum()
             # When misconfigured Poppler with fonts, use this to avoid error
+            print(opt, gdal.GetLastErrorMsg(), cs)
             if "TEXT" in opt and gdal.GetLastErrorMsg().find("font") >= 0:
                 cs = -cs
             cs_tab.append(cs)
