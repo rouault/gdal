@@ -302,6 +302,7 @@ class GDALPipelineStepAlgorithm /* non final */ : public GDALAlgorithm
     friend class GDALPipelineAlgorithm;
     friend class GDALRasterPipelineAlgorithm;
     friend class GDALVectorPipelineAlgorithm;
+    friend class GDALMdimPipelineAlgorithm;
     friend class GDALAbstractPipelineAlgorithm;
 
     virtual bool CanBeFirstStep() const
@@ -398,6 +399,11 @@ class GDALPipelineStepAlgorithm /* non final */ : public GDALAlgorithm
     void AddOutputLayerNameArg(bool hiddenForCLI,
                                bool shortNameOutputLayerAllowed);
 
+    void AddMdimInputArgs(bool openForMixedRasterVector, bool hiddenForCLI,
+                          bool acceptRaster);
+    void AddMdimOutputArgs(bool hiddenForCLI);
+    void AddMdimHiddenInputDatasetArg();
+
   private:
     bool RunImpl(GDALProgressFunc pfnProgress, void *pProgressData) override;
     GDALAlgorithm::ProcessGDALGOutputRet ProcessGDALGOutput() override;
@@ -435,6 +441,7 @@ class GDALAbstractPipelineAlgorithm CPL_NON_FINAL
 
     static constexpr const char *RASTER_SUFFIX = "-raster";
     static constexpr const char *VECTOR_SUFFIX = "-vector";
+    static constexpr const char *MULTIDIM_SUFFIX = "-multidim";
 
   protected:
     friend class GDALTeeStepAlgorithmAbstract;
@@ -467,6 +474,7 @@ class GDALAbstractPipelineAlgorithm CPL_NON_FINAL
     friend class GDALPipelineAlgorithm;
     friend class GDALRasterPipelineAlgorithm;
     friend class GDALVectorPipelineAlgorithm;
+    friend class GDALMdimPipelineAlgorithm;
 
     std::vector<std::unique_ptr<GDALPipelineStepAlgorithm>> m_steps{};
 
