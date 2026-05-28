@@ -62,6 +62,17 @@ target_include_directories(
           $<TARGET_PROPERTY:gdal_vrt,SOURCE_DIR>)
 set_property(TARGET gcore PROPERTY POSITION_INDEPENDENT_CODE ${GDAL_OBJECT_LIBRARIES_POSITION_INDEPENDENT_CODE})
 
+if (GDAL_ENABLE_DRIVER_GTIFF)
+  target_include_directories(gcore PRIVATE $<TARGET_PROPERTY:gdal_GTIFF,SOURCE_DIR>)
+  target_compile_definitions(gcore PRIVATE -DHAVE_TIFF)
+
+  if (GDAL_USE_TIFF_INTERNAL)
+      target_include_directories(gcore PRIVATE $<TARGET_PROPERTY:libtiff,SOURCE_DIR>)
+  else()
+      target_include_directories(gcore PRIVATE $<TARGET_PROPERTY:TIFF::TIFF,INTERFACE_INCLUDE_DIRECTORIES>)
+  endif()
+endif()
+
 if (NOT DEFINED GDAL_RESOURCE_PATH)
   message(FATAL_ERROR "GDAL_RESOURCE_PATH not set")
 endif ()
