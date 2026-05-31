@@ -23,6 +23,8 @@
 /*                      GDALPipelineStepAlgorithm                       */
 /************************************************************************/
 
+class OGRLayer;
+
 class GDALPipelineStepAlgorithm /* non final */ : public GDALAlgorithm
 {
   public:
@@ -361,6 +363,12 @@ class GDALPipelineStepAlgorithm /* non final */ : public GDALAlgorithm
     using GDALAlgorithm::AddOutputLayerNameArg;
     void AddOutputLayerNameArg(bool hiddenForCLI,
                                bool shortNameOutputLayerAllowed);
+
+    bool CreateDatasetSingleOutputLayerIfNeeded(
+        GDALPipelineStepRunContext &ctxt, const std::string &defaultLayerName,
+        GDALDataset *&poDstDS, bool &bTemporaryFile,
+        std::unique_ptr<GDALDataset> &poNewRetDS, std::string &outputLayerName,
+        OGRLayer *&poDstLayer);
 
   private:
     bool RunImpl(GDALProgressFunc pfnProgress, void *pProgressData) override;
