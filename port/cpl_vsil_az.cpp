@@ -477,6 +477,10 @@ class VSIAzureFSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
         return CreateAzHandleHelper(pszURI, bAllowNoObject);
     }
 
+    IVSIS3LikeHandleHelper *
+    CreateHandleHelperForSignedURL(const char *pszURI,
+                                   CSLConstList papszOptions) override;
+
     char **GetFileList(const char *pszFilename, int nMaxFiles,
                        bool *pbGotFileList) override;
 
@@ -541,9 +545,6 @@ class VSIAzureFSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
                          CSLConstList papszOptions) override;
 
     const char *GetOptions() override;
-
-    char *GetSignedURL(const char *pszFilename,
-                       CSLConstList papszOptions) override;
 
     char **GetFileList(const char *pszFilename, int nMaxFiles,
                        bool bCacheEntries, bool *pbGotFileList);
@@ -2449,28 +2450,14 @@ const char *VSIAzureFSHandler::GetOptions()
 }
 
 /************************************************************************/
-/*                            GetSignedURL()                            */
+/*                   CreateHandleHelperForSignedURL()                   */
 /************************************************************************/
 
-char *VSIAzureFSHandler::GetSignedURL(const char *pszFilename,
-                                      CSLConstList papszOptions)
+IVSIS3LikeHandleHelper *VSIAzureFSHandler::CreateHandleHelperForSignedURL(
+    const char *pszURI, CSLConstList papszOptions)
 {
-    if (!STARTS_WITH_CI(pszFilename, GetFSPrefix().c_str()))
-        return nullptr;
-
-    VSIAzureBlobHandleHelper *poHandleHelper =
-        VSIAzureBlobHandleHelper::BuildFromURI(
-            pszFilename + GetFSPrefix().size(), GetFSPrefix().c_str(), nullptr,
-            papszOptions);
-    if (poHandleHelper == nullptr)
-    {
-        return nullptr;
-    }
-
-    std::string osRet(poHandleHelper->GetSignedURL(papszOptions));
-
-    delete poHandleHelper;
-    return CPLStrdup(osRet.c_str());
+    return VSIAzureBlobHandleHelper::BuildFromURI(pszURI, GetFSPrefix().c_str(),
+                                                  nullptr, papszOptions);
 }
 
 /************************************************************************/

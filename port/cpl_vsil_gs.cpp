@@ -79,6 +79,10 @@ class VSIGSFSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
     IVSIS3LikeHandleHelper *CreateHandleHelper(const char *pszURI,
                                                bool bAllowNoObject) override;
 
+    IVSIS3LikeHandleHelper *
+    CreateHandleHelperForSignedURL(const char *pszURI,
+                                   CSLConstList papszOptions) override;
+
     void ClearCache() override;
 
     bool IsAllowedHeaderForObjectCreation(const char *pszHeaderName) override
@@ -104,9 +108,6 @@ class VSIGSFSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
     ~VSIGSFSHandler() override;
 
     const char *GetOptions() override;
-
-    char *GetSignedURL(const char *pszFilename,
-                       CSLConstList papszOptions) override;
 
     char **GetFileMetadata(const char *pszFilename, const char *pszDomain,
                            CSLConstList papszOptions) override;
@@ -277,27 +278,14 @@ const char *VSIGSFSHandler::GetOptions()
 }
 
 /************************************************************************/
-/*                            GetSignedURL()                            */
+/*                   CreateHandleHelperForSignedURL()                   */
 /************************************************************************/
 
-char *VSIGSFSHandler::GetSignedURL(const char *pszFilename,
-                                   CSLConstList papszOptions)
+IVSIS3LikeHandleHelper *VSIGSFSHandler::CreateHandleHelperForSignedURL(
+    const char *pszURI, CSLConstList papszOptions)
 {
-    if (!STARTS_WITH_CI(pszFilename, GetFSPrefix().c_str()))
-        return nullptr;
-
-    VSIGSHandleHelper *poHandleHelper = VSIGSHandleHelper::BuildFromURI(
-        pszFilename + GetFSPrefix().size(), GetFSPrefix().c_str(), nullptr,
-        papszOptions);
-    if (poHandleHelper == nullptr)
-    {
-        return nullptr;
-    }
-
-    std::string osRet(poHandleHelper->GetSignedURL(papszOptions));
-
-    delete poHandleHelper;
-    return osRet.empty() ? nullptr : CPLStrdup(osRet.c_str());
+    return VSIGSHandleHelper::BuildFromURI(pszURI, GetFSPrefix().c_str(),
+                                           nullptr, papszOptions);
 }
 
 /************************************************************************/

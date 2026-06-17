@@ -204,9 +204,6 @@ class VSIADLSFSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
 
     const char *GetOptions() override;
 
-    char *GetSignedURL(const char *pszFilename,
-                       CSLConstList papszOptions) override;
-
     char **GetFileList(const char *pszFilename, int nMaxFiles,
                        bool bCacheEntries, bool *pbGotFileList);
 
@@ -316,6 +313,10 @@ class VSIADLSFSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
 
     IVSIS3LikeHandleHelper *CreateHandleHelper(const char *pszURI,
                                                bool bAllowNoObject) override;
+
+    IVSIS3LikeHandleHelper *
+    CreateHandleHelperForSignedURL(const char *pszURI,
+                                   CSLConstList papszOptions) override;
 
     std::string
     GetStreamingFilename(const std::string &osFilename) const override;
@@ -2046,28 +2047,16 @@ const char *VSIADLSFSHandler::GetOptions()
 }
 
 /************************************************************************/
-/*                            GetSignedURL()                            */
+/*                   CreateHandleHelperForSignedURL()                   */
 /************************************************************************/
 
-char *VSIADLSFSHandler::GetSignedURL(const char *pszFilename,
-                                     CSLConstList papszOptions)
+IVSIS3LikeHandleHelper *VSIADLSFSHandler::CreateHandleHelperForSignedURL(
+    const char *pszURI, CSLConstList papszOptions)
 {
-    if (!STARTS_WITH_CI(pszFilename, GetFSPrefix().c_str()))
-        return nullptr;
-
-    auto poHandleHelper = std::unique_ptr<VSIAzureBlobHandleHelper>(
-        VSIAzureBlobHandleHelper::BuildFromURI(pszFilename +
-                                                   GetFSPrefix().size(),
-                                               "/vsiaz/",  // use Azure blob
-                                               nullptr, papszOptions));
-    if (poHandleHelper == nullptr)
-    {
-        return nullptr;
-    }
-
-    std::string osRet(poHandleHelper->GetSignedURL(papszOptions));
-
-    return CPLStrdup(osRet.c_str());
+    return VSIAzureBlobHandleHelper::BuildFromURI(
+        pszURI,
+        "/vsiaz/",  // ADLS signed URLs use the Azure Blob API endpoint
+        nullptr, papszOptions);
 }
 
 /************************************************************************/

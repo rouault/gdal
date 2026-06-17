@@ -776,6 +776,10 @@ class VSIS3FSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
     IVSIS3LikeHandleHelper *CreateHandleHelper(const char *pszURI,
                                                bool bAllowNoObject) override;
 
+    IVSIS3LikeHandleHelper *
+    CreateHandleHelperForSignedURL(const char *pszURI,
+                                   CSLConstList papszOptions) override;
+
     std::string GetFSPrefix() const override
     {
         return m_osPrefix;
@@ -800,9 +804,6 @@ class VSIS3FSHandler final : public IVSIS3LikeFSHandlerWithMultipartUpload
     ~VSIS3FSHandler() override;
 
     const char *GetOptions() override;
-
-    char *GetSignedURL(const char *pszFilename,
-                       CSLConstList papszOptions) override;
 
     int *UnlinkBatch(CSLConstList papszFiles) override;
 
@@ -2135,27 +2136,14 @@ const char *VSIS3FSHandler::GetOptions()
 }
 
 /************************************************************************/
-/*                            GetSignedURL()                            */
+/*                   CreateHandleHelperForSignedURL()                   */
 /************************************************************************/
 
-char *VSIS3FSHandler::GetSignedURL(const char *pszFilename,
-                                   CSLConstList papszOptions)
+IVSIS3LikeHandleHelper *VSIS3FSHandler::CreateHandleHelperForSignedURL(
+    const char *pszURI, CSLConstList papszOptions)
 {
-    if (!STARTS_WITH_CI(pszFilename, GetFSPrefix().c_str()))
-        return nullptr;
-
-    VSIS3HandleHelper *poS3HandleHelper = VSIS3HandleHelper::BuildFromURI(
-        pszFilename + GetFSPrefix().size(), GetFSPrefix().c_str(), false,
-        papszOptions);
-    if (poS3HandleHelper == nullptr)
-    {
-        return nullptr;
-    }
-
-    std::string osRet(poS3HandleHelper->GetSignedURL(papszOptions));
-
-    delete poS3HandleHelper;
-    return CPLStrdup(osRet.c_str());
+    return VSIS3HandleHelper::BuildFromURI(pszURI, GetFSPrefix().c_str(), false,
+                                           papszOptions);
 }
 
 /************************************************************************/
@@ -3612,6 +3600,36 @@ static std::string ComputeMD5OfLocalFile(VSILFILE *fp)
     VSIFSeekL(fp, 0, SEEK_SET);
 
     return hhash;
+}
+
+/************************************************************************/
+/*                   CreateHandleHelperForSignedURL()                   */
+/************************************************************************/
+
+IVSIS3LikeHandleHelper *IVSIS3LikeFSHandler::CreateHandleHelperForSignedURL(
+    const char *pszURI, CSLConstList /*papszOptions*/)
+{
+    return CreateHandleHelper(pszURI, false);
+}
+
+/************************************************************************/
+/*                            GetSignedURL()                            */
+/************************************************************************/
+
+char *IVSIS3LikeFSHandler::GetSignedURL(const char *pszFilename,
+                                        CSLConstList papszOptions)
+{
+    if (!STARTS_WITH_CI(pszFilename, GetFSPrefix().c_str()))
+        return nullptr;
+
+    std::unique_ptr<IVSIS3LikeHandleHelper> poHandleHelper(
+        CreateHandleHelperForSignedURL(pszFilename + GetFSPrefix().size(),
+                                       papszOptions));
+    if (!poHandleHelper)
+        return nullptr;
+
+    const std::string osRet = poHandleHelper->GetSignedURL(papszOptions);
+    return osRet.empty() ? nullptr : CPLStrdup(osRet.c_str());
 }
 
 /************************************************************************/
