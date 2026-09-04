@@ -22,15 +22,15 @@ Synopsis
 Description
 -----------
 
-:program:`gdal vector compare` compares two GDAL supported vector datasets and
+:program:`gdal vector compare` compares two GDAL-supported vector datasets and
 reports the differences. In addition to reporting differences to the
 standard output, the program will also return the difference count in its
 exit value.
 
-As a convention, the first dataset specified as a positional argument, or through
-:option:`--reference`, is assumed to be the reference/exact/golden dataset. The second
+By convention, the first dataset specified as a positional argument, or through
+:option:`--reference`, is assumed to be the reference (or "golden") dataset. The second
 dataset specified as a positional argument, or through :option:`--input`, is the
-dataset compared to the reference dataset.
+dataset to compare to the reference dataset.
 
 Feature content, field definitions, layer and dataset metadata are checked.
 Features are compared in the order in which they are presented by each layer.
@@ -56,12 +56,12 @@ Program-Specific Options
 .. option:: --lax-geometry
 
     Performs lax geometry comparison. In that mode, a geometry whose type is
-    point, linestring or polygon is considered as equivalent to the single-part
-    corresponding collection geometry type (multipoint, multilinestring, multipolygon).
+    Point, LineString or Polygon is considered as equivalent to the single-part
+    corresponding collection geometry type (MultiPoint, MultiLineString, MultiPolygon).
 
 .. option:: --skip-all-optional
 
-    Whether to skip all optional tests. This is an alias to defining all other
+    Whether to skip all optional tests. This is is equivalent to specifying all other
     ``--skip-XXXX`` options.
 
 .. option:: --skip-binary
@@ -100,7 +100,7 @@ Examples
 --------
 
 .. example::
-   :title: Comparing two vector datasets, ignoring feature IDs difference
+   :title: Comparing two vector datasets, ignoring feature ID differences
 
    .. code-block:: bash
 
